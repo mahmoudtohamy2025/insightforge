@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InsightForge — AI-Powered Hybrid Research Platform</title>
+    <meta name="description" content="Turn research into actionable insights. AI-powered surveys, qualitative sessions, theme extraction, and cross-study synthesis — with built-in MENA cultural awareness." />
+    <meta name="author" content="InsightForge" />
+
+    <meta property="og:title" content="InsightForge — AI-Powered Hybrid Research Platform" />
+    <meta property="og:description" content="Surveys, sessions, AI analysis, and cross-study synthesis in one platform. Built for qualitative and quantitative researchers." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@InsightForge" />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <!-- PWA -->
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>
+

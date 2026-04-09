@@ -1,0 +1,1 @@
+ALTER TABLE public.survey_questions ADD COLUMN IF NOT EXISTS logic jsonb DEFAULT NULL;

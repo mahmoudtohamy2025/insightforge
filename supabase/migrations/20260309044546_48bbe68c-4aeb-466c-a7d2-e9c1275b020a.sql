@@ -1,0 +1,1 @@
+ALTER TABLE public.sessions ADD COLUMN sentiment_summary jsonb DEFAULT NULL;

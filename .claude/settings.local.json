@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Read(//Users/mahmoudtohamy/.nvm/versions/node/**)",
+      "Read(//usr/local/bin/**)",
+      "Read(//opt/homebrew/lib/node_modules/npm/bin/**)",
+      "Read(//opt/homebrew/Cellar/node/25.8.0/bin/**)",
+      "Bash(/opt/homebrew/bin/npm root:*)",
+      "Bash(/opt/homebrew/bin/node -e \"console.log\\(process.execPath\\)\")",
+      "Bash(/opt/homebrew/bin/node node_modules/.bin/tsc --noEmit)"
+    ]
+  }
+}

@@ -1,0 +1,91 @@
+project_id = "pjscposcnznrabswauuw"
+
+[functions.invite-member]
+verify_jwt = false
+
+[functions.list-workspace-members]
+verify_jwt = false
+
+[functions.generate-survey-questions]
+verify_jwt = false
+
+[functions.submit-survey-response]
+verify_jwt = false
+
+[functions.analyze-transcript]
+verify_jwt = false
+
+[functions.synthesize-insights]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
+
+[functions.dispatch-webhook]
+verify_jwt = false
+
+[functions.cleanup-expired-data]
+verify_jwt = false
+
+[functions.export-workspace-data]
+verify_jwt = false
+
+[functions.erase-participant]
+verify_jwt = false
+
+[functions.seed-sample-project]
+verify_jwt = false
+
+[functions.generate-project-plan]
+verify_jwt = false
+
+[functions.summarize-session]
+verify_jwt = false
+
+[functions.generate-probes]
+verify_jwt = false
+
+[functions.distribute-survey]
+verify_jwt = false
+[functions.cron-calibration]
+enabled = true
+verify_jwt = true
+import_map = "./functions/cron-calibration/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/cron-calibration/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/cron-calibration/*.html" ]
+
+[functions.suggest-methodology]
+verify_jwt = false
+
+[functions.disburse-incentive]
+verify_jwt = false
+
+[functions.check-budget]
+verify_jwt = false
+
+[functions.incentive-webhook]
+verify_jwt = false
+
+[functions.incentive-report]
+verify_jwt = false
+
+[functions.marketplace-handler]
+enabled = true
+verify_jwt = true
+import_map = "./functions/marketplace-handler/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/marketplace-handler/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/marketplace-handler/*.html" ]

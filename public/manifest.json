@@ -1,0 +1,43 @@
+{
+  "name": "InsightForge",
+  "short_name": "InsightForge",
+  "description": "AI-Powered Hybrid Research Platform — Surveys, sessions, AI analysis, and cross-study synthesis.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#6366f1",
+  "orientation": "any",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View your research dashboard"
+    },
+    {
+      "name": "Sessions",
+      "url": "/sessions",
+      "description": "Manage research sessions"
+    },
+    {
+      "name": "Surveys",
+      "url": "/surveys",
+      "description": "Create and manage surveys"
+    }
+  ]
+}
