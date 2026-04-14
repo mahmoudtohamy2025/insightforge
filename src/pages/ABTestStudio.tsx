@@ -20,6 +20,8 @@ import {
   Trophy,
   Minus,
 } from "lucide-react";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_AB_TEST } from "@/lib/tourDefinitions";
 
 const sentimentColor = (s: number) => {
   if (s > 0.2) return "text-emerald-500";
@@ -90,13 +92,14 @@ const ABTestStudio = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
+      <ProductTour tourId="ab-test" steps={TOUR_AB_TEST} />
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/segments")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 id="ab-header" className="text-2xl font-bold flex items-center gap-2">
             <FlaskConical className="h-6 w-6 text-primary" />
             A/B Test Studio
           </h1>
@@ -139,6 +142,7 @@ const ABTestStudio = () => {
           </CardHeader>
           <CardContent>
             <Textarea
+              id="ab-variant-a"
               rows={4}
               placeholder="Describe your first variant...&#10;&#10;Example: 'Organic Snack Bar - $3.99, emphasis on health benefits'"
               value={variantA}
@@ -157,6 +161,7 @@ const ABTestStudio = () => {
           </CardHeader>
           <CardContent>
             <Textarea
+              id="ab-variant-b"
               rows={4}
               placeholder="Describe your second variant...&#10;&#10;Example: 'Organic Snack Bar - $2.49, emphasis on taste and convenience'"
               value={variantB}
@@ -168,6 +173,7 @@ const ABTestStudio = () => {
       </div>
 
       <Button
+        id="ab-run-btn"
         className="w-full"
         size="lg"
         onClick={() => runMutation.mutate()}

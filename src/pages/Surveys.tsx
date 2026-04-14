@@ -17,6 +17,8 @@ import { logActivity } from "@/lib/activityLogger";
 import { parseTierLimitError } from "@/lib/tierLimitError";
 import { SurveyCard, type Survey } from "@/components/surveys/SurveyCard";
 import { CreateSurveyWizard, type GeneratedQuestion } from "@/components/surveys/CreateSurveyWizard";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_SURVEYS } from "@/lib/tourDefinitions";
 
 const Surveys = () => {
   const { t } = useI18n();
@@ -101,12 +103,13 @@ const Surveys = () => {
 
   return (
     <div className="space-y-6">
+      <ProductTour tourId="surveys" steps={TOUR_SURVEYS} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">{t("surveys.title")}</h1>
+        <h1 id="surveys-header" className="text-2xl font-bold">{t("surveys.title")}</h1>
         <Tooltip>
           <TooltipTrigger asChild>
             <span>
-              <Button onClick={() => setWizardOpen(true)} disabled={!canCreate}>
+              <Button id="create-survey-btn" onClick={() => setWizardOpen(true)} disabled={!canCreate}>
                 <Plus className="h-4 w-4 me-2" />
                 {t("surveys.create")}
               </Button>

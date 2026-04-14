@@ -16,6 +16,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ResearchPatternsTab } from "@/components/insights/ResearchPatternsTab";
 import { exportPatternsToCSV, exportSurveyBreakdownToCSV, patternsToMarkdown } from "@/lib/exportUtils";
 import { toast } from "@/hooks/use-toast";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_INSIGHTS } from "@/lib/tourDefinitions";
 
 interface SurveyInsight {
   id: string;
@@ -248,8 +250,9 @@ const Insights = () => {
 
   return (
     <div className="space-y-6">
+      <ProductTour tourId="insights" steps={TOUR_INSIGHTS} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">{t("insights.title")}</h1>
+        <h1 id="insights-header" className="text-2xl font-bold">{t("insights.title")}</h1>
         {hasAnyData && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleCopyReport}><Copy className="h-4 w-4 me-2" />{t("insights.copyReport")}</Button>
@@ -300,7 +303,7 @@ const Insights = () => {
 
           <Tabs defaultValue="patterns">
             <TabsList>
-              <TabsTrigger value="patterns">
+              <TabsTrigger id="synthesize-btn" value="patterns">
                 <Lightbulb className="h-4 w-4 me-2" />
                 {t("insights.researchPatterns")}
               </TabsTrigger>

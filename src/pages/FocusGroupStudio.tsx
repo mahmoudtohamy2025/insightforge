@@ -36,6 +36,8 @@ import {
 import { TierGate } from "@/components/TierGate";
 import { generateFocusGroupPDF } from "@/lib/pdfExport";
 import { Download } from "lucide-react";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_FOCUS_GROUP } from "@/lib/tourDefinitions";
 
 const sentimentColor = (s: number) => {
   if (s > 0.2) return "text-emerald-500";
@@ -109,13 +111,14 @@ const FocusGroupStudio = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
+      <ProductTour tourId="focus-group" steps={TOUR_FOCUS_GROUP} />
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate(projectId ? `/projects/${projectId}` : "/segments")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 id="fg-header" className="text-2xl font-bold flex items-center gap-2">
             <Users2 className="h-6 w-6 text-primary" />
             {t("focusGroup.title")}
           </h1>
@@ -131,7 +134,7 @@ const FocusGroupStudio = () => {
               {/* Segment Selection */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">{t("focusGroup.selectParticipants")}</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div id="fg-segment-select" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {segments.map((seg: any, i: number) => {
                     const demo = (seg.demographics || {}) as Record<string, any>;
                     const isSelected = selectedSegmentIds.includes(seg.id);
@@ -166,7 +169,7 @@ const FocusGroupStudio = () => {
               <div className="flex items-center gap-3">
                 <Label className="text-sm font-medium whitespace-nowrap">Discussion Rounds</Label>
                 <Select value={numRounds} onValueChange={setNumRounds}>
-                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="fg-rounds-select" className="w-24"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1">1 round</SelectItem>
                     <SelectItem value="2">2 rounds</SelectItem>
@@ -197,6 +200,7 @@ const FocusGroupStudio = () => {
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Discussion Topic / Stimulus</Label>
                 <Textarea
+                  id="fg-topic-input"
                   rows={3}
                   placeholder="What topic should the focus group discuss?&#10;&#10;Example: 'We're considering launching a subscription meal-kit service targeting busy professionals. What do you think?'"
                   value={stimulus}
@@ -207,6 +211,7 @@ const FocusGroupStudio = () => {
 
               <TierGate resource="aiAnalysis">
                 <Button
+                  id="fg-run-btn"
                   className="w-full"
                   size="lg"
                   onClick={() => runMutation.mutate()}

@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Video, Users, Monitor, Calendar, Clock, Play, Loader2, FileText, Search, X, TrendingUp, TrendingDown, Minus, Shuffle } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_SESSIONS } from "@/lib/tourDefinitions";
 import { useNavigate } from "react-router-dom";
 import { TranscriptUploadDialog } from "@/components/sessions/TranscriptUploadDialog";
 
@@ -180,14 +182,15 @@ const Sessions = () => {
 
   return (
     <div className="space-y-6">
+      <ProductTour tourId="sessions" steps={TOUR_SESSIONS} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">{t("sessions.title")}</h1>
+        <h1 id="sessions-header" className="text-2xl font-bold">{t("sessions.title")}</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
                 <DialogTrigger asChild>
-                  <Button disabled={!canCreate}>
+                  <Button id="create-session-btn" disabled={!canCreate}>
                     <Plus className="h-4 w-4 me-2" />{t("sessions.create")}
                   </Button>
                 </DialogTrigger>

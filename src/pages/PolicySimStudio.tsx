@@ -27,6 +27,8 @@ import {
   ThumbsDown,
   Tag,
 } from "lucide-react";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_POLICY_SIM } from "@/lib/tourDefinitions";
 
 const IMPACT_AREAS = [
   { id: "health", label: "🏥 Health", color: "text-rose-500" },
@@ -144,13 +146,14 @@ const PolicySimStudio = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
+      <ProductTour tourId="policy-sim" steps={TOUR_POLICY_SIM} />
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/segments")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 id="policy-header" className="text-2xl font-bold flex items-center gap-2">
             <Scale className="h-6 w-6 text-primary" />
             Policy Impact Simulation
           </h1>
@@ -184,11 +187,11 @@ const PolicySimStudio = () => {
               {/* Policy description */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Policy Description</Label>
-                <Textarea rows={4} placeholder="Describe the proposed policy in detail...&#10;&#10;Example: 'Mandatory 4-day work week for all companies with 50+ employees, maintaining current salaries. Companies that don't comply will face a 5% payroll tax penalty.'" value={policyDescription} onChange={e => setPolicyDescription(e.target.value)} className="resize-none" />
+                <Textarea id="policy-desc-input" rows={4} placeholder="Describe the proposed policy in detail...&#10;&#10;Example: 'Mandatory 4-day work week for all companies with 50+ employees, maintaining current salaries. Companies that don't comply will face a 5% payroll tax penalty.'" value={policyDescription} onChange={e => setPolicyDescription(e.target.value)} className="resize-none" />
               </div>
 
               {/* Impact Areas */}
-              <div className="space-y-2">
+              <div className="space-y-2" id="policy-type-select">
                 <Label className="text-sm font-medium">Impact Areas</Label>
                 <div className="flex flex-wrap gap-2">
                   {IMPACT_AREAS.map(area => (
@@ -217,7 +220,7 @@ const PolicySimStudio = () => {
                 </Select>
               </div>
 
-              <Button className="w-full" size="lg" onClick={() => runMutation.mutate()}
+              <Button id="policy-run-btn" className="w-full" size="lg" onClick={() => runMutation.mutate()}
                 disabled={selectedSegmentIds.length < 1 || !policyDescription.trim() || runMutation.isPending}
               >
                 {runMutation.isPending ? (

@@ -42,6 +42,8 @@ import {
   Scale,
   Wand2,
 } from "lucide-react";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_TWINS } from "@/lib/tourDefinitions";
 
 const calibrationColor = (score: number | null) => {
   if (!score || score < 0.3) return "bg-red-500/20 text-red-400 border-red-500/30";
@@ -154,9 +156,10 @@ const SegmentLibrary = () => {
 
   return (
     <div className="space-y-6 max-w-6xl">
+      <ProductTour tourId="twins" steps={TOUR_TWINS} />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 id="twins-header" className="text-2xl font-bold flex items-center gap-2">
             <Users2 className="h-6 w-6 text-primary" />
             Digital Twins
           </h1>
@@ -189,13 +192,13 @@ const SegmentLibrary = () => {
               </Button>
             </>
           )}
-          <Button variant="outline" size="sm" onClick={() => navigate("/twin-builder")}>
+          <Button id="twin-builder-btn" variant="outline" size="sm" onClick={() => navigate("/twin-builder")}>
             <Wand2 className="h-3.5 w-3.5 mr-1.5" />
             Twin Builder
           </Button>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button id="create-segment-btn">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Segment
               </Button>

@@ -24,6 +24,8 @@ import {
   Target,
   BarChart3,
 } from "lucide-react";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_MARKET_SIM } from "@/lib/tourDefinitions";
 
 const sentimentColor = (s: number) => {
   if (s > 0.5) return "text-emerald-500";
@@ -95,13 +97,14 @@ const MarketSimStudio = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
+      <ProductTour tourId="market-sim" steps={TOUR_MARKET_SIM} />
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/segments")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 id="market-header" className="text-2xl font-bold flex items-center gap-2">
             <TrendingUp className="h-6 w-6 text-primary" />
             Market Simulation
           </h1>
@@ -135,7 +138,7 @@ const MarketSimStudio = () => {
               {/* Product */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Product / Service Description</Label>
-                <Textarea rows={3} placeholder="Describe the product or service you want to simulate...&#10;&#10;Example: 'A premium organic meal-kit delivery service with locally sourced ingredients, weekly subscription, targeting health-conscious urban professionals'" value={product} onChange={e => setProduct(e.target.value)} className="resize-none" />
+                <Textarea id="market-product-input" rows={3} placeholder="Describe the product or service you want to simulate...&#10;&#10;Example: 'A premium organic meal-kit delivery service with locally sourced ingredients, weekly subscription, targeting health-conscious urban professionals'" value={product} onChange={e => setProduct(e.target.value)} className="resize-none" />
               </div>
 
               {/* Pricing + Market Size */}
@@ -162,7 +165,7 @@ const MarketSimStudio = () => {
                 </div>
               </div>
 
-              <Button className="w-full" size="lg" onClick={() => runMutation.mutate()}
+              <Button id="market-run-btn" className="w-full" size="lg" onClick={() => runMutation.mutate()}
                 disabled={selectedSegmentIds.length < 1 || !product.trim() || runMutation.isPending}
               >
                 {runMutation.isPending ? (

@@ -60,6 +60,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { HelpDrawer } from "@/components/layout/HelpDrawer";
 
 interface NavItem {
   titleKey: string;
@@ -340,6 +341,7 @@ export function AppSidebar() {
                   <span className="text-xs font-medium text-sidebar-foreground truncate">{displayName}</span>
                   <span className="text-[10px] text-muted-foreground truncate">{user?.email}</span>
                 </div>
+                <HelpDrawer />
                 <ThemeToggle />
                 <button
                   onClick={handleSignOut}
@@ -351,6 +353,7 @@ export function AppSidebar() {
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
+                <HelpDrawer />
                 <ThemeToggle />
                 <button
                   onClick={handleSignOut}

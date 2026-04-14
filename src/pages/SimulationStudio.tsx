@@ -35,6 +35,8 @@ import {
 import { TierGate } from "@/components/TierGate";
 import { generateSimulationPDF } from "@/lib/pdfExport";
 import { Download } from "lucide-react";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_SIMULATION } from "@/lib/tourDefinitions";
 
 // Sentiment color helpers
 const sentimentIcon = (s: number | null) => {
@@ -144,13 +146,14 @@ const SimulationStudio = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
+      <ProductTour tourId="simulation" steps={TOUR_SIMULATION} />
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/segments")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 id="simulation-header" className="text-2xl font-bold flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-primary" />
             {t("simulation.title")}
           </h1>
@@ -167,7 +170,7 @@ const SimulationStudio = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">{t("simulation.targetSegment")}</label>
                 <Select value={selectedSegmentId} onValueChange={setSelectedSegmentId}>
-                  <SelectTrigger id="segment-select">
+                  <SelectTrigger id="segment-selector">
                     <SelectValue placeholder={t("simulation.selectSegment")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -201,6 +204,7 @@ const SimulationStudio = () => {
 
               <TierGate resource="aiAnalysis">
                 <Button
+                  id="run-simulation-btn"
                   className="w-full"
                   size="lg"
                   onClick={() => simulateMutation.mutate()}
@@ -340,7 +344,7 @@ const SimulationStudio = () => {
 
         {/* Right: History Panel */}
         <div className="space-y-4">
-          <Card>
+          <Card id="recent-simulations">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Clock className="h-4 w-4" />

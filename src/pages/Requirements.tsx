@@ -14,6 +14,8 @@ import { Plus, Search, FileQuestion, ChevronRight, ArrowUp } from "lucide-react"
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { SubmitRequirementDialog } from "@/components/requirements/SubmitRequirementDialog";
+import { ProductTour } from "@/components/onboarding/ProductTour";
+import { TOUR_REQUIREMENTS } from "@/lib/tourDefinitions";
 
 const STATUSES = ["submitted", "under_review", "approved", "in_progress", "insights_ready", "completed"] as const;
 type RequirementStatus = typeof STATUSES[number];
@@ -118,16 +120,17 @@ export default function Requirements() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <ProductTour tourId="requirements" steps={TOUR_REQUIREMENTS} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <FileQuestion className="h-6 w-6 text-primary" />
-          <div>
+          <div id="requirements-header">
             <h1 className="text-2xl font-bold">Requirements</h1>
             <p className="text-sm text-muted-foreground">Track research needs from stakeholders to insights</p>
           </div>
         </div>
-        <Button onClick={() => setSubmitOpen(true)}>
+        <Button id="create-requirement-btn" onClick={() => setSubmitOpen(true)}>
           <Plus className="h-4 w-4 me-2" />
           Submit Requirement
         </Button>
