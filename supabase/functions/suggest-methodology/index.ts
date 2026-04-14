@@ -1,60 +1,61 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { handleCors, jsonResponse } from "../_shared/cors.ts";
+import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.ts";
+import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
+import { fetchGemini, parseToolCallResponse } from "../_shared/aiClient.ts";
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: any) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
   try {
+    // ── Auth ───────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+      return jsonResponse(req, { error: "Unauthorized" }, 401);
     }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return jsonResponse(req, { error: "Unauthorized" }, 401);
     }
 
-    const body = await req.json();
-    const { workspace_id, title, description, category, target_audience, target_market } = body;
+    // ── Parse & Validate Input ───────────────────────────
+    const { body, error: parseError } = await parseBody(req);
+    if (parseError) return parseError;
 
-    if (!workspace_id || !title) {
-      return new Response(JSON.stringify({ error: "Missing required fields: workspace_id, title" }), {
-        status: 400,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+    const { workspace_id, title, description, category, target_audience, target_market } = body!;
+
+    const reqCheck = validateRequired(body!, ["workspace_id", "title"]);
+    if (reqCheck) return jsonResponse(req, reqCheck, 400);
+
+    if (!isValidUUID(workspace_id)) {
+      return jsonResponse(req, { error: "workspace_id must be a valid UUID" }, 400);
     }
 
-    // Validate workspace membership
-    const membershipError = await requireWorkspaceMember(supabase, claimsData.claims.sub, workspace_id);
-    if (membershipError) return membershipError;
+    // ── Workspace Membership Check ───────────────────────
+    const memberCheck = await validateWorkspaceMembership(supabase, req, user.id, workspace_id as string);
+    if (memberCheck) return memberCheck;
 
-    // Check rate limit
-    const rateLimitError = await checkRateLimit(supabase, workspace_id);
-    if (rateLimitError) return rateLimitError;
+    // ── Tier Enforcement ────────────────────────────────
+    const tierCheck = await enforceTierLimit(supabase, req, workspace_id as string, "aiAnalysis");
+    if (tierCheck) return tierCheck;
+
+    // ── Rate Limit Check ────────────────────────────────
+    const tier = await getWorkspaceTier(supabase, workspace_id as string);
+    const rateLimitCheck = await checkRateLimit(supabase, req, workspace_id as string, tier);
+    if (rateLimitCheck) return rateLimitCheck;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
-        status: 500,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+      return jsonResponse(req, { error: "AI not configured (missing GEMINI_API_KEY)" }, 500);
     }
 
     // Count matching digital twins
@@ -65,80 +66,100 @@ Deno.serve(async (req) => {
 
     const systemPrompt = `You are a senior market research strategist with 20+ years of experience designing research programs.
 Your role is to analyze a research requirement and recommend the optimal methodology to answer the business question.
+Consider the MENA region's cultural nuances when relevant (gender separation, prayer scheduling, Halal considerations).`;
 
-You must respond with a valid JSON object only (no markdown, no extra text). Use this exact schema:
-{
-  "recommended_methodology": "<primary method: survey | focus_group | idi | simulation | ux_test | diary_study | mixed>",
-  "secondary_methodologies": ["<method>", "<method>"],
-  "rationale": "<2-3 sentence explanation of why this methodology best answers the question>",
-  "estimated_effort": "<small | medium | large | xl>",
-  "estimated_timeline_weeks": <number>,
-  "recommended_sample_size": <number>,
-  "key_questions_to_answer": ["<question>", "<question>", "<question>"],
-  "risks_and_considerations": "<brief note on limitations or risks>",
-  "digital_twin_applicability": "<how digital twins could be used: pre-validation | substitute | complement | not-applicable>"
-}`;
+    const cleanTitle = sanitize(title as string, 500);
+    const cleanDesc = sanitize((description as string) || "", 2000);
 
     const userPrompt = `Research Requirement:
-Title: ${title}
-${description ? `Description: ${description}` : ""}
+Title: ${cleanTitle}
+${cleanDesc ? `Description: ${cleanDesc}` : ""}
 ${category ? `Category: ${category}` : ""}
 ${target_audience ? `Target Audience: ${target_audience}` : ""}
 ${target_market ? `Target Market: ${target_market}` : ""}
 
 Recommend the best research methodology to address this requirement.`;
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${GEMINI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.4,
-        max_tokens: 800,
-        response_format: { type: "json_object" },
-      }),
+    const startTime = Date.now();
+
+    const aiResponse = await fetchGemini(GEMINI_API_KEY, {
+      model: "gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [{
+        type: "function",
+        function: {
+          name: "recommend_methodology",
+          description: "Recommend the optimal research methodology for the given requirement",
+          parameters: {
+            type: "object",
+            properties: {
+              recommended_methodology: {
+                type: "string",
+                enum: ["survey", "focus_group", "idi", "simulation", "ux_test", "diary_study", "mixed"],
+                description: "Primary recommended method",
+              },
+              secondary_methodologies: {
+                type: "array",
+                items: { type: "string" },
+                description: "1-2 secondary methods",
+              },
+              rationale: {
+                type: "string",
+                description: "2-3 sentence explanation of why this methodology best answers the question",
+              },
+              estimated_effort: {
+                type: "string",
+                enum: ["small", "medium", "large", "xl"],
+              },
+              estimated_timeline_weeks: { type: "number" },
+              recommended_sample_size: { type: "number" },
+              key_questions_to_answer: {
+                type: "array",
+                items: { type: "string" },
+                description: "3-5 key research questions",
+              },
+              risks_and_considerations: { type: "string" },
+              digital_twin_applicability: {
+                type: "string",
+                enum: ["pre-validation", "substitute", "complement", "not-applicable"],
+              },
+            },
+            required: [
+              "recommended_methodology", "rationale", "estimated_effort",
+              "estimated_timeline_weeks", "recommended_sample_size",
+              "key_questions_to_answer", "digital_twin_applicability",
+            ],
+          },
+        },
+      }],
+      tool_choice: { type: "function", function: { name: "recommend_methodology" } },
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return new Response(JSON.stringify({ error: "AI API error", details: errText }), {
-        status: 502,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+    const durationMs = Date.now() - startTime;
+
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("Gemini API error:", errText);
+      return jsonResponse(req, { error: "AI generation failed", details: errText }, 502);
     }
 
-    const aiData = await response.json();
-    const content = aiData.choices?.[0]?.message?.content ?? "{}";
-    const tokensUsed = aiData.usage?.total_tokens ?? 0;
+    const aiData = await aiResponse.json();
+    const { parsed: suggestion, tokensUsed } = parseToolCallResponse(aiData, {
+      recommended_methodology: "mixed",
+      rationale: "Unable to determine specific methodology",
+    });
 
-    await recordTokenUsage(supabase, workspace_id, tokensUsed, "suggest-methodology");
-
-    let suggestion: Record<string, unknown>;
-    try {
-      suggestion = JSON.parse(content);
-    } catch {
-      suggestion = { recommended_methodology: "mixed", rationale: content };
-    }
+    await recordTokenUsage(supabase, workspace_id as string, tokensUsed);
 
     // Attach the count of available twins
-    suggestion.matching_twin_count = twinCount ?? 0;
+    (suggestion as any).matching_twin_count = twinCount ?? 0;
 
-    return new Response(JSON.stringify(suggestion), {
-      status: 200,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-    });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Internal server error";
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-    });
+    return jsonResponse(req, suggestion);
+  } catch (err: any) {
+    console.error("suggest-methodology error:", err);
+    return jsonResponse(req, { error: err.message || "Internal error" }, 500);
   }
 });

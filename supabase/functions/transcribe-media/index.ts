@@ -76,11 +76,12 @@ Deno.serve(async (req) => {
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
 
     let transcriptText = "";
+    let detectedLanguage = "en";
 
     if (deepgramKey) {
       // Deepgram transcription
       const dgResponse = await fetch(
-        "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&diarize=true&paragraphs=true",
+        "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&diarize=true&paragraphs=true&detect_language=true",
         {
           method: "POST",
           headers: {
@@ -100,6 +101,12 @@ Deno.serve(async (req) => {
         dgResult.results?.channels?.[0]?.alternatives?.[0]?.paragraphs?.transcript ||
         dgResult.results?.channels?.[0]?.alternatives?.[0]?.transcript ||
         "";
+      
+      // Detect language from Deepgram response
+      detectedLanguage =
+        dgResult.results?.channels?.[0]?.detected_language ||
+        dgResult.results?.channels?.[0]?.alternatives?.[0]?.languages?.[0] ||
+        "en";
     } else if (openaiKey) {
       // Fallback: OpenAI Whisper
       const formData = new FormData();
@@ -137,7 +144,7 @@ Deno.serve(async (req) => {
         workspace_id: media.workspace_id,
         raw_text: transcriptText,
         source: "auto_transcription",
-        language: "en",
+        language: detectedLanguage,
       });
 
     if (insertErr) {

@@ -3,6 +3,7 @@ import { handleCors, jsonResponse } from "../_shared/cors.ts";
 import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.ts";
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody, validateUUIDs } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
+import { fetchGemini } from "../_shared/aiClient.ts";
 
 // ── Build persona system prompt from segment ──
 function buildPersonaPrompt(segment: any): string {
@@ -44,36 +45,32 @@ RULES:
 
 // ── Call Gemini with structured output ──
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string) {
-  const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "structured_response",
-          description: "Return the twin's response with structured metadata",
-          parameters: {
-            type: "object",
-            properties: {
-              response: { type: "string", description: "The twin's natural language response" },
-              sentiment: { type: "number", description: "Sentiment from -1.0 to 1.0" },
-              confidence: { type: "number", description: "Confidence from 0.0 to 1.0" },
-              key_themes: { type: "array", items: { type: "string" }, description: "2-4 key themes" },
-              purchase_intent: { type: "string", enum: ["definitely_yes", "probably_yes", "neutral", "probably_no", "definitely_no"] },
-              emotional_reaction: { type: "string", enum: ["excited", "interested", "neutral", "skeptical", "concerned", "opposed"] },
-            },
-            required: ["response", "sentiment", "confidence", "key_themes", "purchase_intent", "emotional_reaction"],
+  const aiResponse = await fetchGemini(apiKey, {
+    model: "gemini-2.5-flash",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    tools: [{
+      type: "function",
+      function: {
+        name: "structured_response",
+        description: "Return the twin's response with structured metadata",
+        parameters: {
+          type: "object",
+          properties: {
+            response: { type: "string", description: "The twin's natural language response" },
+            sentiment: { type: "number", description: "Sentiment from -1.0 to 1.0" },
+            confidence: { type: "number", description: "Confidence from 0.0 to 1.0" },
+            key_themes: { type: "array", items: { type: "string" }, description: "2-4 key themes" },
+            purchase_intent: { type: "string", enum: ["definitely_yes", "probably_yes", "neutral", "probably_no", "definitely_no"] },
+            emotional_reaction: { type: "string", enum: ["excited", "interested", "neutral", "skeptical", "concerned", "opposed"] },
           },
+          required: ["response", "sentiment", "confidence", "key_themes", "purchase_intent", "emotional_reaction"],
         },
-      }],
-      tool_choice: { type: "function", function: { name: "structured_response" } },
-    }),
+      },
+    }],
+    tool_choice: { type: "function", function: { name: "structured_response" } },
   });
 
   if (!aiResponse.ok) {
@@ -198,51 +195,33 @@ Deno.serve(async (req: any) => {
       const seg = segments[i];
       const persona = buildPersonaPrompt(seg);
 
-      // Variant A
       const promptA = `Please evaluate the following product/campaign/concept and share your honest reaction:\n\n"${variantAText}"`;
-      const resA = await callGemini(GEMINI_API_KEY, persona, promptA);
-      totalTokens += resA.tokensUsed;
-
-      resultsA.push({
-        segment_id: seg.id,
-        segment_name: seg.name,
-        ...resA,
-      });
-
-      await supabase.from("twin_responses").insert({
-        simulation_id: simulation.id,
-        segment_id: seg.id,
-        twin_index: i,
-        stimulus_variant: "A",
-        persona_snapshot: { name: seg.name, demographics: seg.demographics },
-        response_text: resA.response || "",
-        sentiment: resA.sentiment,
-        confidence: resA.confidence,
-        behavioral_tags: resA.key_themes || [],
-      });
-
-      // Variant B
       const promptB = `Please evaluate the following product/campaign/concept and share your honest reaction:\n\n"${variantBText}"`;
-      const resB = await callGemini(GEMINI_API_KEY, persona, promptB);
-      totalTokens += resB.tokensUsed;
 
-      resultsB.push({
-        segment_id: seg.id,
-        segment_name: seg.name,
-        ...resB,
-      });
+      // Parallelize A and B calls — they're independent
+      const [resA, resB] = await Promise.all([
+        callGemini(GEMINI_API_KEY, persona, promptA),
+        callGemini(GEMINI_API_KEY, persona, promptB),
+      ]);
+      totalTokens += resA.tokensUsed + resB.tokensUsed;
 
-      await supabase.from("twin_responses").insert({
-        simulation_id: simulation.id,
-        segment_id: seg.id,
-        twin_index: i + segments.length,
-        stimulus_variant: "B",
-        persona_snapshot: { name: seg.name, demographics: seg.demographics },
-        response_text: resB.response || "",
-        sentiment: resB.sentiment,
-        confidence: resB.confidence,
-        behavioral_tags: resB.key_themes || [],
-      });
+      resultsA.push({ segment_id: seg.id, segment_name: seg.name, ...resA });
+      resultsB.push({ segment_id: seg.id, segment_name: seg.name, ...resB });
+
+      await Promise.all([
+        supabase.from("twin_responses").insert({
+          simulation_id: simulation.id, segment_id: seg.id, twin_index: i,
+          stimulus_variant: "A", persona_snapshot: { name: seg.name, demographics: seg.demographics },
+          response_text: resA.response || "", sentiment: resA.sentiment,
+          confidence: resA.confidence, behavioral_tags: resA.key_themes || [],
+        }),
+        supabase.from("twin_responses").insert({
+          simulation_id: simulation.id, segment_id: seg.id, twin_index: i + segments.length,
+          stimulus_variant: "B", persona_snapshot: { name: seg.name, demographics: seg.demographics },
+          response_text: resB.response || "", sentiment: resB.sentiment,
+          confidence: resB.confidence, behavioral_tags: resB.key_themes || [],
+        }),
+      ]);
     }
 
     const durationMs = Date.now() - startTime;

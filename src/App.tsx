@@ -58,6 +58,18 @@ import Earnings from "./pages/participant/Earnings";
 import Impact from "./pages/participant/Impact";
 import Referrals from "./pages/participant/Referrals";
 import MyTwin from "./pages/participant/MyTwin";
+import { SuperAdminRoute } from "@/components/SuperAdminRoute";
+import { SuperAdminLayout } from "@/components/layout/SuperAdminLayout";
+import AdminOverview from "./pages/admin/AdminOverview";
+import AdminTenants from "./pages/admin/AdminTenants";
+import AdminTenantDetail from "./pages/admin/AdminTenantDetail";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminParticipants from "./pages/admin/AdminParticipants";
+import AdminStudies from "./pages/admin/AdminStudies";
+import AdminAIUsage from "./pages/admin/AdminAIUsage";
+import AdminFinancials from "./pages/admin/AdminFinancials";
+import AdminAudit from "./pages/admin/AdminAudit";
+import AdminSystem from "./pages/admin/AdminSystem";
 
 const queryClient = new QueryClient();
 
@@ -96,6 +108,22 @@ const App = () => (
                   <Route path="/participate/referrals" element={<Referrals />} />
                   <Route path="/participate/my-twin" element={<MyTwin />} />
                   <Route path="/participate/profile" element={<ParticipantProfile />} />
+                </Route>
+              </Route>
+
+              {/* Super Admin routes */}
+              <Route element={<SuperAdminRoute />}>
+                <Route element={<SuperAdminLayout />}>
+                  <Route path="/admin" element={<AdminOverview />} />
+                  <Route path="/admin/tenants" element={<AdminTenants />} />
+                  <Route path="/admin/tenants/:id" element={<AdminTenantDetail />} />
+                  <Route path="/admin/users" element={<AdminUsers />} />
+                  <Route path="/admin/participants" element={<AdminParticipants />} />
+                  <Route path="/admin/studies" element={<AdminStudies />} />
+                  <Route path="/admin/ai-usage" element={<AdminAIUsage />} />
+                  <Route path="/admin/financials" element={<AdminFinancials />} />
+                  <Route path="/admin/audit" element={<AdminAudit />} />
+                  <Route path="/admin/system" element={<AdminSystem />} />
                 </Route>
               </Route>
 

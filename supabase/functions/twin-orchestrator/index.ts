@@ -3,6 +3,7 @@ import { handleCors, jsonResponse } from "../_shared/cors.ts";
 import { requireWorkspaceMember } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
+import { fetchGemini } from "../_shared/aiClient.ts";
 
 /**
  * Autonomously calculates temporal context based on current JS Date
@@ -111,11 +112,7 @@ async function callGeminiOrchestrator(
     tool_choice: { type: "function", function: { name: "deterministic_twin_response" } },
   };
 
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const res = await fetchGemini(apiKey, body);
 
   if (!res.ok) {
     const errText = await res.text();
@@ -123,10 +120,11 @@ async function callGeminiOrchestrator(
   }
 
   const data = await res.json();
+  const tokensUsed = data.usage?.total_tokens || 0;
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
   
   if (toolCall?.function?.arguments) {
-    return JSON.parse(toolCall.function.arguments);
+    return { ...JSON.parse(toolCall.function.arguments), tokensUsed };
   }
   
   throw new Error("Failed to parse structured response from Gemini.");
@@ -197,6 +195,11 @@ Deno.serve(async (req: any) => {
 
     // 4. Generate Deterministic Output
     const result = await callGeminiOrchestrator(GEMINI_API_KEY, fullSystemPrompt, userMessage);
+
+    // 5. Record Token Usage (billing)
+    if (result.tokensUsed) {
+      await recordTokenUsage(supabase, workspace_id as string, result.tokensUsed);
+    }
 
     return jsonResponse(req, {
       success: true,

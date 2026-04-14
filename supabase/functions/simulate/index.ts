@@ -3,6 +3,7 @@ import { handleCors, jsonResponse } from "../_shared/cors.ts";
 import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.ts";
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
+import { fetchGemini } from "../_shared/aiClient.ts";
 
 Deno.serve(async (req: any) => {
   const corsResponse = handleCors(req);
@@ -126,41 +127,34 @@ IMPORTANT RULES:
 
     const startTime = Date.now();
 
-    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: personaPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "structured_response",
-              description: "Return the twin's response with structured metadata",
-              parameters: {
-                type: "object",
-                properties: {
-                  response: { type: "string", description: "The twin's natural language response to the stimulus" },
-                  sentiment: { type: "number", description: "Sentiment score from -1.0 (very negative) to 1.0 (very positive)" },
-                  confidence: { type: "number", description: "How confident this persona would be in this response, from 0.0 to 1.0" },
-                  key_themes: { type: "array", items: { type: "string" }, description: "3-5 key themes or decision factors in the response" },
-                  purchase_intent: { type: "string", enum: ["definitely_yes", "probably_yes", "neutral", "probably_no", "definitely_no"], description: "Would this persona purchase/adopt/support this?" },
-                  emotional_reaction: { type: "string", enum: ["excited", "interested", "neutral", "skeptical", "concerned", "opposed"], description: "Primary emotional reaction" },
-                },
-                required: ["response", "sentiment", "confidence", "key_themes", "purchase_intent", "emotional_reaction"],
+    const aiResponse = await fetchGemini(GEMINI_API_KEY, {
+      model: "gemini-2.5-flash",
+      messages: [
+        { role: "system", content: personaPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "structured_response",
+            description: "Return the twin's response with structured metadata",
+            parameters: {
+              type: "object",
+              properties: {
+                response: { type: "string", description: "The twin's natural language response to the stimulus" },
+                sentiment: { type: "number", description: "Sentiment score from -1.0 (very negative) to 1.0 (very positive)" },
+                confidence: { type: "number", description: "How confident this persona would be in this response, from 0.0 to 1.0" },
+                key_themes: { type: "array", items: { type: "string" }, description: "3-5 key themes or decision factors in the response" },
+                purchase_intent: { type: "string", enum: ["definitely_yes", "probably_yes", "neutral", "probably_no", "definitely_no"], description: "Would this persona purchase/adopt/support this?" },
+                emotional_reaction: { type: "string", enum: ["excited", "interested", "neutral", "skeptical", "concerned", "opposed"], description: "Primary emotional reaction" },
               },
+              required: ["response", "sentiment", "confidence", "key_themes", "purchase_intent", "emotional_reaction"],
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "structured_response" } },
-      }),
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "structured_response" } },
     });
 
     const durationMs = Date.now() - startTime;

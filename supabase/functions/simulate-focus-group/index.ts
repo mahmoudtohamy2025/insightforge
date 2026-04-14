@@ -3,6 +3,7 @@ import { handleCors, jsonResponse } from "../_shared/cors.ts";
 import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.ts";
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody, validateUUIDs, validateNumberRange } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
+import { fetchGemini } from "../_shared/aiClient.ts";
 
 // ── Shared: Build persona system prompt from segment ──
 function buildPersonaPrompt(segment: any): string {
@@ -85,11 +86,7 @@ async function callGemini(
     body.tool_choice = { type: "function", function: { name: "structured_response" } };
   }
 
-  const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const aiResponse = await fetchGemini(apiKey, body);
 
   if (!aiResponse.ok) {
     const errText = await aiResponse.text();
@@ -230,58 +227,60 @@ Deno.serve(async (req: any) => {
     for (let round = 0; round < rounds; round++) {
       const roundResponses: any[] = [];
 
-      for (let i = 0; i < segments.length; i++) {
-        const seg = segments[i];
-        const persona = buildPersonaPrompt(seg);
+      if (round === 0) {
+        // ── Parallelize round 0 (no context dependency) ──
+        const parallelResults = await Promise.all(
+          segments.map(async (seg: any, i: number) => {
+            const persona = buildPersonaPrompt(seg);
+            const userPrompt = `A moderator asks the focus group:\n\n"${stimulusText}"\n\nPlease share your honest reaction and opinion.`;
+            const result = await callGemini(GEMINI_API_KEY, persona, userPrompt, true);
+            return { seg, i, result };
+          })
+        );
 
-        let userPrompt = "";
-        if (round === 0) {
-          // First round: respond to the stimulus directly
-          userPrompt = `A moderator asks the focus group:\n\n"${stimulusText}"\n\nPlease share your honest reaction and opinion.`;
-        } else {
-          // Subsequent rounds: see what others said and respond
+        for (const { seg, i, result } of parallelResults) {
+          totalTokens += result.tokensUsed;
+          const responseEntry = {
+            segment_id: seg.id, segment_name: seg.name, round: 0,
+            response: result.response, sentiment: result.sentiment, confidence: result.confidence,
+            key_themes: result.key_themes, purchase_intent: result.purchase_intent, emotional_reaction: result.emotional_reaction,
+          };
+          roundResponses.push(responseEntry);
+          await supabase.from("twin_responses").insert({
+            simulation_id: simulation.id, segment_id: seg.id, twin_index: i,
+            persona_snapshot: { name: seg.name, demographics: seg.demographics, round: 0 },
+            stimulus_variant: `round_0`, response_text: result.response || "",
+            sentiment: result.sentiment, confidence: result.confidence, behavioral_tags: result.key_themes || [],
+          });
+        }
+      } else {
+        // ── Sequential rounds (need previous context) ──
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i];
+          const persona = buildPersonaPrompt(seg);
           const previousRound = allRounds[round - 1];
           const othersResponses = previousRound
             .filter((r: any) => r.segment_id !== seg.id)
             .map((r: any) => `${r.segment_name}: "${r.response}"`)
             .join("\n\n");
 
-          userPrompt = `The moderator asked: "${stimulusText}"\n\nOther participants just said:\n\n${othersResponses}\n\nBased on what you've heard from the other participants, what are your thoughts? Do you agree or disagree? What would you add?`;
+          const userPrompt = `The moderator asked: "${stimulusText}"\n\nOther participants just said:\n\n${othersResponses}\n\nBased on what you've heard from the other participants, what are your thoughts? Do you agree or disagree? What would you add?`;
+          const result = await callGemini(GEMINI_API_KEY, persona, userPrompt, true);
+          totalTokens += result.tokensUsed;
+
+          roundResponses.push({
+            segment_id: seg.id, segment_name: seg.name, round,
+            response: result.response, sentiment: result.sentiment, confidence: result.confidence,
+            key_themes: result.key_themes, purchase_intent: result.purchase_intent, emotional_reaction: result.emotional_reaction,
+          });
+
+          await supabase.from("twin_responses").insert({
+            simulation_id: simulation.id, segment_id: seg.id, twin_index: round * segments.length + i,
+            persona_snapshot: { name: seg.name, demographics: seg.demographics, round },
+            stimulus_variant: `round_${round}`, response_text: result.response || "",
+            sentiment: result.sentiment, confidence: result.confidence, behavioral_tags: result.key_themes || [],
+          });
         }
-
-        const result = await callGemini(GEMINI_API_KEY, persona, userPrompt, true);
-        totalTokens += result.tokensUsed;
-
-        const responseEntry = {
-          segment_id: seg.id,
-          segment_name: seg.name,
-          round,
-          response: result.response,
-          sentiment: result.sentiment,
-          confidence: result.confidence,
-          key_themes: result.key_themes,
-          purchase_intent: result.purchase_intent,
-          emotional_reaction: result.emotional_reaction,
-        };
-
-        roundResponses.push(responseEntry);
-
-        // Store twin response
-        await supabase.from("twin_responses").insert({
-          simulation_id: simulation.id,
-          segment_id: seg.id,
-          twin_index: round * segments.length + i,
-          persona_snapshot: {
-            name: seg.name,
-            demographics: seg.demographics,
-            round,
-          },
-          stimulus_variant: `round_${round}`,
-          response_text: result.response || "",
-          sentiment: result.sentiment,
-          confidence: result.confidence,
-          behavioral_tags: result.key_themes || [],
-        });
       }
 
       allRounds.push(roundResponses);

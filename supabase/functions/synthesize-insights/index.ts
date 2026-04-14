@@ -311,7 +311,6 @@ Rules:
     );
   } catch (err) {
     console.error("synthesize-insights error:", err);
-    await recordTokenUsage(supabase, workspace_id, 2000); // Estimated 2K tokens
     return new Response(JSON.stringify({ error: (err instanceof Error ? err.message : "Unknown error") }), {
       status: 500,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },

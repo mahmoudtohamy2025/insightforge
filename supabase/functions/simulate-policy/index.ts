@@ -3,59 +3,40 @@ import { handleCors, jsonResponse } from "../_shared/cors.ts";
 import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.ts";
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody, validateUUIDs, validateEnumValue } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
-
-// ── Build persona prompt ──
-function buildPersonaPrompt(segment: any): string {
-  const demo = segment.demographics || {};
-  const psycho = segment.psychographics || {};
-  const behavior = segment.behavioral_data || {};
-  const culture = segment.cultural_context || {};
-
-  return `You are a simulated citizen/consumer named "${segment.name}". Stay in character.
-
-DEMOGRAPHICS: Age ${demo.age_range || "25-35"}, ${demo.gender || "Mixed"}, ${demo.location || "Urban"}, income: ${demo.income_level || "Middle"}, education: ${demo.education || "College"}, job: ${demo.occupation || "Professional"}.
-PSYCHOGRAPHICS: Values: ${psycho.values || "N/A"}. Lifestyle: ${psycho.lifestyle || "N/A"}. Interests: ${psycho.interests || "N/A"}.
-BEHAVIOR: Purchase: ${behavior.purchase_behavior || "N/A"}. Brands: ${behavior.brand_preferences || "N/A"}.
-CULTURE: ${culture.region || "N/A"}, language: ${culture.language || "English"}. Norms: ${culture.norms || "N/A"}.
-
-Rules: Stay in character. Consider how this policy would affect you personally. Be honest about support/opposition. 2-4 sentences max.`;
-}
+import { fetchGemini } from "../_shared/aiClient.ts";
+import { buildPersonaPrompt } from "../_shared/prompts.ts";
 
 // ── Call Gemini with structured policy evaluation output ──
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string) {
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "policy_evaluation",
-          description: "Return the twin's evaluation of a policy",
-          parameters: {
-            type: "object",
-            properties: {
-              response: { type: "string", description: "Natural language opinion on the policy" },
-              stance: { type: "string", enum: ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"] },
-              compliance_likelihood: { type: "number", description: "How likely to comply (0.0 to 1.0)" },
-              personal_impact: { type: "string", enum: ["very_positive", "positive", "neutral", "negative", "very_negative"] },
-              economic_impact_perception: { type: "string", enum: ["very_positive", "positive", "neutral", "negative", "very_negative"] },
-              social_impact_perception: { type: "string", enum: ["very_positive", "positive", "neutral", "negative", "very_negative"] },
-              key_concerns: { type: "array", items: { type: "string" }, description: "1-3 key concerns" },
-              key_benefits: { type: "array", items: { type: "string" }, description: "1-3 perceived benefits" },
-              willingness_to_advocate: { type: "number", description: "Likelihood to publicly support/oppose (0.0 to 1.0)" },
-            },
-            required: ["response", "stance", "compliance_likelihood", "personal_impact", "economic_impact_perception", "social_impact_perception", "key_concerns", "key_benefits", "willingness_to_advocate"],
+  const res = await fetchGemini(apiKey, {
+    model: "gemini-2.5-flash",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    tools: [{
+      type: "function",
+      function: {
+        name: "policy_evaluation",
+        description: "Return the twin's evaluation of a policy",
+        parameters: {
+          type: "object",
+          properties: {
+            response: { type: "string", description: "Natural language opinion on the policy" },
+            stance: { type: "string", enum: ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"] },
+            compliance_likelihood: { type: "number", description: "How likely to comply (0.0 to 1.0)" },
+            personal_impact: { type: "string", enum: ["very_positive", "positive", "neutral", "negative", "very_negative"] },
+            economic_impact_perception: { type: "string", enum: ["very_positive", "positive", "neutral", "negative", "very_negative"] },
+            social_impact_perception: { type: "string", enum: ["very_positive", "positive", "neutral", "negative", "very_negative"] },
+            key_concerns: { type: "array", items: { type: "string" }, description: "1-3 key concerns" },
+            key_benefits: { type: "array", items: { type: "string" }, description: "1-3 perceived benefits" },
+            willingness_to_advocate: { type: "number", description: "Likelihood to publicly support/oppose (0.0 to 1.0)" },
           },
+          required: ["response", "stance", "compliance_likelihood", "personal_impact", "economic_impact_perception", "social_impact_perception", "key_concerns", "key_benefits", "willingness_to_advocate"],
         },
-      }],
-      tool_choice: { type: "function", function: { name: "policy_evaluation" } },
-    }),
+      },
+    }],
+    tool_choice: { type: "function", function: { name: "policy_evaluation" } },
   });
 
   if (!res.ok) throw new Error(`Gemini error: ${await res.text()}`);

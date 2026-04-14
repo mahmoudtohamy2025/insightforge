@@ -24,10 +24,12 @@ import {
   TrendingUp,
   Scale,
   ChevronRight,
+  Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useNavigate } from "react-router-dom";
 import { CreateWorkspaceDialog } from "@/components/CreateWorkspaceDialog";
@@ -205,6 +207,7 @@ export function AppSidebar() {
   const { t } = useI18n();
   const { user, signOut } = useAuth();
   const { currentWorkspace, workspaces, switchWorkspace } = useWorkspace();
+  const { isSuperAdmin } = useSuperAdmin();
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -305,6 +308,29 @@ export function AppSidebar() {
           </SidebarContent>
 
           <SidebarFooter className="border-t border-sidebar-border p-3">
+            {/* Super Admin Link */}
+            {isSuperAdmin && !collapsed && (
+              <a
+                href="/admin"
+                className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-sm font-medium"
+              >
+                <Shield className="h-4 w-4" />
+                Super Admin
+              </a>
+            )}
+            {isSuperAdmin && collapsed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href="/admin"
+                    className="flex items-center justify-center p-2 mb-2 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+                  >
+                    <Shield className="h-4 w-4" />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">Super Admin</TooltipContent>
+              </Tooltip>
+            )}
             {!collapsed ? (
               <div className="flex items-center gap-2">
                 <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-semibold shrink-0">

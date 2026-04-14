@@ -20,13 +20,12 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
@@ -159,7 +158,6 @@ Questions should be clear, unbiased, and professionally worded.`;
     });
   } catch (err) {
     console.error("generate-survey-questions error:", err);
-    await recordTokenUsage(supabase, workspace_id, 2000); // Estimated 2K tokens
     return new Response(JSON.stringify({ error: (err instanceof Error ? err.message : "Unknown error") }), {
       status: 500,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },

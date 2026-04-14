@@ -3,57 +3,38 @@ import { handleCors, jsonResponse } from "../_shared/cors.ts";
 import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.ts";
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody, validateUUIDs, validateNumberRange } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
-
-// ── Build persona prompt ──
-function buildPersonaPrompt(segment: any): string {
-  const demo = segment.demographics || {};
-  const psycho = segment.psychographics || {};
-  const behavior = segment.behavioral_data || {};
-  const culture = segment.cultural_context || {};
-
-  return `You are a simulated consumer persona named "${segment.name}". Stay in character.
-
-DEMOGRAPHICS: Age ${demo.age_range || "25-35"}, ${demo.gender || "Mixed"}, ${demo.location || "Urban"}, income: ${demo.income_level || "Middle"}, education: ${demo.education || "College"}, job: ${demo.occupation || "Professional"}.
-PSYCHOGRAPHICS: Values: ${psycho.values || "N/A"}. Lifestyle: ${psycho.lifestyle || "N/A"}. Interests: ${psycho.interests || "N/A"}.
-BEHAVIOR: Purchase: ${behavior.purchase_behavior || "N/A"}. Brands: ${behavior.brand_preferences || "N/A"}. Decisions: ${behavior.decision_factors || "N/A"}.
-CULTURE: ${culture.region || "N/A"}, language: ${culture.language || "English"}.
-
-Rules: Stay in character. Be specific, not generic. 2-3 sentences max.`;
-}
+import { fetchGemini } from "../_shared/aiClient.ts";
+import { buildPersonaPrompt } from "../_shared/prompts.ts";
 
 // ── Call Gemini with structured output ──
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string) {
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "market_evaluation",
-          description: "Return the twin's market evaluation of a product",
-          parameters: {
-            type: "object",
-            properties: {
-              response: { type: "string", description: "Natural language opinion" },
-              purchase_probability: { type: "number", description: "Probability of buying (0.0 to 1.0)" },
-              price_sensitivity: { type: "string", enum: ["very_low", "low", "moderate", "high", "very_high"] },
-              adoption_timing: { type: "string", enum: ["innovator", "early_adopter", "early_majority", "late_majority", "laggard"] },
-              word_of_mouth_likelihood: { type: "number", description: "Likelihood of recommending (0.0 to 1.0)" },
-              key_barriers: { type: "array", items: { type: "string" }, description: "1-3 purchase barriers" },
-              key_drivers: { type: "array", items: { type: "string" }, description: "1-3 purchase drivers" },
-            },
-            required: ["response", "purchase_probability", "price_sensitivity", "adoption_timing", "word_of_mouth_likelihood", "key_barriers", "key_drivers"],
+  const res = await fetchGemini(apiKey, {
+    model: "gemini-2.5-flash",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    tools: [{
+      type: "function",
+      function: {
+        name: "market_evaluation",
+        description: "Return the twin's market evaluation of a product",
+        parameters: {
+          type: "object",
+          properties: {
+            response: { type: "string", description: "Natural language opinion" },
+            purchase_probability: { type: "number", description: "Probability of buying (0.0 to 1.0)" },
+            price_sensitivity: { type: "string", enum: ["very_low", "low", "moderate", "high", "very_high"] },
+            adoption_timing: { type: "string", enum: ["innovator", "early_adopter", "early_majority", "late_majority", "laggard"] },
+            word_of_mouth_likelihood: { type: "number", description: "Likelihood of recommending (0.0 to 1.0)" },
+            key_barriers: { type: "array", items: { type: "string" }, description: "1-3 purchase barriers" },
+            key_drivers: { type: "array", items: { type: "string" }, description: "1-3 purchase drivers" },
           },
+          required: ["response", "purchase_probability", "price_sensitivity", "adoption_timing", "word_of_mouth_likelihood", "key_barriers", "key_drivers"],
         },
-      }],
-      tool_choice: { type: "function", function: { name: "market_evaluation" } },
-    }),
+      },
+    }],
+    tool_choice: { type: "function", function: { name: "market_evaluation" } },
   });
 
   if (!res.ok) throw new Error(`Gemini error: ${await res.text()}`);
