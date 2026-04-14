@@ -6,7 +6,7 @@ import { getTierFromProductId } from "@/lib/tierLimits";
 interface SubscriptionState {
   subscribed: boolean;
   productId: string | null;
-  tier: string | null;
+  tier: string;
   subscriptionEnd: string | null;
   isLoading: boolean;
 }
@@ -16,7 +16,7 @@ export function useSubscription() {
   const [state, setState] = useState<SubscriptionState>({
     subscribed: false,
     productId: null,
-    tier: null,
+    tier: "free",
     subscriptionEnd: null,
     isLoading: true,
   });
@@ -31,7 +31,13 @@ export function useSubscription() {
       const { data, error } = await supabase.functions.invoke("check-subscription");
       if (error) throw error;
 
-      const tier = data?.product_id ? getTierFromProductId(data.product_id) : null;
+      // Use backend-resolved tier (has full mapping including enterprise).
+      // Fall back to local mapping, then to "free".
+      const tier =
+        data?.tier ||
+        (data?.product_id ? getTierFromProductId(data.product_id) : null) ||
+        (data?.subscribed ? "starter" : "free");
+
       setState({
         subscribed: data?.subscribed || false,
         productId: data?.product_id || null,
@@ -53,3 +59,4 @@ export function useSubscription() {
 
   return { ...state, refetch: checkSubscription };
 }
+
