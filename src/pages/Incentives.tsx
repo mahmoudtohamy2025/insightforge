@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Gift, Plus, Search, ChevronRight, DollarSign, TrendingUp, Users } from "lucide-react";
 import { CreateProgramDialog } from "@/components/incentives/CreateProgramDialog";
+import { FOUNDER_RESEARCH_HEADERS } from "@/lib/founderResearchCopy";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -99,17 +100,22 @@ export default function Incentives() {
         <div className="flex items-center gap-3">
           <Gift className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold">Incentives</h1>
-            <p className="text-sm text-muted-foreground">Manage participant compensation programs</p>
+            <h1 className="text-2xl font-bold">{FOUNDER_RESEARCH_HEADERS.rewards.title}</h1>
           </div>
         </div>
         {canManage && (
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 me-2" />
-            New Program
+            Create reward program
           </Button>
         )}
       </div>
+
+      <Card className="border-dashed border-primary/20 bg-primary/5">
+        <CardContent className="pt-4">
+          <p className="text-sm text-muted-foreground">{FOUNDER_RESEARCH_HEADERS.rewards.description}</p>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -155,7 +161,7 @@ export default function Incentives() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search programs..."
+          placeholder="Search reward programs..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -170,12 +176,12 @@ export default function Incentives() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Gift className="h-12 w-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No incentive programs yet</p>
-          <p className="text-sm mt-1">Create a program to start compensating participants</p>
+          <p className="font-medium">No reward programs yet</p>
+          <p className="text-sm mt-1">Create a reward program to manage research payouts and keep budget under control.</p>
           {canManage && (
             <Button className="mt-4" onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4 me-2" />
-              Create Program
+              Create reward program
             </Button>
           )}
         </div>

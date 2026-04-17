@@ -30,6 +30,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { CSVImportDialog } from "@/components/participants/CSVImportDialog";
 import { ParticipantDetailDialog } from "@/components/participants/ParticipantDetailDialog";
 import { triggerDownload, escapeCsv } from "@/lib/exportUtils";
+import { FOUNDER_RESEARCH_HEADERS } from "@/lib/founderResearchCopy";
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Prefer not to say", "Other"];
 
@@ -101,7 +102,7 @@ const Participants = () => {
       setGender("");
       setLocation("");
       setPhone("");
-      toast({ title: t("participants.added") });
+      toast({ title: "Person added" });
     },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -141,8 +142,8 @@ const Participants = () => {
       escapeCsv(p.source || "manual"),
     ]);
     const csv = [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join("\n");
-    triggerDownload(csv, "participants.csv");
-    toast({ title: t("participants.exported") });
+    triggerDownload(csv, "people.csv");
+    toast({ title: "Contacts exported" });
   };
 
   // Get unique sources for filter dropdown
@@ -208,23 +209,23 @@ const Participants = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">{t("participants.title")}</h1>
+        <h1 className="text-2xl font-bold">{FOUNDER_RESEARCH_HEADERS.people.title}</h1>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setStudyDialogOpen(true)}>
-            <Megaphone className="h-4 w-4 me-2" />Post Study
+            <Megaphone className="h-4 w-4 me-2" />Open recruiting
           </Button>
           <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-            <Upload className="h-4 w-4 me-2" />{t("participants.import")}
+            <Upload className="h-4 w-4 me-2" />Import contacts
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="h-4 w-4 me-2" />{t("participants.export")}
+            <Download className="h-4 w-4 me-2" />Export contacts
           </Button>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button size="sm"><Plus className="h-4 w-4 me-2" />{t("participants.add")}</Button>
+              <Button size="sm"><Plus className="h-4 w-4 me-2" />Add person</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>{t("participants.add")}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Add person</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2"><Label>{t("participants.fieldName")} *</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
                 <div className="space-y-2"><Label>{t("participants.fieldEmail")}</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
@@ -253,6 +254,12 @@ const Participants = () => {
           </Dialog>
         </div>
       </div>
+
+      <Card className="border-dashed border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground">{FOUNDER_RESEARCH_HEADERS.people.description}</p>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -289,7 +296,7 @@ const Participants = () => {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={t("participants.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="ps-9" />
+          <Input placeholder="Search people, contacts, or locations..." value={search} onChange={(e) => setSearch(e.target.value)} className="ps-9" />
         </div>
         <Select value={filterGender} onValueChange={setFilterGender}>
           <SelectTrigger className="w-[160px]">
@@ -304,10 +311,10 @@ const Participants = () => {
         </Select>
         <Select value={filterSource} onValueChange={setFilterSource}>
           <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder={t("participants.filterSource")} />
+            <SelectValue placeholder="Added via" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("participants.allSources")}</SelectItem>
+            <SelectItem value="all">All sources</SelectItem>
             {uniqueSources.map((s) => (
               <SelectItem key={s} value={s}>{s}</SelectItem>
             ))}
@@ -343,7 +350,7 @@ const Participants = () => {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("quality_score")}>
                     <span className="flex items-center">{t("participants.qualityScore")}<SortIcon field="quality_score" /></span>
                   </TableHead>
-                  <TableHead>{t("participants.fieldSource")}</TableHead>
+                  <TableHead>Added via</TableHead>
                   {isAdminOrOwner && <TableHead></TableHead>}
                 </TableRow>
               </TableHeader>
@@ -353,9 +360,9 @@ const Participants = () => {
                     <TableCell colSpan={isAdminOrOwner ? 8 : 7} className="p-0">
                       <EmptyState
                         icon={Users}
-                        title={t("participants.emptyTitle")}
-                        description={t("participants.emptyDesc")}
-                        actionLabel={t("participants.add")}
+                        title="No people yet"
+                        description="Start with your own customer contacts, import a CSV, or open recruiting to find fresh people for interviews and surveys."
+                        actionLabel="Add person"
                         onAction={() => setAddOpen(true)}
                       />
                     </TableCell>

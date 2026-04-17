@@ -23,6 +23,7 @@ import { ProductTour } from "@/components/onboarding/ProductTour";
 import { TOUR_SESSIONS } from "@/lib/tourDefinitions";
 import { useNavigate } from "react-router-dom";
 import { TranscriptUploadDialog } from "@/components/sessions/TranscriptUploadDialog";
+import { FOUNDER_RESEARCH_HEADERS } from "@/lib/founderResearchCopy";
 
 const typeConfig = {
   focus_group: { label: "sessions.focusGroup", icon: Users, color: "bg-primary/10 text-primary" },
@@ -126,7 +127,7 @@ const Sessions = () => {
       setTime("");
       setDuration("60");
       setMeetingUrl("");
-      toast({ title: "Session created" });
+      toast({ title: "Interview created" });
       if (currentWorkspace && user) {
         logActivity(currentWorkspace.id, user.id, "created", "session", undefined, { title });
       }
@@ -184,14 +185,14 @@ const Sessions = () => {
     <div className="space-y-6">
       <ProductTour tourId="sessions" steps={TOUR_SESSIONS} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 id="sessions-header" className="text-2xl font-bold">{t("sessions.title")}</h1>
+        <h1 id="sessions-header" className="text-2xl font-bold">{FOUNDER_RESEARCH_HEADERS.interviews.title}</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
                 <DialogTrigger asChild>
                   <Button id="create-session-btn" disabled={!canCreate}>
-                    <Plus className="h-4 w-4 me-2" />{t("sessions.create")}
+                    <Plus className="h-4 w-4 me-2" />Schedule interview
                   </Button>
                 </DialogTrigger>
               </span>
@@ -199,11 +200,11 @@ const Sessions = () => {
             {!canCreate && <TooltipContent>{t("observer.noPermission")}</TooltipContent>}
           </Tooltip>
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("sessions.create")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Schedule interview</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Title</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Session title" />
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Interview or research session title" />
               </div>
               <div className="space-y-2">
                 <Label>Type</Label>
@@ -256,6 +257,12 @@ const Sessions = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card className="border-dashed border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground">{FOUNDER_RESEARCH_HEADERS.interviews.description}</p>
+        </CardContent>
+      </Card>
 
       {/* Transcript Search */}
       <Card>
@@ -400,8 +407,8 @@ const Sessions = () => {
                   <EmptyState
                     icon={Video}
                     title={t("sessions.noSessions")}
-                    description="Schedule your first qualitative session — IDI, focus group, or UX test — and start gathering rich insights."
-                    actionLabel={t("sessions.create")}
+                    description="Schedule your first interview, focus group, or UX session to start hearing real customer reactions."
+                    actionLabel="Schedule interview"
                     onAction={() => setOpen(true)}
                   />
                 )}

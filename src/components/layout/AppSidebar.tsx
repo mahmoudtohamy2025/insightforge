@@ -61,9 +61,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HelpDrawer } from "@/components/layout/HelpDrawer";
+import { FOUNDER_RESEARCH_NAV } from "@/lib/founderResearchCopy";
 
 interface NavItem {
-  titleKey: string;
+  titleKey?: string;
+  title?: string;
   url: string;
   icon: React.ElementType;
 }
@@ -100,11 +102,12 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "nav.group.panel",
-    label: "Panel",
+    label: FOUNDER_RESEARCH_NAV.groupLabel,
     items: [
-      { titleKey: "nav.participants", url: "/participants", icon: Users },
-      { titleKey: "nav.requirements" as any, url: "/requirements", icon: FileQuestion },
-      { titleKey: "nav.incentives" as any, url: "/incentives", icon: Gift },
+      { title: FOUNDER_RESEARCH_NAV.items.people, url: "/participants", icon: Users },
+      { title: FOUNDER_RESEARCH_NAV.items.interviews, url: "/sessions", icon: Video },
+      { title: FOUNDER_RESEARCH_NAV.items.rewards, url: "/incentives", icon: Gift },
+      { title: FOUNDER_RESEARCH_NAV.items.confidence, url: "/validation", icon: GraduationCap },
     ],
   },
   {
@@ -135,6 +138,7 @@ function NavGroupSection({
   t: (key: string) => string;
 }) {
   const isOpen = openGroups[group.label] !== false; // default open
+  const getLabel = (item: NavItem) => item.title ?? (item.titleKey ? t(item.titleKey) : item.url);
 
   return (
     <SidebarGroup className="px-0">
@@ -174,7 +178,7 @@ function NavGroupSection({
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className="text-xs">
-                      {t(item.titleKey)}
+                      {getLabel(item)}
                     </TooltipContent>
                   </Tooltip>
                 ) : (
@@ -186,7 +190,7 @@ function NavGroupSection({
                       activeClassName="bg-sidebar-accent text-primary font-medium"
                     >
                       <item.icon className="h-4 w-4 me-2 shrink-0" />
-                      <span className="truncate">{t(item.titleKey)}</span>
+                      <span className="truncate">{getLabel(item)}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 )}

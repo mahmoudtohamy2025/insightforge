@@ -25,6 +25,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccuracyChart, AccuracyTrendChart } from "@/components/validation/AccuracyChart";
 import { CalibrationUploader } from "@/components/validation/CalibrationUploader";
+import { FOUNDER_RESEARCH_HEADERS } from "@/lib/founderResearchCopy";
 
 const confidenceConfig = (score: number) => {
   if (score >= 0.8) return { color: "text-emerald-500", bg: "bg-emerald-500/10", label: "High", icon: ShieldCheck };
@@ -67,12 +68,8 @@ export default function ValidationStudies() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
             <GraduationCap className="h-8 w-8 text-primary" />
-            Validation Dashboard
+            {FOUNDER_RESEARCH_HEADERS.confidence.title}
           </h1>
-          <p className="text-muted-foreground mt-2 max-w-3xl">
-            Compare twin predictions against real survey and focus group data. Upload ground truth to
-            continuously improve twin accuracy.
-          </p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -80,15 +77,23 @@ export default function ValidationStudies() {
             onClick={() => setShowUploader(!showUploader)}
           >
             <Database className="h-4 w-4 mr-2" />
-            {showUploader ? "Hide Uploader" : "Upload Real Data"}
+            {showUploader ? "Hide upload form" : "Add real customer proof"}
           </Button>
           <Link to="/methodology">
             <Button variant="ghost" size="sm">
-              Methodology <ArrowRight className="h-3 w-3 ml-1" />
+              How scoring works <ArrowRight className="h-3 w-3 ml-1" />
             </Button>
           </Link>
         </div>
       </div>
+
+      <Card className="border-dashed border-primary/20 bg-primary/5">
+        <CardContent className="py-4">
+          <p className="text-sm text-muted-foreground">
+            {FOUNDER_RESEARCH_HEADERS.confidence.description} This view shows how much real customer proof supports your AI results before you ship a decision.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Uploader (collapsible) */}
       {showUploader && (
@@ -102,14 +107,13 @@ export default function ValidationStudies() {
             <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
               <Sparkles className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-xl font-bold">No Calibration Data Yet</h2>
+            <h2 className="text-xl font-bold">No confidence data yet</h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Upload your first real survey or focus group response to start validating your digital
-              twins. The more real data you provide, the more accurate your twins become.
+              Upload your first survey or interview result to compare AI signals with real customer behavior. The more real customer proof you add, the more trustworthy your decision confidence becomes.
             </p>
             <Button onClick={() => setShowUploader(true)}>
               <Database className="h-4 w-4 mr-2" />
-              Upload First Calibration Entry
+              Add first customer result
             </Button>
           </CardContent>
         </Card>
@@ -136,7 +140,7 @@ export default function ValidationStudies() {
               <CardHeader className="pb-2">
                 <CardDescription className="text-foreground font-medium flex items-center gap-1.5">
                   <Target className="h-3.5 w-3.5" />
-                  Global Accuracy
+                  Decision confidence
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -160,13 +164,13 @@ export default function ValidationStudies() {
               <CardHeader className="pb-2">
                 <CardDescription className="font-medium flex items-center gap-1.5">
                   <Database className="h-3.5 w-3.5" />
-                  Calibration Entries
+                  Real customer inputs
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <span className="text-4xl font-bold">{totalEntries}</span>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Across {totalSegments} segments
+                  Across {totalSegments} customer profiles
                 </p>
               </CardContent>
             </Card>
@@ -176,7 +180,7 @@ export default function ValidationStudies() {
               <CardHeader className="pb-2">
                 <CardDescription className="font-medium flex items-center gap-1.5">
                   <TrendingUp className="h-3.5 w-3.5" />
-                  Sentiment Accuracy
+                  Tone match
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -184,7 +188,7 @@ export default function ValidationStudies() {
                   {Math.round(dimensions.sentiment * 100)}%
                 </span>
                 <p className="text-xs text-muted-foreground mt-1">
-                  How well twins match real sentiment
+                  How closely AI reactions match real customer tone
                 </p>
               </CardContent>
             </Card>
@@ -194,7 +198,7 @@ export default function ValidationStudies() {
               <CardHeader className="pb-2">
                 <CardDescription className="font-medium flex items-center gap-1.5">
                   <Layers className="h-3.5 w-3.5" />
-                  Theme Accuracy
+                  Insight match
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -202,7 +206,7 @@ export default function ValidationStudies() {
                   {Math.round(dimensions.themes * 100)}%
                 </span>
                 <p className="text-xs text-muted-foreground mt-1">
-                  How well twins identify real themes
+                  How closely AI takeaways match real customer themes
                 </p>
               </CardContent>
             </Card>
@@ -215,10 +219,10 @@ export default function ValidationStudies() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-primary" />
-                  Twin vs. Real Sentiment
+                  AI vs. real customer tone
                 </CardTitle>
                 <CardDescription>
-                  Side-by-side sentiment comparison per segment
+                  Side-by-side comparison of AI reactions and real customer tone by profile
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -231,10 +235,10 @@ export default function ValidationStudies() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-primary" />
-                  Accuracy Over Time
+                  Confidence over time
                 </CardTitle>
                 <CardDescription>
-                  Monthly calibration accuracy trend
+                  Monthly trend for how closely AI results line up with real customer outcomes
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -242,7 +246,7 @@ export default function ValidationStudies() {
                   <AccuracyTrendChart data={trend} />
                 ) : (
                   <div className="flex items-center justify-center h-60 text-muted-foreground text-sm">
-                    Not enough data points for trend analysis yet.
+                    Not enough data yet to show a trend.
                   </div>
                 )}
               </CardContent>
@@ -252,19 +256,19 @@ export default function ValidationStudies() {
           {/* Per-Segment Table */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Per-Segment Accuracy</CardTitle>
+              <CardTitle className="text-base">Confidence by profile</CardTitle>
               <CardDescription>
-                Calibration scores and entry counts for each digital twin segment.
+                Proof strength and response counts for each customer profile.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Segment</TableHead>
-                    <TableHead className="text-center">Calibration Score</TableHead>
-                    <TableHead className="text-center">Avg Accuracy</TableHead>
-                    <TableHead className="text-center">Entries</TableHead>
+                    <TableHead>Profile</TableHead>
+                    <TableHead className="text-center">Proof score</TableHead>
+                    <TableHead className="text-center">Confidence score</TableHead>
+                    <TableHead className="text-center">Responses</TableHead>
                     <TableHead className="text-center">Confidence</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -299,7 +303,7 @@ export default function ValidationStudies() {
                   {segments.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                        No segments with calibration data.
+                        No customer profiles have real-feedback data yet.
                       </TableCell>
                     </TableRow>
                   )}
