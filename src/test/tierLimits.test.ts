@@ -33,11 +33,15 @@ describe("TIER_LIMITS structure", () => {
     }
   });
 
-  it("free tier has AI analysis disabled", () => {
-    expect(TIER_LIMITS.free.aiAnalysis).toBe(false);
+  it("free tier has AI analysis enabled (P0.8 — monthly trial)", () => {
+    // P0.8: free tier was changed from aiAnalysis: false → true so new signups
+    // can experience the core value before being asked to upgrade.
+    // The actual usage cap is enforced by the rate-limiter via TIER_TOKEN_BUDGETS.free
+    // (currently 50_000 tokens/month, ~3 simulations).
+    expect(TIER_LIMITS.free.aiAnalysis).toBe(true);
   });
 
-  it("paid tiers have AI analysis enabled", () => {
+  it("all tiers have AI analysis enabled (paid tiers + free trial)", () => {
     expect(TIER_LIMITS.starter.aiAnalysis).toBe(true);
     expect(TIER_LIMITS.professional.aiAnalysis).toBe(true);
     expect(TIER_LIMITS.enterprise.aiAnalysis).toBe(true);
@@ -143,14 +147,16 @@ describe("canPerformAction", () => {
     expect(result.limit).toBe(5);
   });
 
-  it("denies AI analysis for free tier", () => {
+  it("allows AI analysis for free tier (P0.8 — monthly trial)", () => {
+    // P0.8: free tier now gets a monthly AI trial. canPerformAction returns allowed: true
+    // because the per-call gate is now the rate-limiter's token budget, not a hard plan boolean.
     const result = canPerformAction("free", "aiAnalysis", 0);
-    expect(result.allowed).toBe(false);
-    expect(result.message).toContain("AI analysis");
-    expect(result.message).toContain("Upgrade");
+    expect(result.allowed).toBe(true);
+    expect(result.message).toBeUndefined();
   });
 
-  it("allows AI analysis for paid tiers", () => {
+  it("allows AI analysis for all tiers (paid + free trial)", () => {
+    expect(canPerformAction("free", "aiAnalysis", 0).allowed).toBe(true);
     expect(canPerformAction("starter", "aiAnalysis", 0).allowed).toBe(true);
     expect(canPerformAction("professional", "aiAnalysis", 0).allowed).toBe(true);
     expect(canPerformAction("enterprise", "aiAnalysis", 0).allowed).toBe(true);
@@ -169,23 +175,29 @@ describe("canPerformAction", () => {
 });
 
 describe("Token Budget and Rate Limit Constants", () => {
-  it("free tier has 0 token budget", () => {
-    expect(TIER_TOKEN_BUDGETS.free).toBe(0);
+  it("free tier has a monthly AI trial budget (P0.8)", () => {
+    // P0.8: was 0 (AI disabled); now 50K tokens/month (~3 simulations).
+    // Trial is small enough to nudge upgrade after 3 runs, large enough for the aha moment.
+    expect(TIER_TOKEN_BUDGETS.free).toBeGreaterThan(0);
+    expect(TIER_TOKEN_BUDGETS.free).toBeLessThan(TIER_TOKEN_BUDGETS.starter);
   });
 
-  it("paid tiers have increasing token budgets", () => {
-    expect(TIER_TOKEN_BUDGETS.starter).toBeGreaterThan(0);
-    expect(TIER_TOKEN_BUDGETS.professional).toBeGreaterThan(TIER_TOKEN_BUDGETS.starter);
-    expect(TIER_TOKEN_BUDGETS.enterprise).toBeGreaterThan(TIER_TOKEN_BUDGETS.professional);
+  it("token budgets increase across tiers", () => {
+    expect(TIER_TOKEN_BUDGETS.free).toBeLessThan(TIER_TOKEN_BUDGETS.starter);
+    expect(TIER_TOKEN_BUDGETS.starter).toBeLessThan(TIER_TOKEN_BUDGETS.professional);
+    expect(TIER_TOKEN_BUDGETS.professional).toBeLessThan(TIER_TOKEN_BUDGETS.enterprise);
   });
 
-  it("free tier has 0 rate limit", () => {
-    expect(TIER_RATE_LIMITS.free).toBe(0);
+  it("free tier has a small rate limit so users can't burst-burn their trial (P0.8)", () => {
+    // P0.8: was 0 (AI disabled). Now > 0 (so AI works) but lower than paid tiers
+    // (so a runaway loop can't drain the monthly trial in seconds).
+    expect(TIER_RATE_LIMITS.free).toBeGreaterThan(0);
+    expect(TIER_RATE_LIMITS.free).toBeLessThan(TIER_RATE_LIMITS.starter);
   });
 
-  it("paid tiers have increasing rate limits", () => {
-    expect(TIER_RATE_LIMITS.starter).toBeGreaterThan(0);
-    expect(TIER_RATE_LIMITS.professional).toBeGreaterThan(TIER_RATE_LIMITS.starter);
-    expect(TIER_RATE_LIMITS.enterprise).toBeGreaterThan(TIER_RATE_LIMITS.professional);
+  it("rate limits increase across tiers", () => {
+    expect(TIER_RATE_LIMITS.free).toBeLessThan(TIER_RATE_LIMITS.starter);
+    expect(TIER_RATE_LIMITS.starter).toBeLessThan(TIER_RATE_LIMITS.professional);
+    expect(TIER_RATE_LIMITS.professional).toBeLessThan(TIER_RATE_LIMITS.enterprise);
   });
 });

@@ -18,15 +18,20 @@ import { jsonResponse } from "./cors.ts";
 
 // ── Tier Budgets ────────────────────────────────────
 
+// P0.8 — Free tier now has a 50K monthly AI trial.
+// Without this change, every free user landing from a pitch URL hit a 403 ("AI features
+// are not available on your current plan") the moment they tried their first simulation —
+// killing conversion from every landing page. This must stay in sync with the same
+// constants in src/lib/tierLimits.ts (frontend).
 const TIER_TOKEN_BUDGETS: Record<string, number> = {
-  free: 0,
+  free: 50_000,        // monthly trial — ~3 full simulations before the upgrade nudge fires
   starter: 500_000,
   professional: 2_000_000,
   enterprise: 10_000_000,
 };
 
 const TIER_RATE_LIMITS: Record<string, number> = {
-  free: 0,      // AI is disabled for free
+  free: 3,      // 3 req/min — prevents a curious user accidentally burning their monthly trial in seconds
   starter: 10,  // 10 req/min
   professional: 30,
   enterprise: 100,
