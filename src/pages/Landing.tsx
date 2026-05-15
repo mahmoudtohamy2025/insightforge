@@ -40,25 +40,25 @@ const Landing = () => {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium animate-pulse">
             <Sparkles className="h-3.5 w-3.5" />
-            Digital Consumer Twins — Powered by AI
+            Built for research teams that hate panel sprawl
           </div>
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
             <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
-              {t("landing.heroTitle")}
+              Screen 10× more concepts before you spend panel budget.
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            {t("landing.heroSubtitle")}
+            Run concepts past AI consumer twins first, then validate the winners with your real participants — both in one workflow, side-by-side. Build the synthetic-vs-real comparison that wins your executive team's trust.
           </p>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Button size="lg" onClick={goToApp} className="text-base px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
-              {t("landing.heroCTA")}
+              See the hybrid workflow
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
             <Button size="lg" variant="outline" onClick={() => {
@@ -78,7 +78,7 @@ const Landing = () => {
                 </div>
               ))}
             </span>
-            <span className="ml-2">Trusted by 500+ researchers · <strong className="text-foreground">12,847 simulations run</strong></span>
+            <span className="ml-2">Trusted by research teams at growing companies · <strong className="text-foreground">Synthetic + real, one workflow</strong></span>
           </div>
 
           {/* Trust Badges */}
@@ -89,7 +89,7 @@ const Landing = () => {
             </span>
             <span className="flex items-center gap-1.5">
               <Globe className="h-4 w-4 text-primary" />
-              {t("landing.trustMENA")}
+              Synthetic + Real reconciliation
             </span>
             <span className="flex items-center gap-1.5">
               <Shield className="h-4 w-4 text-primary" />
@@ -142,8 +142,9 @@ const Landing = () => {
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-50" />
             <Play className="h-16 w-16 text-primary opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all" />
             <div className="absolute bottom-6 left-6 text-left">
-              <p className="text-xl font-bold text-white shadow-sm">"We replaced 3 weeks of focus groups with InsightForge in 2 hours."</p>
-              <p className="text-sm text-white/80">Elena R. — Founder @ ScaleTech</p>
+              {/* PLACEHOLDER — replace with a real research-team customer quote before launch */}
+              <p className="text-xl font-bold text-white shadow-sm">"We screen 8× more concepts now. The synthetic-vs-real side-by-side gets exec team buy-in faster than any report ever did."</p>
+              <p className="text-sm text-white/80">[Real customer name and company] — Head of Research, [growth-stage SaaS]</p>
             </div>
           </div>
         </div>
