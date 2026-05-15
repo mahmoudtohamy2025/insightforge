@@ -1,7 +1,15 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 import {
   Sparkles,
   Users2,
@@ -11,6 +19,8 @@ import {
   Zap,
   ArrowRight,
   CheckCircle2,
+  XCircle,
+  MinusCircle,
   Globe,
   MessageSquare,
   TrendingUp,
@@ -20,12 +30,127 @@ import {
 } from "lucide-react";
 import { InlineDemo } from "@/components/marketing/InlineDemo";
 
+// Variant identifier — used to disambiguate analytics events for the 3-arm ICP positioning test.
+const LANDING_VARIANT = "teams" as const;
+
+// P1.3 — vs ChatGPT comparison data.
+// Each cell is one of: "yes" | "no" | "partial" — rendered as a colored icon
+// with an optional caption explaining the "partial" case.
+type Cell = { state: "yes" | "no" | "partial"; note?: string };
+type ComparisonRow = { feature: string; free: Cell; plus: Cell; insightforge: Cell };
+
+const COMPARISON_ROWS: ComparisonRow[] = [
+  {
+    feature: "Knows your target customer profile",
+    free: { state: "no" },
+    plus: { state: "partial", note: "with manual prompting" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Returns calibrated sentiment & confidence scores",
+    free: { state: "no" },
+    plus: { state: "no" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Multi-persona debate (focus group)",
+    free: { state: "no" },
+    plus: { state: "partial", note: "one at a time" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Stays in character across rounds",
+    free: { state: "partial", note: "drifts" },
+    plus: { state: "partial", note: "drifts" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Cultural calibration (dialect, region, traditions)",
+    free: { state: "no" },
+    plus: { state: "no" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Side-by-side with real participants",
+    free: { state: "no" },
+    plus: { state: "no" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Exportable stakeholder PDF",
+    free: { state: "no" },
+    plus: { state: "no" },
+    insightforge: { state: "yes" },
+  },
+];
+
+// P1.2 — Six FAQs answering the predictable research-team objections.
+// Order is intentional: stakeholder trust → tool-stack fit → enterprise security
+// → panel-budget impact → competitive positioning → AI output detail.
+const FAQS: { q: string; a: string }[] = [
+  {
+    q: "How do we get internal stakeholder buy-in for synthetic respondents?",
+    a: "Run a calibration study: same 5 concepts through both synthetic and a small real panel (n=50). InsightForge surfaces the synthetic-vs-real comparison in one view — sentiment delta, purchase-intent agreement, theme overlap. Most internal skeptics convert once they see 80%+ correlation on their own brand's data. Calibration sessions take ~48 hours and become reusable proof for every future synthetic-first study.",
+  },
+  {
+    q: "Does this integrate with our existing research stack (Qualtrics, Dovetail, Voxpopme)?",
+    a: "Today: outbound webhooks fire on every completed simulation and session, so you can route results to Dovetail (auto-tag), Slack (channel summary), or any analytics tool that accepts webhook payloads. Native integrations for Qualtrics import (panel data → calibration) and Dovetail export (themes → tags) are in active development — let us know your stack and we'll prioritize accordingly.",
+  },
+  {
+    q: "What about SSO, SCIM, and our enterprise security review?",
+    a: "Workspace tenancy is enforced by Postgres row-level security. RBAC across 4 roles (owner / admin / researcher / observer). SSO (SAML/OIDC) and SCIM provisioning ship on the Enterprise tier — typically activated within 5 business days of contract signature. SOC 2 Type 1 in progress; SIG questionnaire available on request.",
+  },
+  {
+    q: "How does this stretch our panel budget?",
+    a: "Use synthetic as a pre-screen layer: run 8 concepts past synthetic personas first, identify the 2-3 that score above your sentiment + confidence threshold, then field those to your real panel. Customers typically see 4-10× more concepts tested without raising panel spend — and the eliminated concepts get the documentation paper trail to explain why.",
+  },
+  {
+    q: "How is this different from Listen Labs, Remesh, or Voxpopme?",
+    a: "Listen Labs and Voxpopme are AI-moderated interview platforms (real respondents, AI handles the conversation). Remesh is a hybrid insights platform similar in positioning. InsightForge's bet is the synthetic + real reconciliation workflow — purpose-built so you can run synthetic and real on the same stimulus and see them side-by-side. If you're synthetic-curious but stakeholder-skeptical, the validation loop is the differentiator.",
+  },
+  {
+    q: "What does the AI actually return per simulation?",
+    a: "Structured data, not just paragraphs. Per persona response: (1) in-character response text, (2) sentiment score (-1 to +1), (3) confidence score (0 to 1) based on persona-stimulus match, (4) purchase-intent label across 5 levels, (5) emotional reaction across 6 levels, (6) 3–5 extracted themes. Export the full study as PDF for stakeholder review, or pipe individual events via webhook for downstream analytics.",
+  },
+];
+
+// Helper to render one cell in the comparison table.
+function CompareCell({ cell }: { cell: Cell }) {
+  if (cell.state === "yes") {
+    return <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" aria-label="Yes" />;
+  }
+  if (cell.state === "no") {
+    return <XCircle className="h-5 w-5 text-red-500/70 mx-auto" aria-label="No" />;
+  }
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <MinusCircle className="h-5 w-5 text-amber-500 mx-auto" aria-label="Partial" />
+      {cell.note && (
+        <span className="text-[10px] text-muted-foreground italic leading-tight">
+          {cell.note}
+        </span>
+      )}
+    </div>
+  );
+}
+
 const Landing = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useI18n();
 
-  const goToApp = () => navigate(user ? "/dashboard" : "/auth");
+  // P0.1 — Fire a page-view event on mount so the teams landing arm is measurable.
+  useEffect(() => {
+    trackPageView("/");
+    trackEvent("landing_page_view", { variant: LANDING_VARIANT });
+  }, []);
+
+  // P0.2 — Route directly to /signup for unauthed users (was /auth — removed one click).
+  // Also fires a CTA-click event so we can see which CTA drove the conversion.
+  const goToApp = (ctaId: string, section: string) => {
+    trackEvent("landing_cta_click", { cta: ctaId, section, variant: LANDING_VARIANT });
+    navigate(user ? "/dashboard" : "/signup");
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
@@ -56,17 +181,33 @@ const Landing = () => {
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Button size="lg" onClick={goToApp} className="text-base px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
-              See the hybrid workflow
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => {
-              document.getElementById("interactive-demo")?.scrollIntoView({ behavior: "smooth" });
-            }} className="text-base px-8 py-6 rounded-xl">
-              <Play className="h-4 w-4 mr-2" />
-              Watch Demo
-            </Button>
+          <div className="flex flex-col items-center justify-center gap-2 pt-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                onClick={() => goToApp("hero_primary", "hero")}
+                className="text-base px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
+              >
+                See the hybrid workflow
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  trackEvent("landing_watch_demo_click", { variant: LANDING_VARIANT });
+                  document.getElementById("interactive-demo")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="text-base px-8 py-6 rounded-xl"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Watch Demo
+              </Button>
+            </div>
+            {/* P0.3 — Risk-reversal micro-copy: removes the "is this going to cost me?" friction at the moment of intent. */}
+            <p className="text-xs text-muted-foreground mt-1">
+              Free forever · No credit card · 30-second sign-up
+            </p>
           </div>
 
           {/* Social Proof Bar */}
@@ -98,6 +239,13 @@ const Landing = () => {
           </div>
 
           {/* Animated Twin Persona Cards */}
+          {/* P1.4 — TODO (user action required): Capture a real screenshot of the
+              simulation-results UI (the sentiment + confidence + themes panel that users
+              see after running a sim). Save to public/screenshots/sim-result-founder.png.
+              Then replace this persona-card row on desktop with the screenshot — keep the
+              cards on mobile where a screenshot would be unreadable. This is the single
+              biggest credibility lever the page is missing: zero images of the actual
+              product is a major UX/UI smell for a B2B tool. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto pt-12">
             {[
               { name: "Sarah M.", age: "28-34", loc: "Dubai, UAE", emoji: "👩🏽‍💼", trait: "Health-conscious professional", anim: "animate-float-slow" },
@@ -135,18 +283,65 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ═══════════════ VIDEO TESTIMONIAL ═══════════════ */}
-      <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="aspect-video bg-muted border border-border/50 rounded-2xl overflow-hidden relative flex items-center justify-center group cursor-pointer shadow-2xl shadow-primary/5">
-            <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-50" />
-            <Play className="h-16 w-16 text-primary opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all" />
-            <div className="absolute bottom-6 left-6 text-left">
-              {/* PLACEHOLDER — replace with a real research-team customer quote before launch */}
-              <p className="text-xl font-bold text-white shadow-sm">"We screen 8× more concepts now. The synthetic-vs-real side-by-side gets exec team buy-in faster than any report ever did."</p>
-              <p className="text-sm text-white/80">[Real customer name and company] — Head of Research, [growth-stage SaaS]</p>
-            </div>
+      {/* P0.4 — VIDEO TESTIMONIAL SECTION REMOVED.
+          Previously displayed a placeholder testimonial with literal "[Real founder name and company]"
+          text. Shipping fake social proof on a founder pitch is brand-damaging — better to ship nothing
+          than placeholder. Re-add once one real founder has agreed to be quoted (see Plan v2, P3.6). */}
+
+      {/* ═══════════════ VS CHATGPT COMPARISON (P1.3) ═══════════════ */}
+      {/* This is the strongest single visual argument for paying $19+/mo for InsightForge
+          instead of using ChatGPT-Plus at $20. ChatGPT-Plus is the floor competitor for
+          the founder ICP — without this block, the founder thinks "I can just use Claude
+          Projects" and bounces. With this block, the differentiation becomes concrete. */}
+      <section id="vs-chatgpt" className="py-24 px-4 bg-muted/30">
+        <div className="max-w-5xl mx-auto space-y-12">
+          <div className="text-center space-y-3">
+            <h2 className="text-3xl sm:text-4xl font-bold">Why not just ask ChatGPT?</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              ChatGPT is a great writer. It's not a focus group. Here's what changes when you use a tool built for consumer simulation.
+            </p>
           </div>
+
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full min-w-[640px] sm:min-w-0 border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left p-4 font-semibold text-muted-foreground w-2/5"></th>
+                  <th className="text-center p-4 font-semibold text-muted-foreground">
+                    <div>ChatGPT Free</div>
+                  </th>
+                  <th className="text-center p-4 font-semibold text-muted-foreground">
+                    <div>ChatGPT Plus</div>
+                    <div className="text-xs font-normal text-muted-foreground/70">$20/mo</div>
+                  </th>
+                  <th className="text-center p-4 font-bold border-l-2 border-primary/40 bg-primary/5">
+                    <span className="bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
+                      InsightForge
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON_ROWS.map((row, idx) => (
+                  <tr
+                    key={row.feature}
+                    className={`border-b border-border/40 ${idx % 2 ? "bg-card/40" : ""}`}
+                  >
+                    <td className="p-4 font-medium">{row.feature}</td>
+                    <td className="p-4 text-center"><CompareCell cell={row.free} /></td>
+                    <td className="p-4 text-center"><CompareCell cell={row.plus} /></td>
+                    <td className="p-4 text-center border-l-2 border-primary/40 bg-primary/5">
+                      <CompareCell cell={row.insightforge} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground italic">
+            ChatGPT is fantastic at writing for an idea. InsightForge is built to test it.
+          </p>
         </div>
       </section>
 
@@ -259,6 +454,41 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* ═══════════════ FAQ (P1.2) ═══════════════ */}
+      {/* Six objections every founder asks before paying. Handled inline so they don't
+          bounce to a help-center page or just close the tab. Honest answers — no
+          dodging the accuracy question or the ChatGPT question. */}
+      <section id="faq" className="py-24 px-4">
+        <div className="max-w-3xl mx-auto space-y-10">
+          <div className="text-center space-y-3">
+            <h2 className="text-3xl sm:text-4xl font-bold">Common questions from founders</h2>
+            <p className="text-muted-foreground">
+              The first 6 questions every founder asks. Honest answers.
+            </p>
+          </div>
+          <Accordion type="single" collapsible className="w-full">
+            {FAQS.map((faq, idx) => (
+              <AccordionItem key={faq.q} value={`q${idx + 1}`}>
+                <AccordionTrigger
+                  className="text-left text-base font-semibold"
+                  onClick={() =>
+                    trackEvent("faq_question_opened", {
+                      question_index: idx,
+                      variant: LANDING_VARIANT,
+                    })
+                  }
+                >
+                  {faq.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
+                  {faq.a}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </section>
+
       {/* ═══════════════ PRICING ═══════════════ */}
       <section className="py-24 px-4 bg-muted/30">
         <div className="max-w-7xl mx-auto text-center space-y-12">
@@ -339,7 +569,7 @@ const Landing = () => {
                 <Button
                   className="w-full"
                   variant={plan.popular ? "default" : "outline"}
-                  onClick={goToApp}
+                  onClick={() => goToApp(`pricing_${plan.name.toLowerCase()}`, "pricing")}
                 >
                   {plan.cta}
                 </Button>
@@ -363,10 +593,18 @@ const Landing = () => {
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 {t("landing.ctaSubtitle")}
               </p>
-              <Button size="lg" onClick={goToApp} className="text-base px-10 py-6 rounded-xl shadow-lg shadow-primary/20">
+              <Button
+                size="lg"
+                onClick={() => goToApp("final_cta_primary", "final_cta")}
+                className="text-base px-10 py-6 rounded-xl shadow-lg shadow-primary/20"
+              >
                 {t("landing.ctaButton")}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
+              {/* P0.3 — Risk-reversal micro-copy at the final CTA too — last chance to nudge intent over the line. */}
+              <p className="text-xs text-muted-foreground mt-3">
+                Free forever · No credit card · 30-second sign-up
+              </p>
             </div>
           </div>
         </div>
@@ -383,7 +621,14 @@ const Landing = () => {
               Join thousands of participants globally. Calibrate your AI twin, answer questions securely, and get paid instantly for your impact.
             </p>
           </div>
-          <Button size="lg" className="shrink-0 bg-purple-600 hover:bg-purple-700 w-full md:w-auto h-14 px-8 text-base shadow-lg shadow-purple-500/20" onClick={() => navigate('/participate/signup')}>
+          <Button
+            size="lg"
+            className="shrink-0 bg-purple-600 hover:bg-purple-700 w-full md:w-auto h-14 px-8 text-base shadow-lg shadow-purple-500/20"
+            onClick={() => {
+              trackEvent("landing_cta_click", { cta: "participant_signup", section: "participant_cta", variant: LANDING_VARIANT });
+              navigate('/participate/signup');
+            }}
+          >
             Join as Participant
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
