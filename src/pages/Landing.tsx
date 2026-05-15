@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 import {
   Sparkles,
   Users2,
@@ -20,12 +22,26 @@ import {
 } from "lucide-react";
 import { InlineDemo } from "@/components/marketing/InlineDemo";
 
+// Variant identifier — used to disambiguate analytics events for the 3-arm ICP positioning test.
+const LANDING_VARIANT = "founders" as const;
+
 const Landing = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useI18n();
 
-  const goToApp = () => navigate(user ? "/dashboard" : "/auth");
+  // P0.1 — Fire a page-view event on mount so the founders landing arm is measurable.
+  useEffect(() => {
+    trackPageView("/");
+    trackEvent("landing_page_view", { variant: LANDING_VARIANT });
+  }, []);
+
+  // P0.2 — Route directly to /signup for unauthed users (was /auth — removed one click).
+  // Also fires a CTA-click event so we can see which CTA drove the conversion.
+  const goToApp = (ctaId: string, section: string) => {
+    trackEvent("landing_cta_click", { cta: ctaId, section, variant: LANDING_VARIANT });
+    navigate(user ? "/dashboard" : "/signup");
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
@@ -56,17 +72,33 @@ const Landing = () => {
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Button size="lg" onClick={goToApp} className="text-base px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
-              Run my first simulation — free
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => {
-              document.getElementById("interactive-demo")?.scrollIntoView({ behavior: "smooth" });
-            }} className="text-base px-8 py-6 rounded-xl">
-              <Play className="h-4 w-4 mr-2" />
-              Watch Demo
-            </Button>
+          <div className="flex flex-col items-center justify-center gap-2 pt-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                onClick={() => goToApp("hero_primary", "hero")}
+                className="text-base px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
+              >
+                Run my first simulation — free
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  trackEvent("landing_watch_demo_click", { variant: LANDING_VARIANT });
+                  document.getElementById("interactive-demo")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="text-base px-8 py-6 rounded-xl"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Watch Demo
+              </Button>
+            </div>
+            {/* P0.3 — Risk-reversal micro-copy: removes the "is this going to cost me?" friction at the moment of intent. */}
+            <p className="text-xs text-muted-foreground mt-1">
+              Free forever · No credit card · 30-second sign-up
+            </p>
           </div>
 
           {/* Social Proof Bar */}
@@ -135,20 +167,10 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ═══════════════ VIDEO TESTIMONIAL ═══════════════ */}
-      <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="aspect-video bg-muted border border-border/50 rounded-2xl overflow-hidden relative flex items-center justify-center group cursor-pointer shadow-2xl shadow-primary/5">
-            <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-50" />
-            <Play className="h-16 w-16 text-primary opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all" />
-            <div className="absolute bottom-6 left-6 text-left">
-              {/* PLACEHOLDER — replace with a real founder quote before launch */}
-              <p className="text-xl font-bold text-white shadow-sm">"Killed two bad ideas in a weekend. Saved me three months of building the wrong thing."</p>
-              <p className="text-sm text-white/80">[Real founder name and company] — Founder, [stage / industry]</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* P0.4 — VIDEO TESTIMONIAL SECTION REMOVED.
+          Previously displayed a placeholder testimonial with literal "[Real founder name and company]"
+          text. Shipping fake social proof on a founder pitch is brand-damaging — better to ship nothing
+          than placeholder. Re-add once one real founder has agreed to be quoted (see Plan v2, P3.6). */}
 
       {/* ═══════════════ HOW IT WORKS ═══════════════ */}
       <section id="how-it-works" className="py-24 px-4 bg-muted/30">
@@ -339,7 +361,7 @@ const Landing = () => {
                 <Button
                   className="w-full"
                   variant={plan.popular ? "default" : "outline"}
-                  onClick={goToApp}
+                  onClick={() => goToApp(`pricing_${plan.name.toLowerCase()}`, "pricing")}
                 >
                   {plan.cta}
                 </Button>
@@ -363,10 +385,18 @@ const Landing = () => {
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 {t("landing.ctaSubtitle")}
               </p>
-              <Button size="lg" onClick={goToApp} className="text-base px-10 py-6 rounded-xl shadow-lg shadow-primary/20">
+              <Button
+                size="lg"
+                onClick={() => goToApp("final_cta_primary", "final_cta")}
+                className="text-base px-10 py-6 rounded-xl shadow-lg shadow-primary/20"
+              >
                 {t("landing.ctaButton")}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
+              {/* P0.3 — Risk-reversal micro-copy at the final CTA too — last chance to nudge intent over the line. */}
+              <p className="text-xs text-muted-foreground mt-3">
+                Free forever · No credit card · 30-second sign-up
+              </p>
             </div>
           </div>
         </div>
@@ -383,7 +413,14 @@ const Landing = () => {
               Join thousands of participants globally. Calibrate your AI twin, answer questions securely, and get paid instantly for your impact.
             </p>
           </div>
-          <Button size="lg" className="shrink-0 bg-purple-600 hover:bg-purple-700 w-full md:w-auto h-14 px-8 text-base shadow-lg shadow-purple-500/20" onClick={() => navigate('/participate/signup')}>
+          <Button
+            size="lg"
+            className="shrink-0 bg-purple-600 hover:bg-purple-700 w-full md:w-auto h-14 px-8 text-base shadow-lg shadow-purple-500/20"
+            onClick={() => {
+              trackEvent("landing_cta_click", { cta: "participant_signup", section: "participant_cta", variant: LANDING_VARIANT });
+              navigate('/participate/signup');
+            }}
+          >
             Join as Participant
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
