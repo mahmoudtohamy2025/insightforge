@@ -40,25 +40,25 @@ const Landing = () => {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium animate-pulse">
             <Sparkles className="h-3.5 w-3.5" />
-            Digital Consumer Twins — Powered by AI
+            Built for brand managers in the Gulf
           </div>
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
             <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
-              {t("landing.heroTitle")}
+              The only AI consumer panel that actually understands the Gulf.
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            {t("landing.heroSubtitle")}
+            Pre-test campaigns, pricing, and pack designs against AI twins fluent in Khaleeji dialect, Wasta, Ramadan buying behavior, and Halal context — in 48 hours, before you commit media spend.
           </p>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Button size="lg" onClick={goToApp} className="text-base px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
-              {t("landing.heroCTA")}
+              Test my next campaign
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
             <Button size="lg" variant="outline" onClick={() => {
@@ -78,14 +78,14 @@ const Landing = () => {
                 </div>
               ))}
             </span>
-            <span className="ml-2">Trusted by 500+ researchers · <strong className="text-foreground">12,847 simulations run</strong></span>
+            <span className="ml-2">KSA · UAE · Egypt · Kuwait · Qatar · Bahrain · <strong className="text-foreground">Arabic-first</strong></span>
           </div>
 
           {/* Trust Badges */}
           <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Zap className="h-4 w-4 text-primary" />
-              {t("landing.trustSimulations")}
+              Khaleeji · Levantine · Egyptian dialects
             </span>
             <span className="flex items-center gap-1.5">
               <Globe className="h-4 w-4 text-primary" />
@@ -100,9 +100,9 @@ const Landing = () => {
           {/* Animated Twin Persona Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto pt-12">
             {[
-              { name: "Sarah M.", age: "28-34", loc: "Dubai, UAE", emoji: "👩🏽‍💼", trait: "Health-conscious professional", anim: "animate-float-slow" },
-              { name: "Ahmed K.", age: "22-28", loc: "Cairo, Egypt", emoji: "👨🏻‍🎓", trait: "Tech-savvy student", anim: "animate-float-medium" },
-              { name: "Lisa R.", age: "35-45", loc: "London, UK", emoji: "👩🏼‍🔬", trait: "Sustainability advocate", anim: "animate-float-fast" },
+              { name: "Sarah M.", age: "28-34", loc: "Dubai, UAE", emoji: "👩🏽‍💼", trait: "Premium-brand professional, English/Arabic mix", anim: "animate-float-slow" },
+              { name: "Khalid A.", age: "32-40", loc: "Riyadh, KSA", emoji: "👨🏽‍💼", trait: "Vision 2030 era, Khaleeji-first", anim: "animate-float-medium" },
+              { name: "Ahmed K.", age: "22-28", loc: "Cairo, Egypt", emoji: "👨🏻‍🎓", trait: "Price-sensitive, social-media native", anim: "animate-float-fast" },
             ].map((twin) => (
               <div
                 key={twin.name}
@@ -142,8 +142,9 @@ const Landing = () => {
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-50" />
             <Play className="h-16 w-16 text-primary opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all" />
             <div className="absolute bottom-6 left-6 text-left">
-              <p className="text-xl font-bold text-white shadow-sm">"We replaced 3 weeks of focus groups with InsightForge in 2 hours."</p>
-              <p className="text-sm text-white/80">Elena R. — Founder @ ScaleTech</p>
+              {/* PLACEHOLDER — replace with a real Gulf brand-manager quote before launch */}
+              <p className="text-xl font-bold text-white shadow-sm">"We A/B tested two Ramadan campaigns on the AI panel before media buy. The winner landed 2.3× ROAS."</p>
+              <p className="text-sm text-white/80">[Real customer name and brand] — Brand Director, [GCC CPG / retail / telecom]</p>
             </div>
           </div>
         </div>
