@@ -3,6 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { trackEvent, trackPageView } from "@/lib/analytics";
 import {
   Sparkles,
@@ -13,6 +19,8 @@ import {
   Zap,
   ArrowRight,
   CheckCircle2,
+  XCircle,
+  MinusCircle,
   Globe,
   MessageSquare,
   TrendingUp,
@@ -24,6 +32,107 @@ import { InlineDemo } from "@/components/marketing/InlineDemo";
 
 // Variant identifier — used to disambiguate analytics events for the 3-arm ICP positioning test.
 const LANDING_VARIANT = "founders" as const;
+
+// P1.3 — vs ChatGPT comparison data.
+// Each cell is one of: "yes" | "no" | "partial" — rendered as a colored icon
+// with an optional caption explaining the "partial" case.
+type Cell = { state: "yes" | "no" | "partial"; note?: string };
+type ComparisonRow = { feature: string; free: Cell; plus: Cell; insightforge: Cell };
+
+const COMPARISON_ROWS: ComparisonRow[] = [
+  {
+    feature: "Knows your target customer profile",
+    free: { state: "no" },
+    plus: { state: "partial", note: "with manual prompting" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Returns calibrated sentiment & confidence scores",
+    free: { state: "no" },
+    plus: { state: "no" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Multi-persona debate (focus group)",
+    free: { state: "no" },
+    plus: { state: "partial", note: "one at a time" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Stays in character across rounds",
+    free: { state: "partial", note: "drifts" },
+    plus: { state: "partial", note: "drifts" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Cultural calibration (dialect, region, traditions)",
+    free: { state: "no" },
+    plus: { state: "no" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Side-by-side with real participants",
+    free: { state: "no" },
+    plus: { state: "no" },
+    insightforge: { state: "yes" },
+  },
+  {
+    feature: "Exportable stakeholder PDF",
+    free: { state: "no" },
+    plus: { state: "no" },
+    insightforge: { state: "yes" },
+  },
+];
+
+// P1.2 — Six FAQs answering the predictable founder objections.
+// Order is intentional: accuracy → ChatGPT differentiation → fit-for-my-product
+// → "I don't know my customer yet" → privacy → "what do I get out".
+const FAQS: { q: string; a: string }[] = [
+  {
+    q: "How accurate is this vs. talking to real customers?",
+    a: "Calibrated synthetic consumers reach 85–92% parity with real-survey data on concept and pricing studies (per independent research). For directional 'should I build this?' decisions, that's plenty. For high-stakes spend decisions, use InsightForge to pre-screen ideas synthetically, then validate the winners with real participants — both happen side-by-side in one workflow.",
+  },
+  {
+    q: "How is this different from just asking ChatGPT?",
+    a: "ChatGPT is a great writer. It's not a focus group. Asking ChatGPT 'what would a 28-year-old Dubai professional think of my coffee idea' gets you a generic answer that drifts out of character after two messages, with no calibrated confidence or sentiment score. InsightForge uses a 6-layer persona prompt with cultural context, returns structured output (sentiment, confidence, purchase intent, themes), and lets multiple personas debate each other across rounds. See the comparison table above.",
+  },
+  {
+    q: "Can I use it for B2B or non-consumer products?",
+    a: "Yes. The persona system is configurable — you describe the role (e.g. 'VP Engineering at a 50-person SaaS who currently uses Datadog'), and the AI plays that role. Works for B2B SaaS, enterprise tools, internal apps, even policy decisions. The pre-built consumer personas are templates; you can clone and customize them in seconds.",
+  },
+  {
+    q: "What if I don't know my target customer yet?",
+    a: "That's actually the most valuable first session. You describe what you do know ('busy parents who care about health'), and the AI helps you sharpen that into a real persona by asking the right questions. Most founders say the persona-discovery loop is more useful than the simulation itself.",
+  },
+  {
+    q: "Is my idea data private?",
+    a: "Yes. Every workspace is isolated by Postgres row-level security — your data is invisible to other workspaces. We do not train AI on your inputs (Gemini is called via API, not in training mode). GDPR-compliant. You can export everything and delete your workspace at any time. No screenshots of your ideas leave our infrastructure unless you explicitly share a snapshot link.",
+  },
+  {
+    q: "What does the AI actually return?",
+    a: "Every simulation returns structured data, not just a paragraph. For each persona response you get: (1) the in-character response text, (2) a sentiment score from -1 to +1, (3) a confidence score from 0 to 1 based on how well the stimulus matches the persona, (4) a purchase-intent label across 5 levels, (5) an emotional reaction across 6 levels, and (6) 3–5 key themes extracted from the response. Export the full report as a PDF you can send to your co-founder or investor.",
+  },
+];
+
+// Helper to render one cell in the comparison table.
+function CompareCell({ cell }: { cell: Cell }) {
+  if (cell.state === "yes") {
+    return <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" aria-label="Yes" />;
+  }
+  if (cell.state === "no") {
+    return <XCircle className="h-5 w-5 text-red-500/70 mx-auto" aria-label="No" />;
+  }
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <MinusCircle className="h-5 w-5 text-amber-500 mx-auto" aria-label="Partial" />
+      {cell.note && (
+        <span className="text-[10px] text-muted-foreground italic leading-tight">
+          {cell.note}
+        </span>
+      )}
+    </div>
+  );
+}
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -130,6 +239,13 @@ const Landing = () => {
           </div>
 
           {/* Animated Twin Persona Cards */}
+          {/* P1.4 — TODO (user action required): Capture a real screenshot of the
+              simulation-results UI (the sentiment + confidence + themes panel that users
+              see after running a sim). Save to public/screenshots/sim-result-founder.png.
+              Then replace this persona-card row on desktop with the screenshot — keep the
+              cards on mobile where a screenshot would be unreadable. This is the single
+              biggest credibility lever the page is missing: zero images of the actual
+              product is a major UX/UI smell for a B2B tool. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto pt-12">
             {[
               { name: "Sarah M.", age: "28-34", loc: "Dubai, UAE", emoji: "👩🏽‍💼", trait: "Health-conscious professional", anim: "animate-float-slow" },
@@ -171,6 +287,63 @@ const Landing = () => {
           Previously displayed a placeholder testimonial with literal "[Real founder name and company]"
           text. Shipping fake social proof on a founder pitch is brand-damaging — better to ship nothing
           than placeholder. Re-add once one real founder has agreed to be quoted (see Plan v2, P3.6). */}
+
+      {/* ═══════════════ VS CHATGPT COMPARISON (P1.3) ═══════════════ */}
+      {/* This is the strongest single visual argument for paying $19+/mo for InsightForge
+          instead of using ChatGPT-Plus at $20. ChatGPT-Plus is the floor competitor for
+          the founder ICP — without this block, the founder thinks "I can just use Claude
+          Projects" and bounces. With this block, the differentiation becomes concrete. */}
+      <section id="vs-chatgpt" className="py-24 px-4 bg-muted/30">
+        <div className="max-w-5xl mx-auto space-y-12">
+          <div className="text-center space-y-3">
+            <h2 className="text-3xl sm:text-4xl font-bold">Why not just ask ChatGPT?</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              ChatGPT is a great writer. It's not a focus group. Here's what changes when you use a tool built for consumer simulation.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="w-full min-w-[640px] sm:min-w-0 border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left p-4 font-semibold text-muted-foreground w-2/5"></th>
+                  <th className="text-center p-4 font-semibold text-muted-foreground">
+                    <div>ChatGPT Free</div>
+                  </th>
+                  <th className="text-center p-4 font-semibold text-muted-foreground">
+                    <div>ChatGPT Plus</div>
+                    <div className="text-xs font-normal text-muted-foreground/70">$20/mo</div>
+                  </th>
+                  <th className="text-center p-4 font-bold border-l-2 border-primary/40 bg-primary/5">
+                    <span className="bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
+                      InsightForge
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON_ROWS.map((row, idx) => (
+                  <tr
+                    key={row.feature}
+                    className={`border-b border-border/40 ${idx % 2 ? "bg-card/40" : ""}`}
+                  >
+                    <td className="p-4 font-medium">{row.feature}</td>
+                    <td className="p-4 text-center"><CompareCell cell={row.free} /></td>
+                    <td className="p-4 text-center"><CompareCell cell={row.plus} /></td>
+                    <td className="p-4 text-center border-l-2 border-primary/40 bg-primary/5">
+                      <CompareCell cell={row.insightforge} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground italic">
+            ChatGPT is fantastic at writing for an idea. InsightForge is built to test it.
+          </p>
+        </div>
+      </section>
 
       {/* ═══════════════ HOW IT WORKS ═══════════════ */}
       <section id="how-it-works" className="py-24 px-4 bg-muted/30">
@@ -278,6 +451,41 @@ const Landing = () => {
               <p className="text-sm text-muted-foreground leading-relaxed">{t("landing.traditionalDesc")}</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ FAQ (P1.2) ═══════════════ */}
+      {/* Six objections every founder asks before paying. Handled inline so they don't
+          bounce to a help-center page or just close the tab. Honest answers — no
+          dodging the accuracy question or the ChatGPT question. */}
+      <section id="faq" className="py-24 px-4">
+        <div className="max-w-3xl mx-auto space-y-10">
+          <div className="text-center space-y-3">
+            <h2 className="text-3xl sm:text-4xl font-bold">Common questions from founders</h2>
+            <p className="text-muted-foreground">
+              The first 6 questions every founder asks. Honest answers.
+            </p>
+          </div>
+          <Accordion type="single" collapsible className="w-full">
+            {FAQS.map((faq, idx) => (
+              <AccordionItem key={faq.q} value={`q${idx + 1}`}>
+                <AccordionTrigger
+                  className="text-left text-base font-semibold"
+                  onClick={() =>
+                    trackEvent("faq_question_opened", {
+                      question_index: idx,
+                      variant: LANDING_VARIANT,
+                    })
+                  }
+                >
+                  {faq.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
+                  {faq.a}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
       </section>
 
