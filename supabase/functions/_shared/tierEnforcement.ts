@@ -26,63 +26,38 @@ const TIER_LIMITS: Record<string, Record<string, number | boolean | string>> = {
   enterprise:   { members: -1, sessions: -1, surveys: -1, projects: -1, aiAnalysis: true },
 };
 
-// ── Stripe Product to Tier Map ──────────────────────
-
-const STRIPE_PRODUCT_TIER: Record<string, string> = {
-  "prod_starter_plan": "starter",
-  "prod_professional_plan": "professional",
-  "prod_enterprise_plan": "enterprise",
-};
-
-// Allow override via env
-const envMapping = Deno.env.get("STRIPE_TIER_MAP");
-if (envMapping) {
-  try {
-    const parsed = JSON.parse(envMapping);
-    Object.entries(parsed).forEach(([productId, tier]) => {
-      STRIPE_PRODUCT_TIER[productId] = tier as string;
-    });
-  } catch (_) { /* ignore parse errors */ }
-}
-
-// ── Get Workspace Tier ──────────────────────────────
+// ── Get Workspace Tier (P0.2 — cache-first) ─────────────
+//
+// The workspaces table has `tier VARCHAR(50) NOT NULL DEFAULT 'free'` and is
+// authoritatively updated by the stripe-webhook edge function on every
+// customer.subscription.{created,updated,deleted} event. That makes the column
+// the canonical cache for the workspace's current tier.
+//
+// Before this change: this function called Stripe API on EVERY protected edge
+// request (auth.admin.getUserById → stripe.customers.list → stripe.subscriptions.list).
+// At any nontrivial traffic Stripe's read rate limit (~100/sec) would start
+// rejecting requests, cascading 429s up to the frontend. Frontend polling
+// (useSubscription.ts) amplified this to ~5 req/sec from idle.
+//
+// After this change: this function reads workspaces.tier in one cheap query.
+// Stripe is hit only by the webhook itself — i.e. when tier ACTUALLY changes.
 
 export async function getWorkspaceTier(supabase: any, workspaceId: string): Promise<string> {
   try {
-    // Get workspace owner's subscription
-    const { data: workspace } = await supabase
+    const { data: workspace, error } = await supabase
       .from("workspaces")
-      .select("owner_id")
+      .select("tier")
       .eq("id", workspaceId)
       .single();
 
-    if (!workspace?.owner_id) return "free";
+    if (error || !workspace) {
+      console.error("[TIER] Failed to read workspace tier:", error);
+      return "free"; // Fail-closed to the most restrictive tier.
+    }
 
-    // Get owner's email to look up Stripe subscription
-    const { data: { user: owner } } = await supabase.auth.admin.getUserById(workspace.owner_id);
-    if (!owner?.email) return "free";
-
-    // Check the subscriptions table or a cached tier column
-    // For now, fall back to checking check-subscription logic
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) return "free";
-
-    const { default: Stripe } = await import("https://esm.sh/stripe@18.5.0");
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
-    const customers = await stripe.customers.list({ email: owner.email, limit: 1 });
-    if (customers.data.length === 0) return "free";
-
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customers.data[0].id,
-      status: "active",
-      limit: 1,
-    });
-
-    if (subscriptions.data.length === 0) return "free";
-
-    const productId = subscriptions.data[0].items.data[0]?.price?.product;
-    return STRIPE_PRODUCT_TIER[productId as string] || "free";
+    // workspaces.tier is NOT NULL with DEFAULT 'free', so this nullish-coalesce
+    // is defensive against schema drift, not the expected path.
+    return workspace.tier ?? "free";
   } catch (err) {
     console.error("[TIER] Error checking tier:", err);
     return "free";

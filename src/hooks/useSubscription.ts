@@ -81,9 +81,40 @@ export function useSubscription() {
 
   useEffect(() => {
     checkSubscription();
-    const interval = setInterval(checkSubscription, 60000);
-    return () => clearInterval(interval);
-  }, [checkSubscription]);
+
+    // P0.2 — Replace 60-second polling with a Supabase Realtime listener on the
+    // workspaces row. The Stripe webhook (supabase/functions/stripe-webhook)
+    // updates workspaces.tier whenever a subscription changes. We subscribe to
+    // UPDATE events on the current workspace row and re-run checkSubscription
+    // only when the row actually changes.
+    //
+    // Before: 100 users × 3 tabs × every 60s = 300 invokes/min from idle alone.
+    //         Each invoke fanned out to a Stripe API call inside the check-
+    //         subscription edge function. Stripe rate-limit-bomb at any scale.
+    // After:  zero invokes from idle; the hook re-runs only on legitimate
+    //         tier-change events pushed by Postgres → Realtime.
+    if (!currentWorkspace?.id) return;
+
+    const channel = supabase
+      .channel(`workspace-tier:${currentWorkspace.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "workspaces",
+          filter: `id=eq.${currentWorkspace.id}`,
+        },
+        () => {
+          checkSubscription();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [checkSubscription, currentWorkspace?.id]);
 
   return { ...state, refetch: checkSubscription };
 }
