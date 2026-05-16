@@ -161,8 +161,17 @@ export async function enforceTierLimit(
 
     return null;
   } catch (err) {
-    console.error("[TIER] Enforcement error:", err);
-    // On error, allow the action (fail open for now) but log
-    return null;
+    // P0.4 — Fail CLOSED on errors. Previously this returned null (= "allowed"),
+    // which meant a Stripe outage silently granted Enterprise-tier access to
+    // anyone whose tier lookup failed. Combined with the (also-now-fixed)
+    // rate-limiter fail-open, a sustained Stripe incident would have torched
+    // the entire AI cost model. Return 503 instead — clients surface a "try
+    // again" message which is better UX than silently free Enterprise.
+    console.error("[TIER][P0.4] Fail-closed on enforcement error:", err);
+    return jsonResponse(req, {
+      error: "Billing service is temporarily unavailable. Please retry in a moment.",
+      code: "TIER_LOOKUP_UNAVAILABLE",
+      retry_after_seconds: 30,
+    }, 503);
   }
 }
