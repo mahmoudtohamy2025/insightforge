@@ -117,9 +117,19 @@ export async function checkRateLimit(
 
     return null;
   } catch (err) {
-    // On error, fail open but log
-    console.error("[RATE_LIMITER] Error:", err);
-    return null;
+    // P0.4 — Fail CLOSED on errors. Previously this returned null (= "allowed"),
+    // which meant any DB / Stripe / network hiccup silently turned off the
+    // rate-limiter and let the workspace burn unlimited tokens. Combined with
+    // the (also-now-fixed) tier-enforcement fail-open, a Stripe outage would
+    // have meant unlimited free AI for every user until the outage cleared.
+    // Return 503 instead — callers will surface a "try again" message to users,
+    // which is better UX than silently torching margins.
+    console.error("[RATE_LIMITER][P0.4] Fail-closed on error:", err);
+    return jsonResponse(req, {
+      error: "Billing service is temporarily unavailable. Please retry in a moment.",
+      code: "RATE_LIMITER_UNAVAILABLE",
+      retry_after_seconds: 30,
+    }, 503);
   }
 }
 
