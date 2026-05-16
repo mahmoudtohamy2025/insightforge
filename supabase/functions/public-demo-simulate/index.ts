@@ -1,4 +1,5 @@
 import { handleCors, jsonResponse } from "../_shared/cors.ts";
+import { captureEdgeException } from "../_shared/sentry.ts";
 
 /**
  * Public Demo Simulate — Rate-limited, no-auth endpoint for the public playground.
@@ -170,7 +171,20 @@ Rules: Stay in character. Be specific and natural. Show genuine emotions.`;
       remaining_requests: Math.max(0, MAX_REQUESTS - (ipRequests.get(ip)?.count || 0)),
     });
   } catch (err: any) {
-    console.error("Public demo error:", err);
+    // P0.5 — Forward to Sentry. This is the unauthed public endpoint
+    // prospects hit from the pitch URLs; an error here is invisible to
+    // Supabase function logs in real time and we'd find out from a
+    // bouncing prospect. captureEdgeException also logs to console so
+    // Supabase logs remain populated.
+    await captureEdgeException(err, {
+      function: "public-demo-simulate",
+      extras: {
+        // Don't log the full body (could contain user-typed stimulus
+        // which is PII-ish); just the method + path for triage.
+        method: req.method,
+        path: new URL(req.url).pathname,
+      },
+    });
     return jsonResponse(req, { error: err.message || "Internal error" }, 500);
   }
 });

@@ -19,9 +19,32 @@ if (envMapping) {
   } catch (_) { /* ignore parse errors */ }
 }
 
+/**
+ * P0.3 — Determine whether signature-bypass is safe to honor in this environment.
+ *
+ * The bypass is ONLY allowed when the function is running against a local
+ * Supabase instance (`supabase start` serves on http://localhost:54321 or
+ * http://127.0.0.1:54321). In any other environment — production, preview
+ * deploys, staging — the bypass is refused even if BYPASS_STRIPE_SIGNATURE=true
+ * is set.
+ *
+ * Rationale: if the env var ever leaks to a production Supabase project
+ * (operator error, copy-paste from a .env.local, accidental promotion of
+ * a CI env var), the bypass would let anyone with the webhook URL forge
+ * `customer.subscription.updated` events and grant themselves any tier.
+ * Requiring an additional non-production signal closes that hole.
+ *
+ * If you need to E2E-test against a remote/deployed function, do not use
+ * this bypass — use Stripe's real test-mode webhooks instead.
+ */
+function isBypassSafeForThisEnvironment(): boolean {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  return supabaseUrl.includes("//localhost:") || supabaseUrl.includes("//127.0.0.1:");
+}
+
 Deno.serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
-  
+
   if (!signature) {
     console.error("No Stripe signature found");
     return new Response("No Stripe signature found", { status: 400 });
@@ -29,26 +52,41 @@ Deno.serve(async (req) => {
 
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-  
-  const bypassSignature = Deno.env.get("BYPASS_STRIPE_SIGNATURE") === "true";
 
-  if (!bypassSignature && (!stripeKey || !webhookSecret)) {
+  // P0.3 — Resolve bypass intent ONCE, gated by environment. Both prior call
+  // sites (config-error guard + signature-verify branch) now consult this
+  // single source of truth so the env var cannot accidentally activate the
+  // bypass in production.
+  const bypassRequested = Deno.env.get("BYPASS_STRIPE_SIGNATURE") === "true";
+  const bypassAllowed = bypassRequested && isBypassSafeForThisEnvironment();
+
+  if (bypassRequested && !bypassAllowed) {
+    console.error(
+      "[SECURITY] BYPASS_STRIPE_SIGNATURE=true was set, but this environment is not a " +
+      "local Supabase instance. Ignoring bypass; real Stripe signature verification will " +
+      "be used. If you are running E2E tests, run them against `supabase start` " +
+      "(localhost:54321) and not against a deployed function. SUPABASE_URL=" +
+      (Deno.env.get("SUPABASE_URL") ?? "<not set>")
+    );
+  }
+
+  if (!bypassAllowed && (!stripeKey || !webhookSecret)) {
     console.error("Missing Stripe environment variables");
     return new Response("Server configuration error", { status: 500 });
   }
 
   let stripe: any = null;
-  if (!bypassSignature) {
+  if (!bypassAllowed) {
     stripe = new Stripe(stripeKey!, { apiVersion: "2025-08-27.basil" });
   }
-  
+
   try {
     const body = await req.text();
-    // Verify webhook signature (This fulfills Task 4 requirement)
+    // Verify webhook signature (P0.3: only bypass when bypassAllowed; never re-read the env var here).
     let event;
-    if (Deno.env.get("BYPASS_STRIPE_SIGNATURE") === "true") {
+    if (bypassAllowed) {
       event = JSON.parse(body);
-      console.log("⚠️ Bypassing Stripe signature verification for E2E testing");
+      console.log("⚠️ Bypassing Stripe signature verification (local E2E testing only)");
     } else {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     }

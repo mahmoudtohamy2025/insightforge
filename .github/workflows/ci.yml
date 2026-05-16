@@ -1,0 +1,45 @@
+name: CI
+
+# Gate every PR and every push to main with: lint, type-check, unit tests.
+# E2E (Playwright) runs in a separate workflow because it needs a dev server
+# and a real Supabase URL; running it on every PR would be slow and flaky.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: # allow manual runs from the Actions tab
+
+# Cancel in-progress runs for the same branch when a new commit lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint, Types, Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies (clean, lockfile-strict)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Unit tests (vitest)
+        run: npm test

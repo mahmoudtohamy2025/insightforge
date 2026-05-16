@@ -17,7 +17,10 @@ export const TIER_LIMITS: Record<string, TierLimits> = {
     sessions: 10,
     surveys: 5,
     projects: 2,
-    aiAnalysis: false,
+    // P0.8 — Free tier now gets a monthly AI trial (50K tokens ≈ 3 full simulations).
+    // Was `false`. Without this, free users land on /dashboard but can't run a
+    // single simulation, which kills conversion from every pitch URL.
+    aiAnalysis: true,
     storage: "500 MB",
     support: "Community",
     requirements: 5,
@@ -156,7 +159,7 @@ export function canPerformAction(
 // ── Token Budgets (Monthly) ────────────────────────────
 
 export const TIER_TOKEN_BUDGETS: Record<string, number> = {
-  free: 0,
+  free: 50_000,        // P0.8 — Monthly AI trial (~3 simulations). Was 0.
   starter: 500_000,
   professional: 2_000_000,
   enterprise: 10_000_000,
@@ -165,7 +168,8 @@ export const TIER_TOKEN_BUDGETS: Record<string, number> = {
 // ── Rate Limits (per minute) ───────────────────────────
 
 export const TIER_RATE_LIMITS: Record<string, number> = {
-  free: 0,
+  free: 3,             // P0.8 — Free trial gets 3 req/min so a curious user can't burn
+                       //        their entire monthly budget in one accidental loop. Was 0.
   starter: 10,
   professional: 30,
   enterprise: 100,
