@@ -13,8 +13,14 @@ import { jsonResponse } from "./cors.ts";
 
 // ── Tier Limits (mirrors src/lib/tierLimits.ts) ──────
 
+// NOTE: This table drifts from src/lib/tierLimits.ts on the count fields (members/sessions/etc.).
+// That drift is tracked separately as P0.1 in AUDIT.md. This PR only fixes the aiAnalysis
+// boolean for the free tier (P0.8) to avoid scope creep. The drift on counts is a separate fix.
 const TIER_LIMITS: Record<string, Record<string, number | boolean | string>> = {
-  free:         { members: 2, sessions: 10, surveys: 5, projects: 3, aiAnalysis: false },
+  // P0.8 — aiAnalysis flipped to true. Free tier now gets a monthly AI trial via the
+  // rate-limiter's 50K token budget. Without this flag flip, tierEnforcement.ts:130
+  // returns a 403 before the rate-limiter is even reached.
+  free:         { members: 2, sessions: 10, surveys: 5, projects: 3, aiAnalysis: true },
   starter:      { members: 5, sessions: 50, surveys: 25, projects: 15, aiAnalysis: true },
   professional: { members: 15, sessions: -1, surveys: -1, projects: -1, aiAnalysis: true },
   enterprise:   { members: -1, sessions: -1, surveys: -1, projects: -1, aiAnalysis: true },
