@@ -18,15 +18,20 @@ import { jsonResponse } from "./cors.ts";
 
 // ── Tier Budgets ────────────────────────────────────
 
+// P0.8 — Free tier now has a 50K monthly AI trial.
+// Without this change, every free user landing from a pitch URL hit a 403 ("AI features
+// are not available on your current plan") the moment they tried their first simulation —
+// killing conversion from every landing page. This must stay in sync with the same
+// constants in src/lib/tierLimits.ts (frontend).
 const TIER_TOKEN_BUDGETS: Record<string, number> = {
-  free: 0,
+  free: 50_000,        // monthly trial — ~3 full simulations before the upgrade nudge fires
   starter: 500_000,
   professional: 2_000_000,
   enterprise: 10_000_000,
 };
 
 const TIER_RATE_LIMITS: Record<string, number> = {
-  free: 0,      // AI is disabled for free
+  free: 3,      // 3 req/min — prevents a curious user accidentally burning their monthly trial in seconds
   starter: 10,  // 10 req/min
   professional: 30,
   enterprise: 100,
@@ -117,9 +122,19 @@ export async function checkRateLimit(
 
     return null;
   } catch (err) {
-    // On error, fail open but log
-    console.error("[RATE_LIMITER] Error:", err);
-    return null;
+    // P0.4 — Fail CLOSED on errors. Previously this returned null (= "allowed"),
+    // which meant any DB / Stripe / network hiccup silently turned off the
+    // rate-limiter and let the workspace burn unlimited tokens. Combined with
+    // the (also-now-fixed) tier-enforcement fail-open, a Stripe outage would
+    // have meant unlimited free AI for every user until the outage cleared.
+    // Return 503 instead — callers will surface a "try again" message to users,
+    // which is better UX than silently torching margins.
+    console.error("[RATE_LIMITER][P0.4] Fail-closed on error:", err);
+    return jsonResponse(req, {
+      error: "Billing service is temporarily unavailable. Please retry in a moment.",
+      code: "RATE_LIMITER_UNAVAILABLE",
+      retry_after_seconds: 30,
+    }, 503);
   }
 }
 

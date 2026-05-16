@@ -26,3 +26,7 @@ dist-ssr
 
 playwright-report/
 test-results/
+
+# Lint output artifacts — never commit these (they're regenerated locally)
+lint_results*.txt
+new_lint_results*.txt
