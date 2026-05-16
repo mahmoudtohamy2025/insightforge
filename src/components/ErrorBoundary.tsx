@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { captureException } from "@/lib/sentry";
 
 interface Props {
   children: ReactNode;
@@ -23,6 +24,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("[ErrorBoundary] Caught error:", error, errorInfo);
+    // P0.5 — Forward to Sentry so render-phase crashes are visible in the
+    // dashboard, not just the user's console. The component-stack is sent
+    // as extra context so we can pinpoint which subtree died.
+    captureException(error, {
+      componentStack: errorInfo.componentStack,
+      source: "react_error_boundary",
+    });
   }
 
   handleReload = () => {
