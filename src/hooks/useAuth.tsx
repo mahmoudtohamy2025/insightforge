@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from "r
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { identifyUser, resetAnalytics, trackPageView } from "@/lib/analytics";
+import { identifySentryUser, clearSentryUser } from "@/lib/sentry";
 
 interface AuthContextType {
   user: User | null;
@@ -25,14 +26,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Analytics: identify on login, reset on logout
+        // P0.5 — Analytics + Sentry: identify on login, reset on logout.
+        // Tagging the user means any error captured later is attributable
+        // to a specific account in both PostHog and Sentry dashboards.
         if (session?.user) {
           identifyUser(session.user.id, {
             email: session.user.email,
             created_at: session.user.created_at,
           });
+          identifySentryUser({
+            id: session.user.id,
+            email: session.user.email,
+          });
         } else if (_event === "SIGNED_OUT") {
           resetAnalytics();
+          clearSentryUser();
         }
       }
     );
