@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DollarSign, TrendingUp, Clock, Loader2, Wallet } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending:   { label: "Pending",   color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
   paid:      { label: "Paid",      color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
   processing:{ label: "Processing",color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400" },
+  requested: { label: "Requested", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  failed:    { label: "Failed",    color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
+  cancelled: { label: "Cancelled", color: "bg-muted text-muted-foreground" },
 };
 
 // Trigger confetti — zero-dependency DOM implementation
@@ -59,7 +63,7 @@ export default function Earnings() {
   const queryClient = useQueryClient();
   const [cashoutLoading, setCashoutLoading] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["participant-earnings", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("participant-profile");
@@ -71,6 +75,17 @@ export default function Earnings() {
           available_cents: number;
           history: Array<{ id: string; amount_cents: number; status: string; description: string; created_at: string }>;
         };
+        payout_requests?: Array<{
+          id: string;
+          amount_cents: number;
+          currency: string;
+          status: string;
+          provider: string;
+          provider_order_id?: string | null;
+          failure_reason?: string | null;
+          requested_at: string;
+          processed_at?: string | null;
+        }>;
         reputation: { streak_weeks?: number; total_studies: number } | null;
       };
     },
@@ -82,8 +97,11 @@ export default function Earnings() {
   const pending = data?.earnings?.pending_cents ?? 0;
   const total = data?.earnings?.total_earned_cents ?? 0;
   const history = data?.earnings?.history ?? [];
+  const payoutRequests = data?.payout_requests ?? [];
+  const latestPayoutRequest = payoutRequests[0];
+  const openPayoutRequest = payoutRequests.find((request) => request.status === "requested" || request.status === "processing");
   const streakWeeks = data?.reputation?.streak_weeks ?? 0;
-  const canCashout = available >= CASHOUT_THRESHOLD;
+  const canCashout = available >= CASHOUT_THRESHOLD && !openPayoutRequest;
 
   // Build sparkline data from history (last 30 days grouped by date)
   const sparklineData = (() => {
@@ -103,17 +121,20 @@ export default function Earnings() {
   const cashoutMutation = useMutation({
     mutationFn: async () => {
       setCashoutLoading(true);
-      const { data, error } = await supabase.functions.invoke("participant-cashout");
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      const idempotencyKey = crypto.randomUUID();
+      const { data: cashoutData, error: cashoutError } = await supabase.functions.invoke("participant-cashout", {
+        body: { idempotency_key: idempotencyKey },
+      });
+      if (cashoutError) throw cashoutError;
+      if (cashoutData?.error) throw new Error(cashoutData.error);
+      return cashoutData;
     },
     onSuccess: async (data) => {
       await fireConfetti();
       queryClient.invalidateQueries({ queryKey: ["participant-earnings"] });
       toast({
         title: `💰 ${formatCents(available)} is on its way!`,
-        description: data?.method === "tremendous"
+        description: data?.provider === "tremendous" || data?.method === "tremendous"
           ? "Your payout has been initiated. Check your email for details."
           : "Your payout is being processed manually.",
       });
@@ -133,6 +154,24 @@ export default function Earnings() {
           <Skeleton className="h-40" />
         </div>
         <Skeleton className="h-64" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Wallet className="h-6 w-6 text-primary" />
+            Earnings
+          </h1>
+        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            We could not load your earnings. {(error as Error)?.message || "Please refresh and try again."}
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -162,11 +201,20 @@ export default function Earnings() {
             <Button
               className="w-full"
               onClick={() => cashoutMutation.mutate()}
-              disabled={!canCashout || cashoutLoading}
+              disabled={!canCashout || cashoutLoading || cashoutMutation.isPending}
             >
               {cashoutLoading && <Loader2 className="h-4 w-4 me-2 animate-spin" />}
-              {canCashout ? `Cash Out ${formatCents(available)}` : `Earn ${formatCents(CASHOUT_THRESHOLD - available)} more`}
+              {openPayoutRequest
+                ? "Payout Pending"
+                : canCashout
+                  ? `Cash Out ${formatCents(available)}`
+                  : `Earn ${formatCents(Math.max(0, CASHOUT_THRESHOLD - available))} more`}
             </Button>
+            {openPayoutRequest && (
+              <p className="text-xs text-muted-foreground text-center">
+                {formatCents(openPayoutRequest.amount_cents)} is {openPayoutRequest.status}.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -198,6 +246,32 @@ export default function Earnings() {
           </CardContent>
         </Card>
       </div>
+
+      {latestPayoutRequest && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-primary" />
+              Latest Payout Request
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">{formatCents(latestPayoutRequest.amount_cents)} via {latestPayoutRequest.provider}</p>
+              <p className="text-xs text-muted-foreground">
+                Requested {new Date(latestPayoutRequest.requested_at).toLocaleDateString()}
+                {latestPayoutRequest.provider_order_id ? ` • ${latestPayoutRequest.provider_order_id}` : ""}
+              </p>
+              {latestPayoutRequest.failure_reason && (
+                <p className="text-xs text-destructive mt-1">{latestPayoutRequest.failure_reason}</p>
+              )}
+            </div>
+            <Badge className={cn("text-xs w-fit", STATUS_CONFIG[latestPayoutRequest.status]?.color || STATUS_CONFIG.pending.color)}>
+              {STATUS_CONFIG[latestPayoutRequest.status]?.label || latestPayoutRequest.status}
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Transaction history */}
       <Card>

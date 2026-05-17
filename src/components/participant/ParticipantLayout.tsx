@@ -1,19 +1,20 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LayoutDashboard, Search, DollarSign, User, LogOut, Sparkles, Menu, X, Gift, Brain } from "lucide-react";
+import { LayoutDashboard, Search, DollarSign, User, LogOut, Sparkles, Menu, X, Gift, Brain, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ParticipantNotificationCenter } from "@/components/participant/ParticipantNotificationCenter";
 
 const NAV_ITEMS = [
-  { to: "/participate/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/participate/studies", icon: Search, label: "Studies" },
-  { to: "/participate/earnings", icon: DollarSign, label: "Earnings" },
-  { to: "/participate/impact", icon: Sparkles, label: "Impact" },
-  { to: "/participate/my-twin", icon: Brain, label: "My Twin" },
-  { to: "/participate/referrals", icon: Gift, label: "Refer & Earn" },
-  { to: "/participate/profile", icon: User, label: "Profile" },
+  { to: "/participate/dashboard",  icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/participate/studies",    icon: Search,          label: "Studies" },
+  { to: "/participate/my-studies", icon: BookOpen,        label: "My Studies" },
+  { to: "/participate/earnings",   icon: DollarSign,      label: "Earnings" },
+  { to: "/participate/impact",     icon: Sparkles,        label: "Impact" },
+  { to: "/participate/my-twin",    icon: Brain,           label: "My Twin" },
+  { to: "/participate/referrals",  icon: Gift,            label: "Refer & Earn" },
+  { to: "/participate/profile",    icon: User,            label: "Profile" },
 ];
 
 export function ParticipantLayout() {

@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
  */
 export function ParticipantRoute() {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -21,7 +22,8 @@ export function ParticipantRoute() {
   }
 
   if (!user) {
-    return <Navigate to="/participate/login" replace />;
+    const redirect = encodeURIComponent(`${location.pathname}${location.search}`);
+    return <Navigate to={`/participate/login?redirect=${redirect}`} replace />;
   }
 
   const role = user.user_metadata?.role;

@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Sparkles, Loader2, ChevronRight, ChevronLeft, CheckCircle2, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -18,16 +19,30 @@ const EMPLOYMENT_OPTIONS = ["Full-time", "Part-time", "Self-employed", "Student"
 const INCOME_OPTIONS = ["Under $25k", "$25k–$50k", "$50k–$75k", "$75k–$100k", "$100k–$150k", "$150k+", "Prefer not to say"];
 const INDUSTRY_OPTIONS = ["Technology", "Healthcare", "Finance", "Education", "Retail", "Manufacturing", "Media", "Government", "Non-profit", "Other"];
 
+const COUNTRIES = [
+  "United States", "United Kingdom", "Canada", "Australia", "Germany", "France",
+  "India", "Brazil", "Mexico", "Netherlands", "Spain", "Italy", "Japan",
+  "South Korea", "Singapore", "United Arab Emirates", "Saudi Arabia", "Egypt",
+  "Nigeria", "South Africa", "Other",
+];
+
 const INTEREST_OPTIONS = [
   "Technology", "Health & Fitness", "Travel", "Food & Cooking", "Fashion",
   "Gaming", "Music", "Sports", "Finance", "Environment", "Parenting",
   "Home Improvement", "Automotive", "Pets", "Entertainment",
 ];
 
+const TIPS: Record<number, string> = {
+  1: "Demographic info helps match you with studies you qualify for — unlocking more earning opportunities.",
+  2: "Professional background helps researchers find specialists for niche studies that pay more.",
+  3: "Interest tags are used by our AI to match you with studies you'd genuinely enjoy.",
+};
+
 export default function ParticipantSignup() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const referralCode = searchParams.get("ref");
+  const redirect = searchParams.get("redirect");
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -35,6 +50,8 @@ export default function ParticipantSignup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
 
   // Step 2: Demographics
   const [gender, setGender] = useState("");
@@ -53,32 +70,34 @@ export default function ParticipantSignup() {
   const [interests, setInterests] = useState<string[]>([]);
 
   const toggleInterest = (interest: string) => {
-    setInterests((prev) =>
-      prev.includes(interest) ? prev.filter((i) => i !== interest) : [...prev, interest]
+    setInterests(prev =>
+      prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
     );
   };
 
   const canProceed = () => {
-    if (step === 0) return email && password.length >= 8 && displayName;
-    return true; // Steps 2-4 are optional
+    if (step === 0) return email && password.length >= 8 && displayName && agreedToTerms && agreedToPrivacy;
+    return true;
   };
 
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // Call the signup edge function
       const { data, error } = await supabase.functions.invoke("participant-signup", {
-        body: { email, password, display_name: displayName, date_of_birth: dateOfBirth || null, gender: gender || null, country: country || null, city: city || null },
+        body: {
+          email, password, display_name: displayName,
+          date_of_birth: dateOfBirth || null,
+          gender: gender || null,
+          country: country || null,
+          city: city || null,
+        },
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Now sign in
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
 
-      // Update profile with remaining fields
       const profileUpdates: Record<string, unknown> = {};
       if (education) profileUpdates.education = education;
       if (employment) profileUpdates.employment_status = employment;
@@ -94,19 +113,16 @@ export default function ParticipantSignup() {
         });
       }
 
-      // Claim referral if ?ref=CODE was in URL
       if (referralCode) {
         try {
           await supabase.functions.invoke("participant-referral", {
             body: { referral_code: referralCode.toUpperCase() },
           });
-        } catch {
-          // silent — non-blocking
-        }
+        } catch { /* silent */ }
       }
 
-      toast({ title: "Welcome! 🎉", description: "Your account has been created successfully." });
-      navigate("/participate/dashboard");
+      toast({ title: "Welcome to InsightForge! 🎉", description: "Your account has been created successfully." });
+      navigate(redirect?.startsWith("/participate/") ? redirect : "/participate/dashboard");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Signup failed";
       toast({ title: "Signup Error", description: message, variant: "destructive" });
@@ -163,23 +179,90 @@ export default function ParticipantSignup() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Why we ask tip */}
+            {step > 0 && TIPS[step] && (
+              <div className="flex items-start gap-2.5 rounded-lg bg-primary/5 border border-primary/10 p-3">
+                <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">{TIPS[step]}</p>
+              </div>
+            )}
+
             {/* Step 1: Account */}
             {step === 0 && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="displayName">Full Name</Label>
-                  <Input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Jane Doe" required />
+                  <Input
+                    id="displayName"
+                    value={displayName}
+                    onChange={e => setDisplayName(e.target.value)}
+                    placeholder="Jane Doe"
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signupEmail">Email</Label>
-                  <Input id="signupEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+                  <Input
+                    id="signupEmail"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signupPw">Password</Label>
-                  <Input id="signupPw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" required minLength={8} />
+                  <Input
+                    id="signupPw"
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    required
+                    minLength={8}
+                  />
                   {password && password.length < 8 && (
                     <p className="text-xs text-destructive">Password must be at least 8 characters</p>
                   )}
+                  {password.length >= 8 && (
+                    <p className="text-xs text-emerald-600 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Password looks good
+                    </p>
+                  )}
+                </div>
+
+                {/* Consent checkboxes */}
+                <div className="space-y-3 pt-1 border-t">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="terms"
+                      checked={agreedToTerms}
+                      onCheckedChange={v => setAgreedToTerms(!!v)}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                      I agree to InsightForge's{" "}
+                      <Link to="/trust-center" className="text-primary hover:underline" target="_blank">
+                        Terms of Service
+                      </Link>
+                    </Label>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="privacy"
+                      checked={agreedToPrivacy}
+                      onCheckedChange={v => setAgreedToPrivacy(!!v)}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor="privacy" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                      I agree to the{" "}
+                      <Link to="/trust-center" className="text-primary hover:underline" target="_blank">
+                        Privacy Policy
+                      </Link>{" "}
+                      and consent to my anonymized data being used for research purposes.
+                    </Label>
+                  </div>
                 </div>
               </>
             )}
@@ -193,23 +276,28 @@ export default function ParticipantSignup() {
                     <Select value={gender} onValueChange={setGender}>
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
-                        {GENDER_OPTIONS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                        {GENDER_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="dob">Date of Birth</Label>
-                    <Input id="dob" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+                    <Input id="dob" type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="country">Country</Label>
-                    <Input id="country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="United States" />
+                    <Label>Country</Label>
+                    <Select value={country} onValueChange={setCountry}>
+                      <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
+                      <SelectContent>
+                        {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="city">City</Label>
-                    <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="New York" />
+                    <Input id="city" value={city} onChange={e => setCity(e.target.value)} placeholder="New York" />
                   </div>
                 </div>
               </>
@@ -224,7 +312,7 @@ export default function ParticipantSignup() {
                     <Select value={education} onValueChange={setEducation}>
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
-                        {EDUCATION_OPTIONS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                        {EDUCATION_OPTIONS.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -233,7 +321,7 @@ export default function ParticipantSignup() {
                     <Select value={employment} onValueChange={setEmployment}>
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
-                        {EMPLOYMENT_OPTIONS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                        {EMPLOYMENT_OPTIONS.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -244,13 +332,13 @@ export default function ParticipantSignup() {
                     <Select value={industry} onValueChange={setIndustry}>
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
-                        {INDUSTRY_OPTIONS.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                        {INDUSTRY_OPTIONS.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="jobTitle">Job Title</Label>
-                    <Input id="jobTitle" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="e.g. Product Manager" />
+                    <Input id="jobTitle" value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="e.g. Product Manager" />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -258,7 +346,7 @@ export default function ParticipantSignup() {
                   <Select value={income} onValueChange={setIncome}>
                     <SelectTrigger><SelectValue placeholder="Select (optional)" /></SelectTrigger>
                     <SelectContent>
-                      {INCOME_OPTIONS.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                      {INCOME_OPTIONS.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -268,7 +356,7 @@ export default function ParticipantSignup() {
             {/* Step 4: Interests */}
             {step === 3 && (
               <div className="flex flex-wrap gap-2">
-                {INTEREST_OPTIONS.map((interest) => (
+                {INTEREST_OPTIONS.map(interest => (
                   <button
                     key={interest}
                     type="button"
@@ -292,9 +380,7 @@ export default function ParticipantSignup() {
                 <Button variant="outline" onClick={() => setStep(step - 1)}>
                   <ChevronLeft className="h-4 w-4 me-1" /> Back
                 </Button>
-              ) : (
-                <div />
-              )}
+              ) : <div />}
 
               {step < STEPS.length - 1 ? (
                 <Button onClick={() => setStep(step + 1)} disabled={!canProceed()}>

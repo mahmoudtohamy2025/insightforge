@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Clock, DollarSign, Users, Loader2, CheckCircle2, Flame, ArrowUpDown, Target, Sparkles, MoveRight, MoveLeft } from "lucide-react";
+import {
+  Search, Clock, DollarSign, Users, Loader2, CheckCircle2,
+  Flame, ArrowUpDown, Target, Sparkles, Bookmark, BookmarkCheck,
+  ChevronRight, CalendarClock,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { motion, useAnimation, PanInfo } from "framer-motion";
+import { Link } from "react-router-dom";
 
 interface StudyListing {
   id: string;
@@ -30,20 +34,26 @@ interface StudyListing {
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  survey: { label: "Survey", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
-  focus_group: { label: "Focus Group", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400" },
-  interview: { label: "Interview", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
-  usability_test: { label: "Usability Test", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
-  twin_calibration: { label: "AI Calibration", color: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400" },
+  survey:          { label: "Survey",        color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
+  focus_group:     { label: "Focus Group",   color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400" },
+  interview:       { label: "Interview",     color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
+  usability_test:  { label: "Usability Test",color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
+  twin_calibration:{ label: "AI Calibration",color: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400" },
 };
 
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
-
 function hourlyRate(cents: number, minutes: number): string {
   if (minutes <= 0) return "N/A";
   return `$${((cents / 100) * (60 / minutes)).toFixed(2)}/hr`;
+}
+function daysUntilClose(closesAt: string | null): string | null {
+  if (!closesAt) return null;
+  const days = Math.ceil((new Date(closesAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "Closing today";
+  if (days === 1) return "Closes tomorrow";
+  return `Closes in ${days} days`;
 }
 
 function MatchBadge({ score }: { score: number | undefined }) {
@@ -70,6 +80,7 @@ export default function StudyFeed() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [sort, setSort] = useState<SortOption>("best_match");
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
 
   const { data: studies = [], isLoading } = useQuery({
     queryKey: ["participant-studies"],
@@ -81,7 +92,6 @@ export default function StudyFeed() {
     enabled: !!user,
   });
 
-  // Fetch match scores
   const { data: matchScores } = useQuery({
     queryKey: ["participant-match-scores"],
     queryFn: async () => {
@@ -90,7 +100,21 @@ export default function StudyFeed() {
       return (data?.scores || {}) as Record<string, number>;
     },
     enabled: !!user && studies.length > 0,
-    staleTime: 5 * 60 * 1000, // 5 min cache
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Already-accepted study IDs
+  const { data: acceptedIds = new Set<string>() } = useQuery({
+    queryKey: ["my-accepted-ids", user?.id],
+    queryFn: async () => {
+      if (!user) return new Set<string>();
+      const { data } = await supabase
+        .from("study_participations")
+        .select("study_id")
+        .in("status", ["accepted", "in_progress", "submitted", "under_review"]);
+      return new Set((data || []).map(d => d.study_id));
+    },
+    enabled: !!user,
   });
 
   const acceptMutation = useMutation({
@@ -103,9 +127,12 @@ export default function StudyFeed() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, studyId) => {
       queryClient.invalidateQueries({ queryKey: ["participant-studies"] });
-      toast({ title: "Study Accepted! 🎉", description: "You can now begin the study." });
+      queryClient.invalidateQueries({ queryKey: ["my-accepted-ids"] });
+      queryClient.invalidateQueries({ queryKey: ["my-studies"] });
+      queryClient.invalidateQueries({ queryKey: ["my-active-studies"] });
+      toast({ title: "Study Accepted! 🎉", description: "Go to My Studies to begin." });
     },
     onError: (err) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -113,14 +140,21 @@ export default function StudyFeed() {
     onSettled: () => setAcceptingId(null),
   });
 
+  const toggleBookmark = (id: string) => {
+    setBookmarks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   // Filter
-  let filtered = studies.filter((s) =>
+  let filtered = studies.filter(s =>
     s.title.toLowerCase().includes(search.toLowerCase()) ||
     (s.description || "").toLowerCase().includes(search.toLowerCase())
   );
-  if (typeFilter !== "all") {
-    filtered = filtered.filter((s) => s.study_type === typeFilter);
-  }
+  if (typeFilter !== "all") filtered = filtered.filter(s => s.study_type === typeFilter);
 
   // Sort
   filtered.sort((a, b) => {
@@ -140,63 +174,36 @@ export default function StudyFeed() {
   const spotsLeft = (s: StudyListing) => s.max_participants - s.current_participants;
   const isHot = (s: StudyListing) => spotsLeft(s) <= 5 && spotsLeft(s) > 0;
 
-  // Recommended section: top-3 matches with score ≥ 70
   const recommended = studies
-    .filter((s) => (matchScores?.[s.id] ?? 0) >= 70)
+    .filter(s => (matchScores?.[s.id] ?? 0) >= 70)
     .sort((a, b) => (matchScores?.[b.id] ?? 0) - (matchScores?.[a.id] ?? 0))
     .slice(0, 3);
 
-  const StudyCard = ({ study, compact = false }: { study: StudyListing; compact?: boolean }) => {
+  const bookmarked = studies.filter(s => bookmarks.has(s.id));
+
+  function StudyCard({ study }: { study: StudyListing }) {
     const typeConfig = TYPE_LABELS[study.study_type] || TYPE_LABELS.survey;
     const spots = spotsLeft(study);
     const hot = isHot(study);
     const score = matchScores?.[study.id];
-    const controls = useAnimation();
-
-    const handleDragEnd = async (event: any, info: PanInfo) => {
-      const offset = info.offset.x;
-      if (offset > 100) {
-        // Swipe Right - Accept
-        if (spots > 0 && acceptingId !== study.id) {
-          acceptMutation.mutate(study.id);
-        }
-        controls.start({ x: 500, opacity: 0 });
-      } else if (offset < -100) {
-        // Swipe Left - Ignore (just hide locally for demo)
-        controls.start({ x: -500, opacity: 0 });
-      } else {
-        controls.start({ x: 0, opacity: 1 });
-      }
-    };
+    const isFull = spots <= 0;
+    const isAccepted = acceptedIds.has(study.id);
+    const isBookmarked = bookmarks.has(study.id);
+    const closing = daysUntilClose(study.closes_at);
 
     return (
-      <motion.div
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.7}
-        onDragEnd={handleDragEnd}
-        animate={controls}
-        whileDrag={{ scale: 1.05, cursor: "grabbing" }}
-        className="w-full relative touch-pan-y"
-      >
-        {/* Indicators that show up while dragging */}
-        <div className="absolute inset-y-0 left-4 flex items-center opacity-0 z-0 text-emerald-500 font-bold" style={{ transform: "translateX(-20px)" }}>
-           <MoveRight className="mr-2" /> ACCEPT
-        </div>
-        <div className="absolute inset-y-0 right-4 flex items-center opacity-0 z-0 text-red-500 font-bold" style={{ transform: "translateX(20px)" }}>
-           SKIP <MoveLeft className="ml-2" />
-        </div>
-
       <Card className={cn(
-        "hover:shadow-md transition-all duration-200 z-10 bg-card relative cursor-grab active:cursor-grabbing",
+        "hover:shadow-md transition-all duration-200 group",
         hot && "ring-1 ring-orange-300 dark:ring-orange-700",
         score && score >= 85 && "ring-1 ring-emerald-300 dark:ring-emerald-700",
-        compact && "min-w-[280px]"
+        isAccepted && "border-blue-300/50 dark:border-blue-700/30 bg-blue-50/20 dark:bg-blue-900/5",
       )}>
-        <CardContent className={cn("space-y-3", compact ? "p-4" : "p-5")}>
+        <CardContent className="p-5 space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base leading-snug line-clamp-2">{study.title}</h3>
+              <Link to={`/participate/studies/${study.id}`} className="hover:text-primary transition-colors">
+                <h3 className="font-semibold text-base leading-snug line-clamp-2">{study.title}</h3>
+              </Link>
               {study.description && (
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{study.description}</p>
               )}
@@ -219,13 +226,18 @@ export default function StudyFeed() {
             <span className="text-xs px-1.5 py-0.5 rounded bg-muted font-medium">
               {hourlyRate(study.reward_amount_cents, study.estimated_minutes)}
             </span>
+            {closing && (
+              <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                <CalendarClock className="h-3 w-3" /> {closing}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">
-                {spots} spot{spots !== 1 ? "s" : ""} left
+                {isFull ? "Full" : `${spots} spot${spots !== 1 ? "s" : ""} left`}
               </span>
               {hot && (
                 <span className="flex items-center gap-0.5 text-xs text-orange-600 dark:text-orange-400 font-medium">
@@ -234,24 +246,55 @@ export default function StudyFeed() {
               )}
             </div>
 
-            <Button
-              size="sm"
-              onClick={() => acceptMutation.mutate(study.id)}
-              disabled={acceptingId === study.id || spots <= 0}
-            >
-              {acceptingId === study.id ? (
-                <Loader2 className="h-3 w-3 me-1 animate-spin" />
+            <div className="flex items-center gap-1.5">
+              {/* Bookmark */}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => toggleBookmark(study.id)}
+                title={isBookmarked ? "Remove bookmark" : "Save for later"}
+              >
+                {isBookmarked
+                  ? <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
+                  : <Bookmark className="h-3.5 w-3.5" />
+                }
+              </Button>
+
+              {/* View details */}
+              <Link to={`/participate/studies/${study.id}`}>
+                <Button size="sm" variant="outline" className="h-7 text-xs">
+                  View <ChevronRight className="h-3 w-3 ms-0.5" />
+                </Button>
+              </Link>
+
+              {/* Quick accept */}
+              {isAccepted ? (
+                <Link to="/participate/my-studies">
+                  <Button size="sm" className="h-7 text-xs">
+                    Continue <ChevronRight className="h-3 w-3 ms-0.5" />
+                  </Button>
+                </Link>
               ) : (
-                <CheckCircle2 className="h-3 w-3 me-1" />
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => acceptMutation.mutate(study.id)}
+                  disabled={acceptingId === study.id || isFull}
+                >
+                  {acceptingId === study.id
+                    ? <Loader2 className="h-3 w-3 me-1 animate-spin" />
+                    : <CheckCircle2 className="h-3 w-3 me-1" />
+                  }
+                  {isFull ? "Full" : "Accept"}
+                </Button>
               )}
-              {spots <= 0 ? "Full" : "Accept"}
-            </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
-      </motion.div>
     );
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -261,7 +304,7 @@ export default function StudyFeed() {
           Available Studies
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {studies.length} {studies.length === 1 ? "study" : "studies"} available. Accept one to start earning.
+          {studies.length} {studies.length === 1 ? "study" : "studies"} available. View details to read requirements and consent.
         </p>
       </div>
 
@@ -270,14 +313,26 @@ export default function StudyFeed() {
         <div className="space-y-3">
           <h2 className="text-sm font-semibold flex items-center gap-2 text-primary">
             <Sparkles className="h-4 w-4" /> Recommended For You
-            <span className="text-xs text-muted-foreground font-normal ml-auto hidden sm:inline">Swipe card right to accept</span>
           </h2>
-          <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
-            {recommended.map((study) => (
-              <div key={study.id} className="snap-center w-[85%] sm:w-auto shrink-0">
-                <StudyCard study={study} compact />
+          <div className="flex overflow-x-auto gap-4 pb-2 hide-scrollbar">
+            {recommended.map(study => (
+              <div key={study.id} className="snap-center w-[85%] sm:w-[340px] shrink-0">
+                <StudyCard study={study} />
               </div>
             ))}
+          </div>
+          <div className="h-px bg-border" />
+        </div>
+      )}
+
+      {/* Bookmarked */}
+      {bookmarked.length > 0 && !search && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <BookmarkCheck className="h-4 w-4 text-primary" /> Saved Studies
+          </h2>
+          <div className="space-y-3">
+            {bookmarked.map(study => <StudyCard key={study.id} study={study} />)}
           </div>
           <div className="h-px bg-border" />
         </div>
@@ -290,7 +345,7 @@ export default function StudyFeed() {
           <Input
             placeholder="Search studies..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -305,7 +360,7 @@ export default function StudyFeed() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={sort} onValueChange={(v) => setSort(v as SortOption)}>
+        <Select value={sort} onValueChange={v => setSort(v as SortOption)}>
           <SelectTrigger className="w-[160px]">
             <ArrowUpDown className="h-3 w-3 me-1" />
             <SelectValue placeholder="Sort" />
@@ -323,7 +378,7 @@ export default function StudyFeed() {
       {/* Study Cards */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-48 rounded-lg" />)}
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-48 rounded-lg" />)}
         </div>
       ) : filtered.length === 0 ? (
         <Card>
@@ -339,7 +394,7 @@ export default function StudyFeed() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map((study) => <StudyCard key={study.id} study={study} />)}
+          {filtered.map(study => <StudyCard key={study.id} study={study} />)}
         </div>
       )}
     </div>
