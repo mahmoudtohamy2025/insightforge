@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   ClipboardList,
-  Video,
   Lightbulb,
   Users,
   Settings,
@@ -15,7 +14,6 @@ import {
   Sparkles,
   Globe2,
   ShieldCheck,
-  GraduationCap,
   BookOpen,
   FileQuestion,
   Gift,
@@ -63,7 +61,8 @@ import {
 import { HelpDrawer } from "@/components/layout/HelpDrawer";
 
 interface NavItem {
-  titleKey: string;
+  titleKey?: string;
+  title?: string;
   url: string;
   icon: React.ElementType;
 }
@@ -77,46 +76,45 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "nav.group.research",
-    label: "Research",
+    label: "Workspace",
     items: [
-      { titleKey: "nav.dashboard", url: "/dashboard", icon: LayoutDashboard },
-      { titleKey: "nav.projects", url: "/projects", icon: FolderKanban },
-      { titleKey: "nav.surveys", url: "/surveys", icon: ClipboardList },
-      { titleKey: "nav.sessions", url: "/sessions", icon: Video },
+      { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
+      { title: "Decisions", url: "/requirements", icon: FileQuestion },
+      { title: "Insights", url: "/insights", icon: Lightbulb },
+      { title: "Summaries", url: "/projects", icon: FolderKanban },
     ],
   },
   {
     labelKey: "nav.group.aiStudio",
-    label: "AI Studio",
+    label: "Test Ideas",
     items: [
-      { titleKey: "nav.digitalTwins", url: "/segments", icon: Sparkles },
-      { titleKey: "nav.simulate" as any, url: "/simulate", icon: FlaskConical },
-      { titleKey: "nav.focusGroup" as any, url: "/focus-group", icon: Users },
-      { titleKey: "nav.abTest" as any, url: "/ab-test", icon: FlaskConical },
-      { titleKey: "nav.marketSim" as any, url: "/market-sim", icon: TrendingUp },
-      { titleKey: "nav.policySim" as any, url: "/policy-sim", icon: Scale },
-      { titleKey: "nav.compare" as any, url: "/simulations/compare", icon: GitCompareArrows },
+      { title: "AI Test", url: "/simulate", icon: FlaskConical },
+      { title: "Panel Discussion", url: "/focus-group", icon: Users },
+      { title: "Quick Survey", url: "/surveys", icon: ClipboardList },
+      { title: "Compare Options", url: "/ab-test", icon: GitCompareArrows },
+      { title: "Customer Profiles", url: "/segments", icon: Sparkles },
+      { title: "Market Forecast", url: "/market-sim", icon: TrendingUp },
+      { title: "Policy Check", url: "/policy-sim", icon: Scale },
     ],
   },
   {
     labelKey: "nav.group.panel",
-    label: "Panel",
+    label: "Research Operations",
     items: [
-      { titleKey: "nav.participants", url: "/participants", icon: Users },
-      { titleKey: "nav.requirements" as any, url: "/requirements", icon: FileQuestion },
-      { titleKey: "nav.incentives" as any, url: "/incentives", icon: Gift },
+      { titleKey: "nav.panelOverview", url: "/panel", icon: LayoutDashboard },
+      { titleKey: "nav.studyPipeline", url: "/requirements", icon: FileQuestion },
+      { titleKey: "nav.audienceCrm", url: "/participants", icon: Users },
+      { titleKey: "nav.incentives", url: "/incentives", icon: Gift },
     ],
   },
   {
     labelKey: "nav.group.intelligence",
-    label: "Intelligence",
+    label: "Guides & Settings",
     items: [
-      { titleKey: "nav.insights", url: "/insights", icon: Lightbulb },
-      { titleKey: "nav.marketplace", url: "/marketplace", icon: Globe2 },
-      { titleKey: "nav.validation", url: "/validation", icon: GraduationCap },
-      { titleKey: "nav.methodology", url: "/methodology", icon: BookOpen },
-      { titleKey: "nav.trustCenter", url: "/trust-center", icon: ShieldCheck },
-      { titleKey: "nav.settings", url: "/settings", icon: Settings },
+      { title: "Templates Marketplace", url: "/marketplace", icon: Globe2 },
+      { title: "How It Works", url: "/methodology", icon: BookOpen },
+      { title: "Trust Center", url: "/trust-center", icon: ShieldCheck },
+      { title: "Settings", url: "/settings", icon: Settings },
     ],
   },
 ];
@@ -134,17 +132,20 @@ function NavGroupSection({
   toggleGroup: (label: string) => void;
   t: (key: string) => string;
 }) {
-  const isOpen = openGroups[group.label] !== false; // default open
+  const groupLabel = t(group.labelKey);
+  const groupStateKey = group.labelKey || group.label;
+  const isOpen = openGroups[groupStateKey] !== false; // default open
+  const getLabel = (item: NavItem) => item.title ?? (item.titleKey ? t(item.titleKey) : item.url);
 
   return (
     <SidebarGroup className="px-0">
       {!collapsed && (
         <button
-          onClick={() => toggleGroup(group.label)}
+          onClick={() => toggleGroup(groupStateKey)}
           className="flex items-center gap-1 px-3 py-1.5 w-full text-left group"
         >
           <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 flex-1">
-            {group.label}
+            {groupLabel}
           </span>
           <ChevronRight
             className={cn(
@@ -158,7 +159,7 @@ function NavGroupSection({
         <SidebarGroupContent>
           <SidebarMenu>
             {group.items.map((item) => (
-              <SidebarMenuItem key={item.titleKey}>
+              <SidebarMenuItem key={item.titleKey ?? item.title ?? item.url}>
                 {collapsed ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -174,7 +175,7 @@ function NavGroupSection({
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className="text-xs">
-                      {t(item.titleKey)}
+                      {getLabel(item)}
                     </TooltipContent>
                   </Tooltip>
                 ) : (
@@ -186,7 +187,7 @@ function NavGroupSection({
                       activeClassName="bg-sidebar-accent text-primary font-medium"
                     >
                       <item.icon className="h-4 w-4 me-2 shrink-0" />
-                      <span className="truncate">{t(item.titleKey)}</span>
+                      <span className="truncate">{getLabel(item)}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 )}
@@ -249,8 +250,8 @@ export function AppSidebar() {
               </div>
               {!collapsed && (
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-sidebar-foreground">{t("brand.name")}</span>
-                  <span className="text-[10px] text-muted-foreground leading-tight">{t("brand.tagline")}</span>
+                  <span className="text-sm font-bold text-sidebar-foreground">InsightForge</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">Founder Decision OS</span>
                 </div>
               )}
             </div>
