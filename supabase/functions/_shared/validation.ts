@@ -126,7 +126,7 @@ export async function validateWorkspaceMembership(
   }
 
   const { data, error } = await supabase
-    .from("workspace_members")
+    .from("workspace_memberships")
     .select("id")
     .eq("workspace_id", workspaceId)
     .eq("user_id", userId)

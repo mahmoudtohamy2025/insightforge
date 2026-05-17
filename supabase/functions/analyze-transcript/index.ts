@@ -3,6 +3,7 @@ import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
 import { requireWorkspaceMember } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
+import { fetchGemini } from "../_shared/aiClient.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -94,82 +95,75 @@ For each theme:
 
 Order themes by confidence (highest first). Focus on actionable research insights.`;
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze this transcript (language: ${transcript.language || "en"}):\n\n${rawText}` },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "extract_analysis",
-              description: "Extract structured themes and session-level sentiment from a research session transcript.",
-              parameters: {
-                type: "object",
-                properties: {
-                  themes: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        title: { type: "string", description: "Theme title (3-8 words)" },
-                        description: { type: "string", description: "Theme description (1-3 sentences)" },
-                        confidence: { type: "number", description: "Confidence score 0-1" },
-                        sentiment: {
-                          type: "string",
-                          enum: ["positive", "negative", "neutral", "mixed"],
-                        },
-                        quotes: {
-                          type: "array",
-                          items: { type: "string" },
-                          description: "1-4 direct quotes supporting this theme",
-                        },
-                      },
-                      required: ["title", "description", "confidence", "sentiment", "quotes"],
-                      additionalProperties: false,
-                    },
-                  },
-                  session_sentiment: {
+    const response = await fetchGemini(GEMINI_API_KEY, {
+      model: "gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Analyze this transcript (language: ${transcript.language || "en"}):\n\n${rawText}` },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "extract_analysis",
+            description: "Extract structured themes and session-level sentiment from a research session transcript.",
+            parameters: {
+              type: "object",
+              properties: {
+                themes: {
+                  type: "array",
+                  items: {
                     type: "object",
                     properties: {
-                      overall: {
+                      title: { type: "string", description: "Theme title (3-8 words)" },
+                      description: { type: "string", description: "Theme description (1-3 sentences)" },
+                      confidence: { type: "number", description: "Confidence score 0-1" },
+                      sentiment: {
                         type: "string",
                         enum: ["positive", "negative", "neutral", "mixed"],
                       },
-                      score: { type: "number", description: "0-1 sentiment score" },
-                      distribution: {
-                        type: "object",
-                        properties: {
-                          positive: { type: "number" },
-                          negative: { type: "number" },
-                          neutral: { type: "number" },
-                          mixed: { type: "number" },
-                        },
-                        required: ["positive", "negative", "neutral", "mixed"],
-                        additionalProperties: false,
+                      quotes: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "1-4 direct quotes supporting this theme",
                       },
-                      interpretation: { type: "string", description: "One sentence summarizing the emotional tone" },
                     },
-                    required: ["overall", "score", "distribution", "interpretation"],
+                    required: ["title", "description", "confidence", "sentiment", "quotes"],
                     additionalProperties: false,
                   },
                 },
-                required: ["themes", "session_sentiment"],
-                additionalProperties: false,
+                session_sentiment: {
+                  type: "object",
+                  properties: {
+                    overall: {
+                      type: "string",
+                      enum: ["positive", "negative", "neutral", "mixed"],
+                    },
+                    score: { type: "number", description: "0-1 sentiment score" },
+                    distribution: {
+                      type: "object",
+                      properties: {
+                        positive: { type: "number" },
+                        negative: { type: "number" },
+                        neutral: { type: "number" },
+                        mixed: { type: "number" },
+                      },
+                      required: ["positive", "negative", "neutral", "mixed"],
+                      additionalProperties: false,
+                    },
+                    interpretation: { type: "string", description: "One sentence summarizing the emotional tone" },
+                  },
+                  required: ["overall", "score", "distribution", "interpretation"],
+                  additionalProperties: false,
+                },
               },
+              required: ["themes", "session_sentiment"],
+              additionalProperties: false,
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "extract_analysis" } },
-      }),
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "extract_analysis" } },
     });
 
     if (!response.ok) {

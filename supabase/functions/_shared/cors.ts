@@ -25,6 +25,16 @@ if (envOrigins) {
   });
 }
 
+const appUrl = Deno.env.get("APP_URL");
+if (appUrl) {
+  try {
+    const appOrigin = new URL(appUrl).origin;
+    if (!ALLOWED_ORIGINS.includes(appOrigin)) ALLOWED_ORIGINS.push(appOrigin);
+  } catch {
+    // Ignore malformed APP_URL values and fall back to explicit allowlists.
+  }
+}
+
 const ALLOWED_HEADERS = [
   "authorization",
   "x-client-info",

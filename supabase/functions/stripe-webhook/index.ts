@@ -19,6 +19,53 @@ if (envMapping) {
   } catch (_) { /* ignore parse errors */ }
 }
 
+async function syncWorkspaceSubscription(
+  supabase: ReturnType<typeof createClient>,
+  params: {
+    workspaceId?: string | null;
+    customerId: string;
+    subscription: Stripe.Subscription;
+  },
+) {
+  const { workspaceId, customerId, subscription } = params;
+  const productId = subscription.items.data[0]?.price?.product as string;
+  const tier = STRIPE_PRODUCT_TIER[productId] || "free";
+  const status = subscription.status;
+
+  let targetWorkspaceId = workspaceId ?? null;
+
+  if (!targetWorkspaceId) {
+    const { data: existingWorkspace } = await supabase
+      .from("workspaces")
+      .select("id")
+      .eq("stripe_customer_id", customerId)
+      .maybeSingle();
+
+    targetWorkspaceId = existingWorkspace?.id ?? null;
+  }
+
+  if (!targetWorkspaceId) {
+    console.warn(`No workspace found for Stripe customer ${customerId}`);
+    return null;
+  }
+
+  const { error } = await supabase
+    .from("workspaces")
+    .update({
+      stripe_customer_id: customerId,
+      tier: ["active", "trialing", "past_due", "unpaid"].includes(status) ? tier : "free",
+      subscription_status: status,
+    })
+    .eq("id", targetWorkspaceId);
+
+  if (error) {
+    console.error("Error updating workspace tier:", error);
+    throw error;
+  }
+
+  return { workspaceId: targetWorkspaceId, tier, status };
+}
+
 Deno.serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
   
@@ -66,53 +113,18 @@ Deno.serve(async (req) => {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
-        
-        // Find the product related to this subscription
-        const productId = subscription.items.data[0]?.price?.product as string;
-        const tier = STRIPE_PRODUCT_TIER[productId] || "free";
-        const status = subscription.status;
-
-        console.log(`Updating customer ${customerId} to tier: ${tier}, status: ${status}`);
-
-        // Token limits
-        const TOKEN_ALLOCATION: Record<string, number> = {
-          starter: 500_000,
-          professional: 5_000_000,
-          enterprise: 50_000_000, // Effectively unlimited in UI
-          free: 0,
-        };
-        const tokensToAllocate = status === "active" ? (TOKEN_ALLOCATION[tier] || 0) : 0;
-
-        // Fetch workspace to get id
-        const { data: wsData } = await supabase
-          .from("workspaces")
-          .select("id")
-          .eq("stripe_customer_id", customerId)
-          .single();
-
-        // Update the workspace tied to this customer
-        const { error } = await supabase
-          .from("workspaces")
-          .update({ 
-            tier: status === "active" ? tier : "free",
-            subscription_status: status 
-          })
-          .eq("stripe_customer_id", customerId);
-
-        if (error) {
-          console.error("Error updating workspace tier:", error);
-          throw error;
-        }
+        const syncResult = await syncWorkspaceSubscription(supabase, { customerId, subscription });
+        console.log(`Updating customer ${customerId} to tier/status`, syncResult);
 
         // Initialize or update token usage record for this period
-        if (wsData?.id) {
+        if (syncResult?.workspaceId) {
            const now = new Date();
            const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
            // Attempt to insert the token usage record tracking budget
            await supabase
              .from("workspace_token_usage")
              .upsert({
-                workspace_id: wsData.id,
+                workspace_id: syncResult.workspaceId,
                 period_start: periodStart,
              }, { onConflict: "workspace_id, period_start", ignoreDuplicates: true });
         }
@@ -135,6 +147,16 @@ Deno.serve(async (req) => {
           if (error) {
             console.error("Error linking Stripe customer to workspace:", error);
             throw error;
+          }
+
+          if (typeof session.subscription === "string" && stripe) {
+            const subscription = await stripe.subscriptions.retrieve(session.subscription);
+            const syncResult = await syncWorkspaceSubscription(supabase, {
+              workspaceId: clientReferenceId,
+              customerId,
+              subscription,
+            });
+            console.log("Checkout session synced workspace subscription", syncResult);
           }
         }
         break;

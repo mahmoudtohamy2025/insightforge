@@ -122,6 +122,7 @@ Deno.serve(async (req) => {
 
     // If RESEND_API_KEY is set, actually send emails
     const resendKey = Deno.env.get("RESEND_API_KEY");
+    const resendFrom = Deno.env.get("RESEND_FROM_EMAIL") || "InsightForge <surveys@insightforge.io>";
     if (resendKey && withEmail.length > 0) {
       for (const participant of withEmail) {
         const personalizedUrl = `${surveyUrl}?ref=${participant.id}`;
@@ -133,7 +134,7 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "InsightForge <surveys@insightforge.io>",
+              from: resendFrom,
               to: [participant.email],
               subject: `You're invited: ${survey.title}`,
               html: `

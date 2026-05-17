@@ -3,6 +3,7 @@ import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
 import { requireWorkspaceMember } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
+import { fetchGemini } from "../_shared/aiClient.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -98,73 +99,66 @@ Rules:
 - Create 2-15 patterns depending on data richness
 - Be specific and actionable — "Users struggle with pricing" is better than "Pricing"`;
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Analyze these ${themes.length} themes from ${totalSessions} research sessions and identify cross-session patterns:\n\n${JSON.stringify(themeSummary, null, 2)}`,
-          },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "synthesize_patterns",
-              description: "Group related themes into cross-session research patterns.",
-              parameters: {
-                type: "object",
-                properties: {
-                  patterns: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        title: { type: "string", description: "Pattern title (3-10 words)" },
-                        description: { type: "string", description: "Pattern summary (2-4 sentences)" },
-                        sentiment: {
-                          type: "string",
-                          enum: ["positive", "negative", "neutral", "mixed"],
-                        },
-                        theme_ids: {
-                          type: "array",
-                          items: { type: "string" },
-                          description: "IDs of the session themes that belong to this pattern",
-                        },
-                        evidence_quotes: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              quote: { type: "string" },
-                              session_title: { type: "string" },
-                            },
-                            required: ["quote", "session_title"],
-                            additionalProperties: false,
-                          },
-                          description: "Top 2-6 quotes with session attribution",
-                        },
+    const response = await fetchGemini(GEMINI_API_KEY, {
+      model: "gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `Analyze these ${themes.length} themes from ${totalSessions} research sessions and identify cross-session patterns:\n\n${JSON.stringify(themeSummary, null, 2)}`,
+        },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "synthesize_patterns",
+            description: "Group related themes into cross-session research patterns.",
+            parameters: {
+              type: "object",
+              properties: {
+                patterns: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string", description: "Pattern title (3-10 words)" },
+                      description: { type: "string", description: "Pattern summary (2-4 sentences)" },
+                      sentiment: {
+                        type: "string",
+                        enum: ["positive", "negative", "neutral", "mixed"],
                       },
-                      required: ["title", "description", "sentiment", "theme_ids", "evidence_quotes"],
-                      additionalProperties: false,
+                      theme_ids: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "IDs of the session themes that belong to this pattern",
+                      },
+                      evidence_quotes: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            quote: { type: "string" },
+                            session_title: { type: "string" },
+                          },
+                          required: ["quote", "session_title"],
+                          additionalProperties: false,
+                        },
+                        description: "Top 2-6 quotes with session attribution",
+                      },
                     },
+                    required: ["title", "description", "sentiment", "theme_ids", "evidence_quotes"],
+                    additionalProperties: false,
                   },
                 },
-                required: ["patterns"],
-                additionalProperties: false,
               },
+              required: ["patterns"],
+              additionalProperties: false,
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "synthesize_patterns" } },
-      }),
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "synthesize_patterns" } },
     });
 
     if (!response.ok) {

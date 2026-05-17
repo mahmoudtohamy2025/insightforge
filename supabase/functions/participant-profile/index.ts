@@ -6,6 +6,8 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
   console.log(`[PARTICIPANT-PROFILE] ${step}${detailsStr}`);
 };
 
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
@@ -85,7 +87,14 @@ Deno.serve(async (req) => {
         }
       }
 
-      return new Response(JSON.stringify({ profile, reputation, earnings: earningsSummary }), {
+      const { data: payoutRequests } = await supabaseAdmin
+        .from("participant_payout_requests")
+        .select("id, amount_cents, currency, status, provider, provider_order_id, failure_reason, requested_at, processed_at")
+        .eq("participant_id", profile.id)
+        .order("requested_at", { ascending: false })
+        .limit(10);
+
+      return new Response(JSON.stringify({ profile, reputation, earnings: earningsSummary, payout_requests: payoutRequests || [] }), {
         status: 200,
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
@@ -105,6 +114,17 @@ Deno.serve(async (req) => {
       const safeUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       for (const key of allowedFields) {
         if (key in updates) safeUpdates[key] = updates[key];
+      }
+
+      if ("paypal_email" in updates) {
+        const paypalEmail = String(updates.paypal_email || "").trim().toLowerCase();
+        if (paypalEmail && !isValidEmail(paypalEmail)) {
+          return new Response(JSON.stringify({ error: "Invalid PayPal email" }), {
+            status: 400,
+            headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+          });
+        }
+        safeUpdates.paypal_email = paypalEmail || null;
       }
 
       // Mark onboarding completed if enough fields filled

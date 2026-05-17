@@ -1,4 +1,24 @@
 import { handleCors, jsonResponse } from "../_shared/cors.ts";
+import { buildFallbackSimulation } from "../_shared/simulationFallback.ts";
+import { fetchGemini } from "../_shared/aiClient.ts";
+
+function buildProviderFallback(persona: any, stimulus: string, providerStatus: string, notice: string) {
+  const fallback = buildFallbackSimulation(
+    {
+      name: persona.name,
+      demographics: persona.demographics,
+      psychographics: persona.psychographics,
+    },
+    stimulus,
+  );
+
+  return {
+    ...fallback,
+    generation_mode: "provider_fallback",
+    provider_status: providerStatus,
+    notice,
+  };
+}
 
 /**
  * Public Demo Simulate — Rate-limited, no-auth endpoint for the public playground.
@@ -94,20 +114,21 @@ LIFESTYLE: ${psycho.lifestyle}
 Rules: Stay in character. Be specific and natural. Show genuine emotions.`;
 
     // Call Gemini API
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      return jsonResponse(req, { error: "AI not configured" }, 500);
-    }
-
     const startTime = Date.now();
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    let parsed: any = {};
 
-    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    if (!GEMINI_API_KEY) {
+      parsed = buildFallbackSimulation(
+        {
+          name: persona.name,
+          demographics: persona.demographics,
+          psychographics: persona.psychographics,
+        },
+        cleanStimulus,
+      );
+    } else {
+      const aiResponse = await fetchGemini(GEMINI_API_KEY, {
         model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: personaPrompt },
@@ -133,29 +154,37 @@ Rules: Stay in character. Be specific and natural. Show genuine emotions.`;
           },
         }],
         tool_choice: { type: "function", function: { name: "demo_response" } },
-      }),
-    });
+      });
+
+      if (!aiResponse.ok) {
+        const providerDetails = await aiResponse.text();
+        console.error("Public demo Gemini error:", providerDetails);
+        parsed = buildProviderFallback(
+          persona,
+          cleanStimulus,
+          aiResponse.status === 429 ? "quota_exhausted" : "provider_unavailable",
+          aiResponse.status === 429
+            ? "Live AI is temporarily unavailable because the Gemini project has no remaining quota. Showing a founder-safe sample result instead."
+            : "Live AI is temporarily unavailable because Gemini is under high demand. Showing a founder-safe sample result instead.",
+        );
+      } else {
+        const aiData = await aiResponse.json();
+
+        try {
+          const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall?.function?.arguments) {
+            parsed = JSON.parse(toolCall.function.arguments);
+          }
+        } catch {
+          parsed = {
+            response: aiData.choices?.[0]?.message?.content || "Demo response unavailable.",
+            sentiment: 0, confidence: 0.5, key_themes: [], purchase_intent: "neutral", emotional_reaction: "neutral",
+          };
+        }
+      }
+    }
 
     const durationMs = Date.now() - startTime;
-
-    if (!aiResponse.ok) {
-      return jsonResponse(req, { error: "AI generation failed" }, 502);
-    }
-
-    const aiData = await aiResponse.json();
-
-    let parsed: any = {};
-    try {
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
-        parsed = JSON.parse(toolCall.function.arguments);
-      }
-    } catch {
-      parsed = {
-        response: aiData.choices?.[0]?.message?.content || "Demo response unavailable.",
-        sentiment: 0, confidence: 0.5, key_themes: [], purchase_intent: "neutral", emotional_reaction: "neutral",
-      };
-    }
 
     return jsonResponse(req, {
       persona: persona.name,
@@ -165,6 +194,9 @@ Rules: Stay in character. Be specific and natural. Show genuine emotions.`;
       key_themes: parsed.key_themes,
       purchase_intent: parsed.purchase_intent,
       emotional_reaction: parsed.emotional_reaction,
+      generation_mode: parsed.generation_mode ?? "ai",
+      provider_status: parsed.provider_status ?? "configured",
+      notice: parsed.notice ?? null,
       duration_ms: durationMs,
       demo: true,
       remaining_requests: Math.max(0, MAX_REQUESTS - (ipRequests.get(ip)?.count || 0)),

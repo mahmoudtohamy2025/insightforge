@@ -26,6 +26,15 @@ const STRIPE_PRODUCT_TIER: Record<string, string> = {
   "prod_starter_plan": "starter",
   "prod_professional_plan": "professional",
   "prod_enterprise_plan": "enterprise",
+  "prod_U77vT9icIzokqy": "starter",
+  "prod_U77wrd6NNDHYW2": "professional",
+};
+
+const TIER_RANK: Record<string, number> = {
+  free: 0,
+  starter: 1,
+  professional: 2,
+  enterprise: 3,
 };
 
 // Allow override via env
@@ -43,17 +52,20 @@ if (envMapping) {
 
 export async function getWorkspaceTier(supabase: any, workspaceId: string): Promise<string> {
   try {
-    // Get workspace owner's subscription
     const { data: workspace } = await supabase
       .from("workspaces")
-      .select("owner_id")
+      .select("tier, created_by")
       .eq("id", workspaceId)
       .single();
 
-    if (!workspace?.owner_id) return "free";
+    if (workspace?.tier && workspace.tier !== "free") {
+      return workspace.tier;
+    }
+
+    if (!workspace?.created_by) return "free";
 
     // Get owner's email to look up Stripe subscription
-    const { data: { user: owner } } = await supabase.auth.admin.getUserById(workspace.owner_id);
+    const { data: { user: owner } } = await supabase.auth.admin.getUserById(workspace.created_by);
     if (!owner?.email) return "free";
 
     // Check the subscriptions table or a cached tier column
@@ -69,14 +81,21 @@ export async function getWorkspaceTier(supabase: any, workspaceId: string): Prom
 
     const subscriptions = await stripe.subscriptions.list({
       customer: customers.data[0].id,
-      status: "active",
-      limit: 1,
+      status: "all",
+      limit: 10,
     });
 
-    if (subscriptions.data.length === 0) return "free";
+    const activeTier = subscriptions.data.reduce((bestTier: string, subscription: any) => {
+      if (!["active", "trialing", "past_due", "unpaid"].includes(subscription.status)) {
+        return bestTier;
+      }
 
-    const productId = subscriptions.data[0].items.data[0]?.price?.product;
-    return STRIPE_PRODUCT_TIER[productId as string] || "free";
+      const productId = subscription.items.data[0]?.price?.product as string | undefined;
+      const nextTier = (productId && STRIPE_PRODUCT_TIER[productId]) || "free";
+      return TIER_RANK[nextTier] > TIER_RANK[bestTier] ? nextTier : bestTier;
+    }, "free");
+
+    return activeTier;
   } catch (err) {
     console.error("[TIER] Error checking tier:", err);
     return "free";
@@ -92,7 +111,7 @@ export async function getWorkspaceUsage(
   const [sessions, surveys, members, simulations] = await Promise.all([
     supabase.from("sessions").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.from("surveys").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("workspace_members").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
+    supabase.from("workspace_memberships").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.from("simulations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
   ]);
 

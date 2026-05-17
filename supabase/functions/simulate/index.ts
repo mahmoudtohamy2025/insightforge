@@ -4,6 +4,26 @@ import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.t
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { fetchGemini } from "../_shared/aiClient.ts";
+import { buildFallbackSimulation } from "../_shared/simulationFallback.ts";
+
+function buildProviderFallback(segment: any, stimulus: string, providerStatus: string, notice: string) {
+  const fallback = buildFallbackSimulation(
+    {
+      name: segment.name,
+      demographics: segment.demographics,
+      psychographics: segment.psychographics,
+      behavioral_data: segment.behavioral_data,
+    },
+    stimulus,
+  );
+
+  return {
+    ...fallback,
+    generation_mode: "provider_fallback",
+    provider_status: providerStatus,
+    notice,
+  };
+}
 
 Deno.serve(async (req: any) => {
   const corsResponse = handleCors(req);
@@ -120,74 +140,88 @@ IMPORTANT RULES:
       : `Please evaluate the following and share your honest reaction:\n\n${JSON.stringify(stimulus, null, 2)}`;
 
     // ── Call Gemini API ────────────────────────────────────
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      return jsonResponse(req, { error: "AI not configured (missing GEMINI_API_KEY)" }, 500);
-    }
-
     const startTime = Date.now();
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    let parsed: any = {};
+    let tokensUsed = 0;
 
-    const aiResponse = await fetchGemini(GEMINI_API_KEY, {
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: personaPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      tools: [
+    if (!GEMINI_API_KEY) {
+      parsed = buildFallbackSimulation(
         {
-          type: "function",
-          function: {
-            name: "structured_response",
-            description: "Return the twin's response with structured metadata",
-            parameters: {
-              type: "object",
-              properties: {
-                response: { type: "string", description: "The twin's natural language response to the stimulus" },
-                sentiment: { type: "number", description: "Sentiment score from -1.0 (very negative) to 1.0 (very positive)" },
-                confidence: { type: "number", description: "How confident this persona would be in this response, from 0.0 to 1.0" },
-                key_themes: { type: "array", items: { type: "string" }, description: "3-5 key themes or decision factors in the response" },
-                purchase_intent: { type: "string", enum: ["definitely_yes", "probably_yes", "neutral", "probably_no", "definitely_no"], description: "Would this persona purchase/adopt/support this?" },
-                emotional_reaction: { type: "string", enum: ["excited", "interested", "neutral", "skeptical", "concerned", "opposed"], description: "Primary emotional reaction" },
+          name: segment.name,
+          demographics: segment.demographics,
+          psychographics: segment.psychographics,
+          behavioral_data: segment.behavioral_data,
+        },
+        userPrompt,
+      );
+    } else {
+      const aiResponse = await fetchGemini(GEMINI_API_KEY, {
+        model: "gemini-2.5-flash",
+        messages: [
+          { role: "system", content: personaPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "structured_response",
+              description: "Return the twin's response with structured metadata",
+              parameters: {
+                type: "object",
+                properties: {
+                  response: { type: "string", description: "The twin's natural language response to the stimulus" },
+                  sentiment: { type: "number", description: "Sentiment score from -1.0 (very negative) to 1.0 (very positive)" },
+                  confidence: { type: "number", description: "How confident this persona would be in this response, from 0.0 to 1.0" },
+                  key_themes: { type: "array", items: { type: "string" }, description: "3-5 key themes or decision factors in the response" },
+                  purchase_intent: { type: "string", enum: ["definitely_yes", "probably_yes", "neutral", "probably_no", "definitely_no"], description: "Would this persona purchase/adopt/support this?" },
+                  emotional_reaction: { type: "string", enum: ["excited", "interested", "neutral", "skeptical", "concerned", "opposed"], description: "Primary emotional reaction" },
+                },
+                required: ["response", "sentiment", "confidence", "key_themes", "purchase_intent", "emotional_reaction"],
               },
-              required: ["response", "sentiment", "confidence", "key_themes", "purchase_intent", "emotional_reaction"],
             },
           },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "structured_response" } },
-    });
+        ],
+        tool_choice: { type: "function", function: { name: "structured_response" } },
+      });
+
+      if (!aiResponse.ok) {
+        const errText = await aiResponse.text();
+        console.error("Gemini API error:", errText);
+        parsed = buildProviderFallback(
+          segment,
+          userPrompt,
+          aiResponse.status === 429 ? "quota_exhausted" : "provider_unavailable",
+          aiResponse.status === 429
+            ? "Live AI is temporarily unavailable because the Gemini project has no remaining quota. A founder-safe fallback result was generated instead."
+            : "Live AI is temporarily unavailable because Gemini is under high demand. A founder-safe fallback result was generated instead.",
+        );
+      } else {
+        const aiData = await aiResponse.json();
+
+        try {
+          const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall?.function?.arguments) {
+            parsed = JSON.parse(toolCall.function.arguments);
+          }
+        } catch {
+          const content = aiData.choices?.[0]?.message?.content || "";
+          parsed = {
+            response: content,
+            sentiment: 0,
+            confidence: 0.5,
+            key_themes: [],
+            purchase_intent: "neutral",
+            emotional_reaction: "neutral",
+          };
+        }
+
+        tokensUsed = aiData.usage?.total_tokens || 0;
+      }
+    }
 
     const durationMs = Date.now() - startTime;
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("Gemini API error:", errText);
-      return jsonResponse(req, { error: "AI generation failed", details: errText }, 502);
-    }
-
-    const aiData = await aiResponse.json();
-    
-    // Parse the structured response
-    let parsed: any = {};
-    try {
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
-        parsed = JSON.parse(toolCall.function.arguments);
-      }
-    } catch (e) {
-      // Fallback: use the raw message content
-      const content = aiData.choices?.[0]?.message?.content || "";
-      parsed = {
-        response: content,
-        sentiment: 0,
-        confidence: 0.5,
-        key_themes: [],
-        purchase_intent: "neutral",
-        emotional_reaction: "neutral",
-      };
-    }
-
-    const tokensUsed = aiData.usage?.total_tokens || 0;
 
     // ── Record Token Usage ───────────────────────────────
     await recordTokenUsage(supabase, workspace_id as string, tokensUsed);
@@ -211,6 +245,9 @@ IMPORTANT RULES:
           key_themes: parsed.key_themes,
           purchase_intent: parsed.purchase_intent,
           emotional_reaction: parsed.emotional_reaction,
+          generation_mode: parsed.generation_mode ?? "ai",
+          provider_status: parsed.provider_status ?? "configured",
+          notice: parsed.notice ?? null,
         },
         confidence_score: parsed.confidence,
         tokens_used: tokensUsed,
@@ -252,6 +289,9 @@ IMPORTANT RULES:
       key_themes: parsed.key_themes,
       purchase_intent: parsed.purchase_intent,
       emotional_reaction: parsed.emotional_reaction,
+      generation_mode: parsed.generation_mode ?? "ai",
+      provider_status: parsed.provider_status ?? "configured",
+      notice: parsed.notice ?? null,
       tokens_used: tokensUsed,
       duration_ms: durationMs,
     });

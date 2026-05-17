@@ -3,6 +3,7 @@ import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
 import { requireWorkspaceMember } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
+import { fetchGemini } from "../_shared/aiClient.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -145,54 +146,47 @@ Generate 5-8 follow-up probes. Each should:
       userPrompt = `Research objective: ${objective || "General qualitative research"}\n\nSession title: ${session.title}\n\nTranscript:\n${transcriptText}`;
     }
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "generate_probes",
-              description: "Generate follow-up probes for research sessions.",
-              parameters: {
-                type: "object",
-                properties: {
-                  probes: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        guide_question: {
-                          type: "string",
-                          description: "The original discussion guide question this probe relates to (null for post-session probes)",
-                        },
-                        suggested_text: {
-                          type: "string",
-                          description: "The follow-up probe question",
-                        },
+    const response = await fetchGemini(GEMINI_API_KEY, {
+      model: "gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "generate_probes",
+            description: "Generate follow-up probes for research sessions.",
+            parameters: {
+              type: "object",
+              properties: {
+                probes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      guide_question: {
+                        type: "string",
+                        description: "The original discussion guide question this probe relates to (null for post-session probes)",
                       },
-                      required: ["suggested_text"],
-                      additionalProperties: false,
+                      suggested_text: {
+                        type: "string",
+                        description: "The follow-up probe question",
+                      },
                     },
+                    required: ["suggested_text"],
+                    additionalProperties: false,
                   },
                 },
-                required: ["probes"],
-                additionalProperties: false,
               },
+              required: ["probes"],
+              additionalProperties: false,
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "generate_probes" } },
-      }),
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "generate_probes" } },
     });
 
     if (!response.ok) {
