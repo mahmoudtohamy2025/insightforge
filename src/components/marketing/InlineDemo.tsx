@@ -1,140 +1,229 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Sparkles, Loader2, PlayCircle, CheckCircle2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
+import { FOUNDER_DECISION_TEMPLATES, getConfidenceMeta } from "@/lib/founderDecision";
 
-async function fireConfetti() {
-  const emojis = ["🚀", "🎉", "✨", "🌟", "💡"];
-  const container = document.body;
-  const count = 40;
-  for (let i = 0; i < count; i++) {
-    const el = document.createElement("span");
-    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-    el.style.cssText = `
-      position:fixed;
-      top:-2rem;
-      left:${Math.random() * 100}vw;
-      font-size:${1.2 + Math.random() * 1}rem;
-      pointer-events:none;
-      z-index:9999;
-      animation: inlineConfettiFall ${1.5 + Math.random() * 1.5}s ease-in forwards;
-      animation-delay: ${Math.random() * 0.8}s;
-    `;
-    container.appendChild(el);
-    setTimeout(() => el.remove(), 3500);
-  }
-  if (!document.getElementById("inline-confetti-style")) {
-    const style = document.createElement("style");
-    style.id = "inline-confetti-style";
-    style.textContent = `@keyframes inlineConfettiFall { to { transform: translateY(110vh) rotate(720deg); opacity:0; } }`;
-    document.head.appendChild(style);
-  }
-}
+const MOCK_RESULTS = {
+  pricing: {
+    summary: "Founders like the outcome-based framing, but they need proof that the product reduces bad decisions before they accept a premium plan.",
+    confidence: 0.72,
+    recommendation: "Test the premium plan, but back it with visible trust signals and a lower-risk starter tier.",
+    risk: "Premium pricing without proof can trigger skepticism about AI certainty.",
+  },
+  messaging: {
+    summary: "Founder Decision OS lands faster than Hybrid AI-Human Insights Platform because it speaks to urgency, not tooling.",
+    confidence: 0.81,
+    recommendation: "Lead with decision-speed language and keep cost savings as supporting proof.",
+    risk: "If trust signals are too hidden, the message can sound like empty positioning.",
+  },
+  onboarding: {
+    summary: "A founder-specific first-run path feels more relevant, but new users still want a quick proof point before they commit setup time.",
+    confidence: 0.63,
+    recommendation: "Guide founders into one testable decision in under five minutes before asking for broader workspace setup.",
+    risk: "Too much setup before the first insight will hurt activation.",
+  },
+} as const;
 
 export function InlineDemo() {
+  const [selectedTemplateId, setSelectedTemplateId] = useState("messaging");
   const [step, setStep] = useState(1);
-  const [mockLoading, setMockLoading] = useState(false);
-  const [query, setQuery] = useState("Would you use a subscription service for specialized coffee delivered monthly?");
+  const [isRunning, setIsRunning] = useState(false);
+  const [query, setQuery] = useState(FOUNDER_DECISION_TEMPLATES[1].starterPrompt);
 
-  const handleRunSimulation = () => {
-    setMockLoading(true);
-    setTimeout(async () => {
-      setMockLoading(false);
+  const selectedTemplate = useMemo(
+    () => FOUNDER_DECISION_TEMPLATES.find((template) => template.id === selectedTemplateId) ?? FOUNDER_DECISION_TEMPLATES[0],
+    [selectedTemplateId]
+  );
+
+  const result = MOCK_RESULTS[selectedTemplateId as keyof typeof MOCK_RESULTS];
+  const confidence = getConfidenceMeta(result.confidence);
+
+  const handleSelectTemplate = (templateId: string) => {
+    const template = FOUNDER_DECISION_TEMPLATES.find((item) => item.id === templateId);
+    if (!template) return;
+    setSelectedTemplateId(templateId);
+    setQuery(template.starterPrompt);
+    setStep(2);
+  };
+
+  const handleRun = () => {
+    setIsRunning(true);
+    setTimeout(() => {
+      setIsRunning(false);
       setStep(3);
-      await fireConfetti();
-    }, 2000);
+    }, 1800);
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-card border border-border shadow-2xl shadow-primary/5 rounded-2xl overflow-hidden flex flex-col transition-all duration-300 min-h-[400px]">
-      {/* Header */}
-      <div className="bg-muted/50 border-b border-border p-4 flex items-center justify-between">
+    <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-[30px] border border-border/70 bg-background shadow-[0_38px_120px_-56px_rgba(15,23,42,0.55)]">
+      <div className="flex items-center justify-between border-b border-border/70 bg-muted/30 px-5 py-4">
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full bg-red-500/80" />
-          <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
-          <div className="h-3 w-3 rounded-full bg-green-500/80" />
+          <div className="h-3 w-3 rounded-full bg-rose-400/80" />
+          <div className="h-3 w-3 rounded-full bg-amber-400/80" />
+          <div className="h-3 w-3 rounded-full bg-emerald-400/80" />
         </div>
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Interactive Demo
+        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          Founder Decision Demo
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 p-6 relative flex flex-col justify-center">
-        {step === 1 && (
-          <div className="space-y-6 animate-fade-in text-center">
-            <Sparkles className="h-10 w-10 text-primary mx-auto opacity-80" />
-            <h3 className="text-2xl font-bold">Meet Sarah</h3>
-            <div className="mx-auto bg-primary/10 border border-primary/20 rounded-xl p-4 max-w-xs text-left">
-              <p className="text-sm font-semibold mb-1">👩🏽‍💼 Sarah M. (28, Dubai)</p>
-              <p className="text-xs text-muted-foreground">Marketing Professional, high disposable income, values convenience and premium brands.</p>
-            </div>
-            <Button size="lg" className="px-8 mt-4" onClick={() => setStep(2)}>
-              Ask Sarah a Question <PlayCircle className="ml-2 h-4 w-4" />
-            </Button>
+      <div className="grid gap-0 lg:grid-cols-[280px_1fr]">
+        <aside className="border-b border-border/70 bg-slate-950 px-5 py-6 text-slate-100 lg:border-b-0 lg:border-r">
+          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300/80">
+            Decision templates
           </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-6 animate-fade-in">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <PlayCircle className="h-5 w-5 text-primary" />
-              Run your first simulation
-            </h3>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">What would you like to ask her?</label>
-              <Input 
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="text-base h-12"
-              />
-            </div>
-            
-            {mockLoading ? (
-              <div className="flex flex-col items-center justify-center p-8 space-y-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-primary font-medium animate-pulse">Running neural calibration...</p>
-              </div>
-            ) : (
-              <Button size="lg" className="w-full h-12 text-base" onClick={handleRunSimulation}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Simulate Response
-              </Button>
-            )}
+          <div className="mt-5 space-y-3">
+            {FOUNDER_DECISION_TEMPLATES.map((template) => (
+              <button
+                key={template.id}
+                onClick={() => handleSelectTemplate(template.id)}
+                className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                  template.id === selectedTemplateId
+                    ? "border-emerald-300/40 bg-white/10"
+                    : "border-white/10 bg-white/[0.03] hover:bg-white/[0.08]"
+                }`}
+              >
+                <div className="text-sm font-medium text-white">{template.title}</div>
+                <div className="mt-2 text-xs leading-5 text-slate-300/72">{template.description}</div>
+              </button>
+            ))}
           </div>
-        )}
+        </aside>
 
-        {step === 3 && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center gap-2 text-emerald-500 font-bold mb-4">
-              <CheckCircle2 className="h-5 w-5" />
-              Simulation Complete (1.8s)
+        <div className="p-6 sm:p-8">
+          {step !== 3 && (
+            <div className="mb-6 flex items-center gap-3 text-sm text-muted-foreground">
+              <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-700 dark:text-emerald-400">
+                {selectedTemplate.title}
+              </span>
+              <span>{selectedTemplate.targetAudience}</span>
             </div>
-            
-            <div className="bg-muted border border-border rounded-xl p-5 relative">
-              <div className="absolute -top-3 -left-3 text-3xl">👩🏽‍💼</div>
-              <h4 className="font-semibold text-sm mb-2 pl-4">Sarah's Simulated Response:</h4>
-              <p className="text-sm leading-relaxed text-foreground/90 pl-4">
-                "I love this idea! With my schedule, I don't always have time to discover new roasts, but I appreciate high-quality coffee. I'd definitely pay a premium ($20-30/mo) if the curation is excellent and the packaging looks great on my counter."
+          )}
+
+          {step === 1 && (
+            <div className="space-y-5">
+              <Sparkles className="h-8 w-8 text-emerald-600" />
+              <h3 className="text-3xl font-semibold tracking-tight">Pick a founder decision to test.</h3>
+              <p className="max-w-2xl text-base leading-7 text-muted-foreground">
+                Start with pricing, messaging, or onboarding. This lightweight demo mirrors the same decision flow the product now uses throughout the founder workspace.
               </p>
-              
-              <div className="mt-4 pt-4 border-t border-border/50 flex gap-4 pl-4">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Interest Level</span>
-                  <span className="text-sm font-semibold text-emerald-500">Very High (92%)</span>
+              <Button onClick={() => setStep(2)}>
+                Start with messaging
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-5">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Founder hypothesis
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Price Barrier</span>
-                  <span className="text-sm font-semibold text-amber-500">Low</span>
+                <h3 className="mt-2 text-3xl font-semibold tracking-tight">{selectedTemplate.hypothesis}</h3>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Decision prompt</label>
+                <Textarea
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  rows={5}
+                  className="resize-none text-base leading-7"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-muted/25 p-4 text-sm text-muted-foreground">
+                The live product will turn this into an AI test first, then suggest a real-customer check only if confidence stays medium or low.
+              </div>
+
+              <Button
+                size="lg"
+                className="h-12 rounded-full px-6"
+                onClick={handleRun}
+                disabled={!query.trim() || isRunning}
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Running decision test
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Run founder test
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                    Decision scorecard
+                  </div>
+                  <h3 className="mt-2 text-3xl font-semibold tracking-tight">{selectedTemplate.title}</h3>
+                </div>
+                <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ${confidence.badgeClassName}`}>
+                  <ShieldCheck className="h-4 w-4" />
+                  {confidence.label}
                 </div>
               </div>
-            </div>
 
-            <Button size="lg" variant="default" className="w-full bg-gradient-to-r from-primary to-purple-600 hover:opacity-90" onClick={() => window.location.href = '/auth'}>
-              Try with 1,000 Personas
-            </Button>
-          </div>
-        )}
+              <div className="rounded-[28px] border border-border/70 bg-muted/20 p-6">
+                <div className="text-sm leading-7 text-foreground/90">{result.summary}</div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recommendation</div>
+                    <div className="mt-2 text-sm font-medium">{result.recommendation}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Risk</div>
+                    <div className="mt-2 text-sm">{result.risk}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Next move</div>
+                    <div className="mt-2 text-sm">{confidence.ctaLabel}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`rounded-2xl border p-4 ${confidence.railClassName}`}>
+                <div className="flex items-start gap-3">
+                  {confidence.level === "low" ? (
+                    <TriangleAlert className="mt-0.5 h-5 w-5" />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 h-5 w-5" />
+                  )}
+                  <div>
+                    <div className="text-sm font-medium">{confidence.label}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{confidence.summary}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button size="lg" className="rounded-full" onClick={() => setStep(2)}>
+                  Test another founder bet
+                </Button>
+                <Button size="lg" variant="outline" className="rounded-full" onClick={() => (window.location.href = "/signup")}>
+                  Open the full founder workspace
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

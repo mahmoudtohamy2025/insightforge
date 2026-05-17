@@ -1,30 +1,37 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
 import {
-  Sparkles,
-  ArrowRight,
   ArrowLeft,
-  Loader2,
+  ArrowRight,
   CheckCircle2,
-  Users2,
-  Zap,
+  Compass,
+  Loader2,
   PartyPopper,
+  ShieldCheck,
+  Sparkles,
   X,
+  Zap,
 } from "lucide-react";
+import { getConfidenceMeta } from "@/lib/founderDecision";
 
 interface OnboardingWizardProps {
   onComplete: () => void;
 }
+
+const decisionPrompts: Record<string, string> = {
+  pricing: "We're packaging the product for early-stage SaaS founders. What makes them trust a higher-priced plan instead of defaulting to the cheapest option?",
+  messaging: "Which homepage message is more likely to convert an early-stage SaaS founder: 'Hybrid AI-Human Research Platform' or 'Founder Decision OS'?",
+  onboarding: "A founder just signed up. What is the fastest onboarding flow that gets them to a useful decision in under five minutes?",
+};
 
 export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const { user } = useAuth();
@@ -34,23 +41,24 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const workspaceId = currentWorkspace?.id;
 
   const [step, setStep] = useState(0);
-  const totalSteps = 4;
-
-  // Step 1: Twin creation form state
-  const [twinName, setTwinName] = useState("");
-  const [ageRange, setAgeRange] = useState("25-34");
-  const [gender, setGender] = useState("mixed");
-  const [location, setLocation] = useState("");
-  const [income, setIncome] = useState("middle");
-
-  // Step 2: Simulation state
+  const [stage, setStage] = useState("pre-seed");
+  const [decisionFocus, setDecisionFocus] = useState("messaging");
+  const [idealCustomer, setIdealCustomer] = useState("Early-stage SaaS founders");
+  const [urgency, setUrgency] = useState("this-week");
   const [createdSegmentId, setCreatedSegmentId] = useState<string | null>(null);
-  const [stimulus, setStimulus] = useState(
-    "We're launching an organic energy drink priced at $3.99. How do you feel about it?"
-  );
   const [simResult, setSimResult] = useState<any>(null);
 
-  // Create Twin
+  const totalSteps = 4;
+  const progress = Math.round(((step + 1) / totalSteps) * 100);
+
+  const twinName = useMemo(
+    () => `${idealCustomer} - ${decisionFocus} profile`,
+    [decisionFocus, idealCustomer]
+  );
+
+  const decisionPrompt = decisionPrompts[decisionFocus] || decisionPrompts.messaging;
+  const confidence = getConfidenceMeta(simResult?.confidence ?? 0.52);
+
   const createTwinMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase
@@ -58,40 +66,56 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         .insert({
           workspace_id: workspaceId,
           name: twinName,
+          description: `Customer profile created during onboarding for ${decisionFocus} decisions at the ${stage} stage.`,
           demographics: {
-            age_range: ageRange,
-            gender,
-            location: location || "United States",
-            income_level: income,
+            age_range: "25-44",
+            gender: "Mixed",
+            location: "Global SaaS",
+            income_level: "Mixed",
           },
-          psychographics: {},
-          behavioral_data: {},
-          cultural_context: {},
-          created_by: user!.id,
+          psychographics: {
+            values: "Speed, clarity, evidence-backed decisions",
+            lifestyle: "Founder-led, time-constrained, growth focused",
+            interests: decisionFocus,
+          },
+          behavioral_data: {
+            purchase_behavior: "Evaluates tools based on time-to-value and trust",
+            decision_factors: `Urgency: ${urgency}`,
+          },
+          cultural_context: {
+            region: "B2B SaaS",
+            language: "English",
+          },
+          created_by: user?.id,
         })
         .select()
         .single();
+
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
       setCreatedSegmentId(data.id);
       queryClient.invalidateQueries({ queryKey: ["segment-profiles"] });
-      toast({ title: "Twin created!", description: `"${twinName}" is ready for simulation.` });
       setStep(2);
+      toast({
+        title: "Customer profile created",
+        description: "Your first customer profile is ready for testing.",
+      });
     },
-    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (error: any) => {
+      toast({ title: "Couldn't create customer profile", description: error.message, variant: "destructive" });
+    },
   });
 
-  // Run Simulation
   const simulateMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("simulate", {
         body: {
           segment_id: createdSegmentId,
-          stimulus,
+          stimulus: decisionPrompt,
           workspace_id: workspaceId,
-          title: stimulus.slice(0, 80),
+          title: `${decisionFocus} onboarding test`,
         },
       });
       if (error) throw error;
@@ -102,10 +126,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       queryClient.invalidateQueries({ queryKey: ["simulation-history"] });
       setStep(3);
     },
-    onError: (e) => toast({ title: "Simulation failed", description: e.message, variant: "destructive" }),
+    onError: (error: any) => {
+      toast({ title: "AI test failed", description: error.message, variant: "destructive" });
+    },
   });
 
-  // Complete onboarding
   const completeOnboarding = async () => {
     await supabase
       .from("profiles")
@@ -115,233 +140,251 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     onComplete();
   };
 
-  const progress = Math.round(((step + 1) / totalSteps) * 100);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="relative w-full max-w-xl mx-4 bg-card border rounded-2xl shadow-2xl overflow-hidden">
-        {/* Skip button */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="relative mx-4 w-full max-w-2xl overflow-hidden rounded-[32px] border bg-card shadow-2xl">
         <button
           onClick={completeOnboarding}
-          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground z-10 transition-colors"
+          className="absolute right-5 top-5 text-muted-foreground transition-colors hover:text-foreground"
           title="Skip onboarding"
         >
           <X className="h-5 w-5" />
         </button>
 
-        {/* Progress bar */}
-        <div className="px-6 pt-6">
-          <Progress value={progress} className="h-1.5" />
-          <p className="text-[10px] text-muted-foreground text-right mt-1">
-            Step {step + 1} of {totalSteps}
-          </p>
+        <div className="border-b border-border/70 px-8 py-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">
+                Founder onboarding
+              </div>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight">Set up your first founder decision flow</h2>
+            </div>
+            <div className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+              Step {step + 1} of {totalSteps}
+            </div>
+          </div>
+          <Progress value={progress} className="mt-5 h-1.5" />
         </div>
 
-        <div className="p-8 pt-4">
-          {/* ═══ Step 0: Welcome ═══ */}
+        <div className="p-8">
           {step === 0 && (
-            <div className="text-center space-y-6 py-4">
-              <div className="mx-auto w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center animate-pulse">
-                <Sparkles className="h-10 w-10 text-primary" />
+            <div className="space-y-6">
+              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-500/10">
+                <Compass className="h-8 w-8 text-emerald-600" />
               </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Welcome to InsightForge</h2>
-                <p className="text-muted-foreground max-w-sm mx-auto">
-                  Let's create your first <strong>Digital Consumer Twin</strong> and run a simulation
-                  in under 5 minutes.
+              <div className="space-y-3">
+                <h3 className="text-3xl font-semibold tracking-tight">This workspace is now tuned for founders.</h3>
+                <p className="max-w-xl text-base leading-7 text-muted-foreground">
+                  We’ll start by learning what kind of startup you are, what you need to decide next, who your customer is, and how fast you need a useful answer.
                 </p>
               </div>
-              <div className="flex flex-col gap-2">
-                <Button size="lg" className="w-full" onClick={() => setStep(1)}>
-                  Let's Go <ArrowRight className="h-4 w-4 ml-2" />
+              <div className="rounded-[24px] border border-border/70 bg-muted/20 p-5 text-sm text-muted-foreground">
+                Your first win: we will create a customer profile, run one AI test, and show you whether to move forward, check with real customers, or gather more proof.
+              </div>
+              <div className="flex gap-3">
+                <Button size="lg" className="rounded-full px-6" onClick={() => setStep(1)}>
+                  Start setup
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={completeOnboarding}>
+                <Button size="lg" variant="ghost" className="rounded-full px-6" onClick={completeOnboarding}>
                   Skip for now
                 </Button>
               </div>
             </div>
           )}
 
-          {/* ═══ Step 1: Create Twin ═══ */}
           {step === 1 && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                  <Users2 className="h-5 w-5 text-purple-500" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold">Create Your First Twin</h2>
-                  <p className="text-xs text-muted-foreground">Define a consumer persona to simulate.</p>
-                </div>
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <h3 className="text-2xl font-semibold tracking-tight">Tell us what you are trying to decide.</h3>
+                <p className="text-sm text-muted-foreground">
+                  This context shapes your first customer profile and your first recommended next step.
+                </p>
               </div>
 
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-sm">Persona Name</Label>
-                  <Input
-                    placeholder="e.g., Health-Conscious Millennials"
-                    value={twinName}
-                    onChange={(e) => setTwinName(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-sm">Age Range</Label>
-                    <Select value={ageRange} onValueChange={setAgeRange}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="18-24">18–24</SelectItem>
-                        <SelectItem value="25-34">25–34</SelectItem>
-                        <SelectItem value="35-44">35–44</SelectItem>
-                        <SelectItem value="45-54">45–54</SelectItem>
-                        <SelectItem value="55+">55+</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-sm">Gender</Label>
-                    <Select value={gender} onValueChange={setGender}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mixed">Mixed</SelectItem>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm">Location</Label>
-                  <Input
-                    placeholder="e.g., New York, Dubai, London"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-sm">Income Level</Label>
-                  <Select value={income} onValueChange={setIncome}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Startup stage</Label>
+                  <Select value={stage} onValueChange={setStage}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="low">Low income</SelectItem>
-                      <SelectItem value="middle">Middle class</SelectItem>
-                      <SelectItem value="upper-middle">Upper middle</SelectItem>
-                      <SelectItem value="high">High income</SelectItem>
+                      <SelectItem value="pre-seed">Pre-seed</SelectItem>
+                      <SelectItem value="seed">Seed</SelectItem>
+                      <SelectItem value="series-a">Series A</SelectItem>
+                      <SelectItem value="growth">Growth</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Current founder decision</Label>
+                  <Select value={decisionFocus} onValueChange={setDecisionFocus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pricing">Pricing</SelectItem>
+                      <SelectItem value="messaging">Messaging</SelectItem>
+                      <SelectItem value="onboarding">Onboarding</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setStep(0)}>
-                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
+              <div className="space-y-2">
+                <Label>Who is your ideal customer?</Label>
+                <Textarea
+                  rows={3}
+                  value={idealCustomer}
+                  onChange={(event) => setIdealCustomer(event.target.value)}
+                  className="resize-none"
+                  placeholder="Describe the founder or buyer you most want to understand."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>How fast do you need a useful answer?</Label>
+                <Select value={urgency} onValueChange={setUrgency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="this-week">This week</SelectItem>
+                    <SelectItem value="this-month">This month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="rounded-[24px] border border-emerald-500/20 bg-emerald-500/5 p-5">
+                <div className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">Generated customer profile</div>
+                <div className="mt-2 text-base font-medium">{twinName}</div>
+                <div className="mt-2 text-sm text-muted-foreground">Urgency: {urgency.replace("-", " ")}. First decision focus: {decisionFocus}.</div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="ghost" className="rounded-full px-5" onClick={() => setStep(0)}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
                 </Button>
                 <Button
-                  className="flex-1"
+                  className="rounded-full px-6"
                   onClick={() => createTwinMutation.mutate()}
-                  disabled={!twinName.trim() || createTwinMutation.isPending}
+                  disabled={!idealCustomer.trim() || createTwinMutation.isPending}
                 >
                   {createTwinMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating customer profile
+                    </>
                   ) : (
-                    <><Sparkles className="h-4 w-4 mr-2" /> Create Twin</>
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Create customer profile
+                    </>
                   )}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* ═══ Step 2: Run First Simulation ═══ */}
           {step === 2 && (
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <Zap className="h-5 w-5 text-amber-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10">
+                  <Zap className="h-6 w-6 text-amber-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold">Run Your First Simulation</h2>
-                  <p className="text-xs text-muted-foreground">Ask your twin a question and see their simulated response.</p>
+                  <h3 className="text-2xl font-semibold tracking-tight">Run your first AI test</h3>
+                  <p className="text-sm text-muted-foreground">This gives you a quick directional read before you spend time talking to real customers.</p>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="bg-muted/50 rounded-lg p-3 flex items-center gap-2">
-                  <Users2 className="h-4 w-4 text-purple-500" />
-                  <span className="text-sm font-medium">{twinName}</span>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 ml-auto" />
-                </div>
-
-                <div>
-                  <Label className="text-sm">Question / Stimulus</Label>
-                  <Textarea
-                    rows={3}
-                    value={stimulus}
-                    onChange={(e) => setStimulus(e.target.value)}
-                    className="mt-1 resize-none"
-                  />
-                </div>
+              <div className="rounded-[24px] border border-border/70 bg-muted/20 p-5">
+                <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Prompt</div>
+                <p className="mt-3 text-sm leading-7">{decisionPrompt}</p>
               </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setStep(1)}>
-                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
+              <div className="rounded-[24px] border border-border/70 p-5 text-sm text-muted-foreground">
+                Once this runs, the dashboard will tell you whether you are ready to move, should do a quick real-customer check, or need more proof.
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="ghost" className="rounded-full px-5" onClick={() => setStep(1)}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
                 </Button>
                 <Button
-                  className="flex-1"
+                  className="rounded-full px-6"
                   onClick={() => simulateMutation.mutate()}
-                  disabled={!stimulus.trim() || simulateMutation.isPending}
+                  disabled={simulateMutation.isPending}
                 >
                   {simulateMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Simulating...</>
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Running AI test
+                    </>
                   ) : (
-                    <><Zap className="h-4 w-4 mr-2" /> Run Simulation</>
+                    <>
+                      <Zap className="mr-2 h-4 w-4" />
+                      Run first AI test
+                    </>
                   )}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* ═══ Step 3: Results & Celebration ═══ */}
           {step === 3 && (
-            <div className="space-y-5">
-              <div className="text-center space-y-3">
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center animate-bounce">
-                  <PartyPopper className="h-8 w-8 text-emerald-500" />
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-500/10">
+                  <PartyPopper className="h-8 w-8 text-emerald-600" />
                 </div>
-                <h2 className="text-xl font-bold">Your First Simulation is Complete!</h2>
-                <p className="text-sm text-muted-foreground">
-                  Here's how <strong>{twinName}</strong> responded:
+                <h3 className="mt-4 text-2xl font-semibold tracking-tight">Your founder workspace is ready.</h3>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  You now have a customer profile, a live test result, and a confidence level to guide your next move.
                 </p>
               </div>
 
-              {simResult && (
-                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                  <p className="text-sm leading-relaxed">
-                    {simResult.response?.substring(0, 300)}{simResult.response?.length > 300 ? "..." : ""}
-                  </p>
-                  <div className="flex flex-wrap gap-3 text-xs">
-                    <span className="bg-card border rounded-full px-3 py-1">
-                      Sentiment: <strong className={simResult.sentiment > 0.2 ? "text-emerald-500" : simResult.sentiment < -0.2 ? "text-red-500" : "text-amber-500"}>
-                        {simResult.sentiment?.toFixed(2)}
-                      </strong>
-                    </span>
-                    <span className="bg-card border rounded-full px-3 py-1">
-                      Confidence: <strong className="text-blue-500">
-                        {Math.round((simResult.confidence || 0) * 100)}%
-                      </strong>
-                    </span>
+              <div className="rounded-[24px] border border-border/70 bg-muted/20 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium">{twinName}</div>
+                  <div className={`rounded-full px-3 py-1 text-xs font-medium ${confidence.badgeClassName}`}>
+                    {confidence.label}
                   </div>
                 </div>
-              )}
+                {simResult && (
+                  <>
+                    {simResult.generation_mode === "heuristic_fallback" && (
+                      <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+                        {simResult.notice || "This result is running in sample mode until a Gemini API key is configured."}
+                      </div>
+                    )}
+                    <p className="mt-4 text-sm leading-7 text-foreground/85">
+                      {simResult.response?.substring(0, 280)}
+                      {simResult.response?.length > 280 ? "..." : ""}
+                    </p>
+                    <div className="mt-4 rounded-2xl border p-4 text-sm">
+                      <div className="font-medium">{confidence.ctaLabel}</div>
+                      <div className="mt-1 text-muted-foreground">{confidence.summary}</div>
+                    </div>
+                  </>
+                )}
+              </div>
 
-              <Button className="w-full" size="lg" onClick={completeOnboarding}>
-                Continue to Dashboard <ArrowRight className="h-4 w-4 ml-2" />
+              <div className="rounded-[24px] border border-emerald-500/20 bg-emerald-500/5 p-5">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 text-emerald-600" />
+                  <div className="text-sm">
+                    The dashboard will now show this inside your workspace with clear decision tracking, simpler navigation, and suggested next steps.
+                  </div>
+                </div>
+              </div>
+
+              <Button size="lg" className="w-full rounded-full" onClick={completeOnboarding}>
+                Continue to founder workspace
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
+              <div className="text-center text-xs text-muted-foreground">
+                You can always come back to AI tests, real-customer research, and accuracy reviews later.
+              </div>
             </div>
           )}
         </div>

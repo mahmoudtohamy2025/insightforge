@@ -1,99 +1,99 @@
 import type { TourStep } from "@/components/onboarding/ProductTour";
 
 // ═══════════════════════════════════════════
-// 1. Digital Twins Page
+// 1. Customer Profiles Page
 // ═══════════════════════════════════════════
 export const TOUR_TWINS: TourStep[] = [
   {
     target: "#twins-header",
     icon: "🧬",
-    title: "Meet Your Digital Twins",
+    title: "Meet Your Customer Profiles",
     description:
-      "Digital twins are AI-powered consumer personas. Define their demographics, psychographics, and cultural context — then ask them anything about your products, campaigns, or policies.",
+      "Customer profiles are AI-powered stand-ins for the people you want to learn from. Define who they are, what they care about, and their context, then ask how they would react to your product or message.",
     position: "bottom",
   },
   {
     target: "#create-segment-btn",
     icon: "➕",
-    title: "Create Your First Twin",
+    title: "Create Your First Profile",
     description:
-      "Click here to define a consumer segment. Fill in age, gender, location, income, values, and lifestyle to build a realistic persona that the AI embodies.",
+      "Click here to define a founder or buyer profile. Add details like age, location, income, values, and lifestyle so the AI has a clear point of view.",
     position: "bottom",
   },
   {
     target: "#twin-builder-btn",
     icon: "🪄",
-    title: "AI Twin Builder",
+    title: "AI Profile Builder",
     description:
-      "Use the Twin Builder for a guided experience — describe your target audience in plain English and AI generates the full persona profile for you.",
+      "Use the Profile Builder for a guided setup. Describe your audience in plain English and the AI will draft the profile for you.",
     position: "bottom",
   },
 ];
 
 // ═══════════════════════════════════════════
-// 2. Simulation Studio
+// 2. AI Test
 // ═══════════════════════════════════════════
 export const TOUR_SIMULATION: TourStep[] = [
   {
     target: "#simulation-header",
     icon: "🎯",
-    title: "Solo Simulation Studio",
+    title: "Run an AI Test",
     description:
-      "Ask a single digital twin a question and get an instant, structured response — including sentiment score, confidence level, key themes, emotional reaction, and purchase intent.",
+      "Ask one customer profile a question and get a fast structured response with sentiment, confidence, key themes, emotional reaction, and likely intent.",
     position: "bottom",
   },
   {
     target: "#segment-selector",
     icon: "👤",
-    title: "Pick a Target Segment",
+    title: "Pick a Customer Profile",
     description:
-      "Select the consumer segment you want to query. Each twin has unique demographics and psychographic traits that shape how they respond.",
+      "Choose the founder or buyer profile you want feedback from. Each profile responds differently based on the details you gave it.",
     position: "bottom",
   },
   {
     target: "#stimulus-input",
     icon: "✏️",
-    title: "Write Your Stimulus",
+    title: "Describe the Decision",
     description:
-      "Describe a product idea, ad concept, pricing change, or policy. Be specific — the more context you give, the richer and more realistic the simulated response.",
+      "Describe the product, pricing, onboarding, or message decision you need help with. The clearer you are, the more useful the AI response will be.",
     position: "top",
   },
   {
     target: "#run-simulation-btn",
     icon: "⚡",
-    title: "Run the Simulation",
+    title: "Run the AI Test",
     description:
-      "Hit this to get your twin's AI-generated response in 5-10 seconds. You'll see sentiment, confidence, key themes, purchase intent, and emotional reaction.",
+      "Run the test to get a response in a few seconds. You will see the profile's answer, confidence, main themes, likely reaction, and emotional tone.",
     position: "top",
   },
   {
     target: "#recent-simulations",
     icon: "📜",
-    title: "Review Past Simulations",
+    title: "Review Past AI Tests",
     description:
-      "All past simulations are saved here. Click any result to review, compare across segments, or export as a PDF report.",
+      "All past AI tests are saved here. Open any one to review it again, compare results, or export a summary.",
     position: "left",
   },
 ];
 
 // ═══════════════════════════════════════════
-// 3. Focus Group Studio
+// 3. Panel Discussion
 // ═══════════════════════════════════════════
 export const TOUR_FOCUS_GROUP: TourStep[] = [
   {
     target: "#fg-header",
     icon: "💬",
-    title: "AI Focus Group",
+    title: "Panel Discussion",
     description:
-      "Run a moderated discussion between multiple digital twins. They debate, agree, disagree — just like real focus groups, but completed in seconds instead of weeks.",
+      "Run a moderated discussion between multiple customer profiles. They agree, disagree, and challenge each other, giving you a richer read than a single AI test.",
     position: "bottom",
   },
   {
     target: "#fg-segment-select",
     icon: "👥",
-    title: "Select 2-6 Participants",
+    title: "Select 2-5 Profiles",
     description:
-      "Check the twins you want in the discussion. Mix segments for diverse perspectives — e.g., Gen-Z health-conscious + Boomer traditionalists.",
+      "Choose the customer profiles you want in the discussion. Mix different viewpoints when you want a broader read on the decision.",
     position: "bottom",
   },
   {
@@ -101,23 +101,23 @@ export const TOUR_FOCUS_GROUP: TourStep[] = [
     icon: "💡",
     title: "Set the Discussion Topic",
     description:
-      'Write what you want them to discuss. Example: "What do you think about a $50/month meal kit delivery service targeting working parents?"',
+      "Write the idea, decision, or message you want the profiles to react to.",
     position: "top",
   },
   {
     target: "#fg-rounds-select",
     icon: "🔄",
-    title: "Choose Discussion Rounds",
+    title: "Choose the Number of Rounds",
     description:
-      "More rounds = deeper conversation. Round 1 gives initial reactions. Round 2+ lets twins respond to each other's points, creating realistic group dynamics.",
+      "More rounds create a deeper conversation. The first round shows initial reactions, and later rounds show how the profiles respond to one another.",
     position: "bottom",
   },
   {
     target: "#fg-run-btn",
     icon: "🚀",
-    title: "Start the Focus Group",
+    title: "Start the Panel Discussion",
     description:
-      "The AI generates a full multi-round discussion with per-participant sentiment tracking, consensus points, and areas of disagreement.",
+      "The AI generates the full discussion, including sentiment, common ground, and areas where the profiles disagree.",
     position: "top",
   },
 ];
@@ -129,9 +129,9 @@ export const TOUR_AB_TEST: TourStep[] = [
   {
     target: "#ab-header",
     icon: "⚡",
-    title: "A/B Test Studio",
+    title: "Compare Options",
     description:
-      "Compare two product concepts, ads, or messages side-by-side. Each twin evaluates both variants independently — you see which wins and exactly why.",
+      "Compare two product ideas, offers, or messages side-by-side. Each customer profile reviews both options separately so you can see which one wins and why.",
     position: "bottom",
   },
   {
@@ -147,7 +147,7 @@ export const TOUR_AB_TEST: TourStep[] = [
     icon: "🅱️",
     title: "Describe Variant B",
     description:
-      "Enter the alternative. The AI evaluates both independently for each segment — no cross-contamination between variants.",
+      "Enter the alternative. The AI reviews both options independently for each customer profile.",
     position: "bottom",
   },
   {
@@ -167,9 +167,9 @@ export const TOUR_MARKET_SIM: TourStep[] = [
   {
     target: "#market-header",
     icon: "📈",
-    title: "Market Simulation",
+    title: "Market Forecast",
     description:
-      "Predict market reception for a product. Get purchase probability, price sensitivity, adoption timing (innovator→laggard), and word-of-mouth likelihood.",
+      "Estimate how the market may respond to a product. You will see likely demand, price sensitivity, adoption timing, and word of mouth potential.",
     position: "bottom",
   },
   {
@@ -197,9 +197,9 @@ export const TOUR_POLICY_SIM: TourStep[] = [
   {
     target: "#policy-header",
     icon: "🏛️",
-    title: "Policy Impact Simulation",
+    title: "Policy Check",
     description:
-      "Test how populations react to policies, regulations, or societal changes — from urban planning to healthcare mandates to environmental rules.",
+      "Estimate how different groups may react to a policy, rule change, or public decision.",
     position: "bottom",
   },
   {
@@ -320,14 +320,14 @@ export const TOUR_INSIGHTS: TourStep[] = [
 // Registry for the help menu
 // ═══════════════════════════════════════════
 export const ALL_TOURS = {
-  twins: { id: "twins", label: "Digital Twins", steps: TOUR_TWINS },
-  simulation: { id: "simulation", label: "Simulation Studio", steps: TOUR_SIMULATION },
-  focusGroup: { id: "focus-group", label: "Focus Group Studio", steps: TOUR_FOCUS_GROUP },
-  abTest: { id: "ab-test", label: "A/B Test Studio", steps: TOUR_AB_TEST },
-  marketSim: { id: "market-sim", label: "Market Simulation", steps: TOUR_MARKET_SIM },
-  policySim: { id: "policy-sim", label: "Policy Simulation", steps: TOUR_POLICY_SIM },
-  sessions: { id: "sessions", label: "Sessions", steps: TOUR_SESSIONS },
+  twins: { id: "twins", label: "Customer Profiles", steps: TOUR_TWINS },
+  simulation: { id: "simulation", label: "Run an AI Test", steps: TOUR_SIMULATION },
+  focusGroup: { id: "focus-group", label: "Panel Discussion", steps: TOUR_FOCUS_GROUP },
+  abTest: { id: "ab-test", label: "Compare Options", steps: TOUR_AB_TEST },
+  marketSim: { id: "market-sim", label: "Market Forecast", steps: TOUR_MARKET_SIM },
+  policySim: { id: "policy-sim", label: "Policy Check", steps: TOUR_POLICY_SIM },
+  sessions: { id: "sessions", label: "Interviews", steps: TOUR_SESSIONS },
   surveys: { id: "surveys", label: "Surveys", steps: TOUR_SURVEYS },
-  requirements: { id: "requirements", label: "Requirements", steps: TOUR_REQUIREMENTS },
+  requirements: { id: "requirements", label: "Decisions", steps: TOUR_REQUIREMENTS },
   insights: { id: "insights", label: "Insights", steps: TOUR_INSIGHTS },
 } as const;

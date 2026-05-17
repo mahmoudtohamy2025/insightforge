@@ -1,4 +1,3 @@
-import { useI18n } from "@/lib/i18n";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,7 +25,6 @@ interface ChecklistItem {
 }
 
 export function OnboardingChecklist() {
-  const { t } = useI18n();
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
@@ -87,32 +85,32 @@ export function OnboardingChecklist() {
   const items: ChecklistItem[] = [
     {
       key: "twin",
-      label: "Create Your First Digital Twin",
-      description: "Build an AI consumer persona with demographics and psychographics.",
+      label: "Create a customer profile",
+      description: "Describe the founder or buyer you most need to understand before you ship.",
       icon: Sparkles,
       path: "/segments",
       done: counts.twins > 0,
     },
     {
       key: "simulation",
-      label: "Run Your First Simulation",
-      description: "Ask your twin a question and see their simulated response.",
+      label: "Run an AI test",
+      description: "Get a fast read on pricing, messaging, or onboarding before you spend more time.",
       icon: Zap,
       path: "/simulate",
       done: counts.simulations > 0,
     },
     {
       key: "validate",
-      label: "Upload Real Data to Validate",
-      description: "Compare twin predictions against real survey results.",
+      label: "Check with real customers",
+      description: "Use surveys or interviews when the AI signal is not strong enough on its own.",
       icon: Target,
       path: "/validation",
       done: counts.calibrations > 0,
     },
     {
       key: "team",
-      label: "Invite Your Team",
-      description: "Collaborate with teammates on research projects.",
+      label: "Invite your team",
+      description: "Bring cofounders, PMs, or teammates into the same decision flow.",
       icon: UserPlus,
       path: "/settings",
       done: counts.members > 1,
@@ -134,7 +132,7 @@ export function OnboardingChecklist() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            <CardTitle className="text-base">Get Started with Digital Twins</CardTitle>
+            <CardTitle className="text-base">Set up your workspace</CardTitle>
           </div>
           <Button
             variant="ghost"

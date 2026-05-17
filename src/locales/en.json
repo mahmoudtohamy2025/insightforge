@@ -17,12 +17,15 @@
   "nav.trustCenter": "Trust Center",
   "nav.requirements": "Requirements",
   "nav.incentives": "Incentives",
+  "nav.panelOverview": "Panel Overview",
+  "nav.studyPipeline": "Study Pipeline",
+  "nav.audienceCrm": "Audience CRM",
   "nav.settings": "Settings",
   "nav.search": "Search...",
   "nav.notifications": "Notifications",
   "nav.group.research": "Research",
   "nav.group.aiStudio": "AI Studio",
-  "nav.group.panel": "Panel",
+  "nav.group.panel": "Research Operations",
   "nav.group.intelligence": "Intelligence",
   "auth.login": "Log In",
   "auth.signup": "Sign Up",
@@ -678,10 +681,6 @@
   "landing.ctaButton": "Start Free — No Credit Card Required",
   "landing.pricingTitle": "Simple, Transparent Pricing",
   "landing.pricingSubtitle": "Start free. Scale as you grow. No hidden fees.",
-
-  "nav.requirements": "Requirements",
-  "nav.incentives": "Incentives",
-
   "requirements.title": "Requirements",
   "requirements.subtitle": "Track research needs from stakeholders to insights",
   "requirements.submitNew": "Submit Requirement",
@@ -757,4 +756,3 @@
   "incentives.status.exhausted": "Exhausted",
   "incentives.status.closed": "Closed"
 }
-
