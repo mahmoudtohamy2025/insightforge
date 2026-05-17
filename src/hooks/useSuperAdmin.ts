@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { isPlatformSuperAdmin } from "@/lib/appDestination";
 
 /**
  * Hook to check if the current user is a platform-level Super Admin.
@@ -12,21 +12,31 @@ export function useSuperAdmin() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     if (!user) {
       setIsSuperAdmin(false);
       setLoading(false);
       return;
     }
 
-    supabase
-      .from("super_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        setIsSuperAdmin(!!data && !error);
+    setLoading(true);
+
+    isPlatformSuperAdmin(user.id)
+      .then((value) => {
+        if (!mounted) return;
+        setIsSuperAdmin(value);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setIsSuperAdmin(false);
         setLoading(false);
       });
+
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
   return { isSuperAdmin, loading };

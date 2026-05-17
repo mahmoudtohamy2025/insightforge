@@ -16,10 +16,20 @@ CREATE POLICY "super_admins_select_own"
   ON public.super_admins FOR SELECT TO authenticated
   USING (user_id = auth.uid());
 
--- 2. Insert the first super admin: mahmoudtohamy94@gmail.com
-INSERT INTO public.super_admins (user_id)
-VALUES ('d7466901-d2d8-4198-bc05-90a161a8599d')
-ON CONFLICT (user_id) DO NOTHING;
+-- 2. Insert the first super admin only when that auth user already exists.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM auth.users
+    WHERE id = 'd7466901-d2d8-4198-bc05-90a161a8599d'
+  ) THEN
+    INSERT INTO public.super_admins (user_id)
+    VALUES ('d7466901-d2d8-4198-bc05-90a161a8599d')
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+END
+$$;
 
 -- 3. Helper function: is_super_admin
 CREATE OR REPLACE FUNCTION public.is_super_admin(uid UUID)

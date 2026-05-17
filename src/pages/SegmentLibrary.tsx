@@ -52,9 +52,9 @@ const calibrationColor = (score: number | null) => {
 };
 
 const calibrationLabel = (score: number | null) => {
-  if (!score || score < 0.3) return "New";
-  if (score < 0.6) return "Calibrating";
-  return "Calibrated";
+  if (!score || score < 0.3) return "Early signal";
+  if (score < 0.6) return "Getting stronger";
+  return "Strong";
 };
 
 const GENDER_OPTIONS = ["Male", "Female", "Mixed"];
@@ -132,7 +132,7 @@ const SegmentLibrary = () => {
       queryClient.invalidateQueries({ queryKey: ["segment-profiles", workspaceId] });
       setCreateOpen(false);
       resetForm();
-      toast({ title: "Segment created", description: "Your consumer segment is ready for simulations." });
+      toast({ title: "Profile created", description: "Your customer profile is ready for testing." });
     },
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -144,7 +144,7 @@ const SegmentLibrary = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["segment-profiles", workspaceId] });
-      toast({ title: "Segment deleted" });
+      toast({ title: "Profile deleted" });
     },
   });
 
@@ -161,10 +161,10 @@ const SegmentLibrary = () => {
         <div>
           <h1 id="twins-header" className="text-2xl font-bold flex items-center gap-2">
             <Users2 className="h-6 w-6 text-primary" />
-            Digital Twins
+            Customer Profiles
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Create consumer segments and simulate their reactions to your products, campaigns, and policies.
+            Create the founder and buyer profiles you want feedback from before you commit to product or growth changes.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -172,11 +172,11 @@ const SegmentLibrary = () => {
             <>
               <Button variant="outline" size="sm" onClick={() => navigate("/focus-group")}>
                 <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                Focus Group
+                Panel Discussion
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate("/ab-test")}>
                 <Zap className="h-3.5 w-3.5 mr-1.5" />
-                A/B Test
+                Compare Options
               </Button>
             </>
           )}
@@ -184,42 +184,42 @@ const SegmentLibrary = () => {
             <>
               <Button variant="outline" size="sm" onClick={() => navigate("/market-sim")}>
                 <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
-                Market Sim
+                Market Forecast
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate("/policy-sim")}>
                 <Scale className="h-3.5 w-3.5 mr-1.5" />
-                Policy Impact
+                Policy Check
               </Button>
             </>
           )}
           <Button id="twin-builder-btn" variant="outline" size="sm" onClick={() => navigate("/twin-builder")}>
             <Wand2 className="h-3.5 w-3.5 mr-1.5" />
-            Twin Builder
+            Profile Builder
           </Button>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button id="create-segment-btn">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Segment
+                Create Profile
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create Consumer Segment</DialogTitle>
+                <DialogTitle>Create customer profile</DialogTitle>
                 <DialogDescription>
-                  Define a consumer segment to create digital twins you can query and simulate.
+                  Describe the founder or buyer profile you want to test ideas with.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 py-2">
                 {/* Basic Info */}
                 <div className="space-y-2">
-                  <Label htmlFor="seg-name">Segment Name *</Label>
-                  <Input id="seg-name" placeholder="e.g. Egyptian Gen-Z Health-Conscious Female" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                  <Label htmlFor="seg-name">Profile name *</Label>
+                  <Input id="seg-name" placeholder="e.g. Seed-stage SaaS founder in the US" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="seg-desc">Description</Label>
-                  <Textarea id="seg-desc" rows={2} placeholder="Brief description of this segment..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+                  <Textarea id="seg-desc" rows={2} placeholder="A short description of who this person is and why they matter..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
                 </div>
 
                 {/* Demographics */}
@@ -307,7 +307,7 @@ const SegmentLibrary = () => {
                 <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
                 <Button onClick={() => createMutation.mutate()} disabled={!form.name.trim() || createMutation.isPending}>
                   {createMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                  Create Segment
+                  Create Profile
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -323,8 +323,8 @@ const SegmentLibrary = () => {
       ) : segments.length === 0 ? (
         <EmptyState
           icon={Users2}
-          title="No consumer segments yet"
-          description="Create your first digital twin segment to start simulating consumer reactions to your products and campaigns."
+          title="No customer profiles yet"
+          description="Create your first customer profile to start testing how people may react to your product or messaging."
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -385,14 +385,14 @@ const SegmentLibrary = () => {
                       onClick={() => navigate(`/simulate?segment=${seg.id}`)}
                     >
                       <MessageSquare className="h-3 w-3 mr-1" />
-                      Ask a Question
+                      Run AI Test
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => {
-                        if (confirm("Delete this segment? All associated simulations will also be deleted.")) {
+                        if (confirm("Delete this profile? Any related AI tests will also be deleted.")) {
                           deleteMutation.mutate(seg.id);
                         }
                       }}

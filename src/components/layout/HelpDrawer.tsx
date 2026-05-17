@@ -62,30 +62,30 @@ export function HelpDrawer() {
             <DrawerHeader>
               <DrawerTitle className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-primary" />
-                Help Center
+                Guides
               </DrawerTitle>
               <DrawerDescription>
-                Replay interactive guides for any feature in InsightForge.
+                Replay short walkthroughs for the page you are on or explore the rest of the product.
               </DrawerDescription>
             </DrawerHeader>
             <div className="p-4 pb-0 space-y-4">
               {currentTourId && (
                 <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-3">
-                  <p className="text-sm font-semibold text-primary">Current Page Guide</p>
+                  <p className="text-sm font-semibold text-primary">Guide for this page</p>
                   <Button
                     variant="default"
                     className="w-full"
                     onClick={() => handleStartTour(currentTourId)}
                   >
                     <PlayCircle className="mr-2 h-4 w-4" />
-                    How to use {ALL_TOURS[currentTourId as keyof typeof ALL_TOURS]?.label}
+                    Show me how to use {ALL_TOURS[currentTourId as keyof typeof ALL_TOURS]?.label}
                   </Button>
                 </div>
               )}
 
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  All Feature Tours
+                  All guides
                 </p>
                 <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto pb-6 pr-2">
                   {Object.entries(ALL_TOURS).map(([key, tour]) => (

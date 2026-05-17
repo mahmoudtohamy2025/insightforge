@@ -108,6 +108,9 @@ const SimulationStudio = () => {
             key_themes: (data.results as any)?.key_themes,
             purchase_intent: (data.results as any)?.purchase_intent,
             emotional_reaction: (data.results as any)?.emotional_reaction,
+            generation_mode: (data.results as any)?.generation_mode,
+            provider_status: (data.results as any)?.provider_status,
+            notice: (data.results as any)?.notice,
             tokens_used: data.tokens_used,
             duration_ms: data.duration_ms,
           });
@@ -137,9 +140,9 @@ const SimulationStudio = () => {
     onSuccess: (data) => {
       setResult(data);
       queryClient.invalidateQueries({ queryKey: ["simulation-history", workspaceId] });
-      toast({ title: "Simulation complete", description: `Confidence: ${Math.round((data.confidence || 0) * 100)}%` });
+      toast({ title: "AI test complete", description: `Confidence: ${Math.round((data.confidence || 0) * 100)}%` });
     },
-    onError: (e) => toast({ title: "Simulation failed", description: e.message, variant: "destructive" }),
+    onError: (e) => toast({ title: "AI test failed", description: e.message, variant: "destructive" }),
   });
 
   const selectedSegment = segments.find((s: any) => s.id === selectedSegmentId) as any;
@@ -155,9 +158,9 @@ const SimulationStudio = () => {
         <div>
           <h1 id="simulation-header" className="text-2xl font-bold flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-primary" />
-            {t("simulation.title")}
+            AI Decision Test
           </h1>
-          <p className="text-sm text-muted-foreground">{t("simulation.description")}</p>
+          <p className="text-sm text-muted-foreground">Get a fast read on a pricing, messaging, onboarding, or product decision before you talk to real customers.</p>
         </div>
       </div>
 
@@ -168,10 +171,10 @@ const SimulationStudio = () => {
           <Card>
             <CardContent className="pt-5 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t("simulation.targetSegment")}</label>
+                <label className="text-sm font-medium">Customer profile</label>
                 <Select value={selectedSegmentId} onValueChange={setSelectedSegmentId}>
                   <SelectTrigger id="segment-selector">
-                    <SelectValue placeholder={t("simulation.selectSegment")} />
+                    <SelectValue placeholder="Choose the founder or buyer profile you want feedback from..." />
                   </SelectTrigger>
                   <SelectContent>
                     {segments.map((s: any) => (
@@ -191,11 +194,11 @@ const SimulationStudio = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t("simulation.stimulusLabel")}</label>
+                <label className="text-sm font-medium">What do you want feedback on?</label>
                 <Textarea
                   id="stimulus-input"
                   rows={4}
-                  placeholder={t("simulation.stimulusPlaceholder")}
+                  placeholder="Describe the pricing, messaging, onboarding, or product decision you need to make..."
                   value={stimulus}
                   onChange={(e) => setStimulus(e.target.value)}
                   className="resize-none"
@@ -213,12 +216,12 @@ const SimulationStudio = () => {
                   {simulateMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      {t("simulation.running")}
+                      Running AI test
                     </>
                   ) : (
                     <>
                       <Send className="h-4 w-4 mr-2" />
-                      {t("simulation.runButton")}
+                      Run AI test
                     </>
                   )}
                 </Button>
@@ -232,7 +235,7 @@ const SimulationStudio = () => {
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-primary" />
-                  {t("simulation.consumerResponse")}
+                  Profile response
                 </CardTitle>
                 <Button
                   variant="outline"
@@ -257,10 +260,15 @@ const SimulationStudio = () => {
                   }}
                 >
                   <Download className="h-3.5 w-3.5 mr-1.5" />
-                  Export PDF
+                  Export summary
                 </Button>
               </CardHeader>
               <CardContent className="space-y-4">
+                {result.generation_mode === "heuristic_fallback" && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                    {result.notice || "This simulation is running in sample mode until a Gemini API key is configured."}
+                  </div>
+                )}
                 {/* Main Response */}
                 <div className="bg-muted/50 rounded-lg p-4 text-sm leading-relaxed">
                   {result.response}
@@ -306,6 +314,7 @@ const SimulationStudio = () => {
                       {intentLabel[result.purchase_intent]?.text || result.purchase_intent || "—"}
                     </Badge>
                     <p className="text-[10px] text-muted-foreground uppercase">Intent</p>
+                    
                   </div>
                 </div>
 
@@ -314,7 +323,7 @@ const SimulationStudio = () => {
                   <div className="space-y-2">
                     <p className="text-xs font-medium flex items-center gap-1.5">
                       <Tag className="h-3 w-3" />
-                      Key Decision Factors
+                      Main takeaways
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {result.key_themes.map((theme: string, i: number) => (
@@ -348,12 +357,12 @@ const SimulationStudio = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Recent Simulations
+                Recent AI tests
               </CardTitle>
             </CardHeader>
             <CardContent>
               {history.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">No simulations yet. Run your first one!</p>
+                <p className="text-xs text-muted-foreground text-center py-4">No AI tests yet. Run your first one.</p>
               ) : (
                 <div className="space-y-2">
                   {history.map((sim: any) => {

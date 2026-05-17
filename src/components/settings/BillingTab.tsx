@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Shield, AlertTriangle, BarChart3, Loader2 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import { TIER_LIMITS, TIER_PRICES, TIER_ORDER, STRIPE_TIER_MAP, getUsagePercent, getUsageStatus } from "@/lib/tierLimits";
+import { CreditCard, Shield, Loader2 } from "lucide-react";
+import { TIER_LIMITS, TIER_PRICES, TIER_ORDER, STRIPE_TIER_MAP } from "@/lib/tierLimits";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { UsageMeter } from "@/components/UsageMeter";
@@ -34,25 +33,67 @@ function formatLimit(limit: number): string {
 
 export function BillingTab({ currentWorkspace, t, isOwner }: { currentWorkspace: any; t: (k: string) => string; isOwner: boolean }) {
   const workspaceId = currentWorkspace?.id;
-  const currentTier = currentWorkspace?.tier || "free";
-  const limits = TIER_LIMITS[currentTier] || TIER_LIMITS.free;
-  const { subscribed, tier: subTier, subscriptionEnd, isLoading: subLoading, refetch } = useSubscription();
+  const storedTier = currentWorkspace?.tier || "free";
+  const { subscribed, tier: subTier, status: subscriptionStatus, subscriptionEnd, isLoading: subLoading, refetch } = useSubscription();
+  const { refetchWorkspaces } = useWorkspace();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [syncingBilling, setSyncingBilling] = useState(false);
+
+  const activeTier = subTier || storedTier;
+  const effectiveStatus = subscriptionStatus || currentWorkspace?.subscription_status || (subscribed ? "active" : "free");
+  const currentTier = activeTier;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
-      refetch();
-      window.history.replaceState({}, "", window.location.pathname + "?tab=billing");
+      let cancelled = false;
+
+      const syncBillingState = async () => {
+        setSyncingBilling(true);
+        try {
+          for (let attempt = 0; attempt < 4; attempt += 1) {
+            await Promise.all([refetch(), refetchWorkspaces()]);
+
+            if (cancelled) return;
+
+            if (attempt < 3) {
+              await new Promise((resolve) => window.setTimeout(resolve, 1250 * (attempt + 1)));
+            }
+          }
+
+          if (!cancelled) {
+            const nextParams = new URLSearchParams(window.location.search);
+            nextParams.delete("checkout");
+            nextParams.set("tab", "billing");
+            const nextQuery = nextParams.toString();
+            window.history.replaceState({}, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
+            localStorage.removeItem("if_pending_checkout_workspace");
+            toast({
+              title: "Billing updated",
+              description: "Your workspace plan has been refreshed from Stripe.",
+            });
+          }
+        } finally {
+          if (!cancelled) {
+            setSyncingBilling(false);
+          }
+        }
+      };
+
+      void syncBillingState();
+
+      return () => {
+        cancelled = true;
+      };
     }
-  }, [refetch]);
+  }, [refetch, refetchWorkspaces]);
 
   // The usage data is now handled by the UsageMeter component
   // which internally uses the useUsage hook to fetch and calculate everything,
   // including AI tokens.
 
-  const tierIndex = (TIER_ORDER as readonly string[]).indexOf(currentTier);
+  const tierIndex = (TIER_ORDER as readonly string[]).indexOf(activeTier);
   const nextTier = tierIndex < TIER_ORDER.length - 1 ? TIER_ORDER[tierIndex + 1] : null;
 
   const handleCheckout = async (tier: string) => {
@@ -65,7 +106,8 @@ export function BillingTab({ currentWorkspace, t, isOwner }: { currentWorkspace:
       });
       if (error) throw error;
       if (data?.url) {
-        window.open(data.url, "_blank");
+        localStorage.setItem("if_pending_checkout_workspace", workspaceId || "");
+        window.location.assign(data.url);
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -80,7 +122,7 @@ export function BillingTab({ currentWorkspace, t, isOwner }: { currentWorkspace:
       const { data, error } = await supabase.functions.invoke("customer-portal");
       if (error) throw error;
       if (data?.url) {
-        window.open(data.url, "_blank");
+        window.location.assign(data.url);
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -88,8 +130,6 @@ export function BillingTab({ currentWorkspace, t, isOwner }: { currentWorkspace:
       setPortalLoading(false);
     }
   };
-
-  const activeTier = subTier || currentTier;
 
   return (
     <>
@@ -107,10 +147,10 @@ export function BillingTab({ currentWorkspace, t, isOwner }: { currentWorkspace:
               <p className="text-lg font-bold capitalize">{t(`billing.${activeTier}`)}</p>
               <p className="text-sm text-muted-foreground">{TIER_PRICES[activeTier]}</p>
             </div>
-            <Badge className={cn("capitalize", currentWorkspace?.subscription_status === 'past_due' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary')}>
-              {currentWorkspace?.subscription_status || "Active"}
+            <Badge className={cn("capitalize", effectiveStatus === "past_due" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+              {effectiveStatus}
             </Badge>
-            {subLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            {(subLoading || syncingBilling) && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </div>
 
           {subscribed && subscriptionEnd && (

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, Loader2, XCircle } from "lucide-react";
+import { getDefaultAppPathForUser } from "@/lib/appDestination";
 
 const AuthCallback = () => {
   const { t } = useI18n();
@@ -34,7 +35,8 @@ const AuthCallback = () => {
           } else {
             setStatus("success");
             setMessage(t("auth.callback.emailConfirmed"));
-            setTimeout(() => navigate("/dashboard", { replace: true }), 2000);
+            const destination = await getDefaultAppPathForUser(data.session.user.id);
+            setTimeout(() => navigate(destination, { replace: true }), 2000);
           }
         } else {
           // No session but no error — might be email confirmation that auto-signs in
@@ -43,8 +45,13 @@ const AuthCallback = () => {
             if (event === "SIGNED_IN" && session) {
               setStatus("success");
               setMessage(t("auth.callback.emailConfirmed"));
-              setTimeout(() => navigate("/dashboard", { replace: true }), 2000);
-              subscription.unsubscribe();
+              getDefaultAppPathForUser(session.user.id)
+                .then((destination) => {
+                  setTimeout(() => navigate(destination, { replace: true }), 2000);
+                })
+                .finally(() => {
+                  subscription.unsubscribe();
+                });
             }
           });
 

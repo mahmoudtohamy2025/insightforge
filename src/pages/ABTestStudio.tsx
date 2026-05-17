@@ -83,9 +83,9 @@ const ABTestStudio = () => {
     onSuccess: (data) => {
       setResult(data);
       queryClient.invalidateQueries({ queryKey: ["simulation-history", workspaceId] });
-      toast({ title: "A/B Test complete!", description: `Winner: Variant ${data.comparison.winner === "tie" ? "Tie" : data.comparison.winner}` });
+      toast({ title: "Comparison complete", description: `Winner: Option ${data.comparison.winner === "tie" ? "Tie" : data.comparison.winner}` });
     },
-    onError: (e) => toast({ title: "Test failed", description: e.message, variant: "destructive" }),
+    onError: (e) => toast({ title: "Comparison failed", description: e.message, variant: "destructive" }),
   });
 
   const comp = result?.comparison;
@@ -101,16 +101,16 @@ const ABTestStudio = () => {
         <div>
           <h1 id="ab-header" className="text-2xl font-bold flex items-center gap-2">
             <FlaskConical className="h-6 w-6 text-primary" />
-            A/B Test Studio
+            Compare Options
           </h1>
-          <p className="text-sm text-muted-foreground">Compare two product/campaign variants across consumer segments.</p>
+          <p className="text-sm text-muted-foreground">Compare two messages, offers, or product directions across customer profiles.</p>
         </div>
       </div>
 
       {/* Segment selector */}
       <Card>
         <CardContent className="pt-5">
-          <Label className="text-sm font-medium mb-2 block">Test Audience (select 1+ segments)</Label>
+          <Label className="text-sm font-medium mb-2 block">Customer profiles</Label>
           <div className="flex flex-wrap gap-2">
             {segments.map((seg: any) => {
               const isSelected = selectedSegmentIds.includes(seg.id);
@@ -137,14 +137,14 @@ const ABTestStudio = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">A</Badge>
-              Variant A
+              Option A
             </CardTitle>
           </CardHeader>
           <CardContent>
             <Textarea
               id="ab-variant-a"
               rows={4}
-              placeholder="Describe your first variant...&#10;&#10;Example: 'Organic Snack Bar - $3.99, emphasis on health benefits'"
+              placeholder="Describe your first option...&#10;&#10;Example: 'Founder plan at $99/month with team collaboration and weekly summaries'"
               value={variantA}
               onChange={(e) => setVariantA(e.target.value)}
               className="resize-none"
@@ -156,14 +156,14 @@ const ABTestStudio = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">B</Badge>
-              Variant B
+              Option B
             </CardTitle>
           </CardHeader>
           <CardContent>
             <Textarea
               id="ab-variant-b"
               rows={4}
-              placeholder="Describe your second variant...&#10;&#10;Example: 'Organic Snack Bar - $2.49, emphasis on taste and convenience'"
+              placeholder="Describe your second option...&#10;&#10;Example: 'Starter plan at $49/month with a lighter feature set and fewer exports'"
               value={variantB}
               onChange={(e) => setVariantB(e.target.value)}
               className="resize-none"
@@ -180,9 +180,9 @@ const ABTestStudio = () => {
         disabled={selectedSegmentIds.length < 1 || !variantA.trim() || !variantB.trim() || runMutation.isPending}
       >
         {runMutation.isPending ? (
-          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running A/B test across {selectedSegmentIds.length} segment(s)...</>
+          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Comparing options across {selectedSegmentIds.length} profile(s)...</>
         ) : (
-          <><FlaskConical className="h-4 w-4 mr-2" />Run A/B Test</>
+          <><FlaskConical className="h-4 w-4 mr-2" />Compare options</>
         )}
       </Button>
 
@@ -194,7 +194,7 @@ const ABTestStudio = () => {
             <CardContent className="pt-5 flex items-center justify-center gap-3">
               <Trophy className={`h-6 w-6 ${comp.winner === "A" ? "text-blue-500" : comp.winner === "B" ? "text-purple-500" : "text-amber-500"}`} />
               <span className="text-xl font-bold">
-                {comp.winner === "tie" ? "It's a Tie!" : `Variant ${comp.winner} Wins!`}
+                {comp.winner === "tie" ? "It's a tie" : `Option ${comp.winner} wins`}
               </span>
               <span className="text-sm text-muted-foreground">
                 Sentiment delta: {comp.sentiment_delta > 0 ? "+" : ""}{comp.sentiment_delta.toFixed(3)}
@@ -209,7 +209,7 @@ const ABTestStudio = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Badge className="bg-blue-500/20 text-blue-400">A</Badge>
-                  Variant A Results
+                  Option A results
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -239,7 +239,7 @@ const ABTestStudio = () => {
                   </div>
                 )}
 
-                {/* Per-segment responses */}
+                {/* Per-profile responses */}
                 <div className="pt-2 border-t space-y-2">
                   {comp.variant_a.responses?.map((r: any, i: number) => (
                     <div key={i} className="text-xs">

@@ -3,6 +3,8 @@ import { Link, useNavigate, Navigate } from "react-router-dom";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import { getDefaultAppPathForUser } from "@/lib/appDestination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +15,8 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 
 const SignUp = () => {
   const { t, language, setLanguage } = useI18n();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { isSuperAdmin, loading: superAdminLoading } = useSuperAdmin();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
@@ -22,27 +25,53 @@ const SignUp = () => {
   const [workspaceName, setWorkspaceName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  if (user && (authLoading || superAdminLoading)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={isSuperAdmin ? "/admin" : "/dashboard"} replace />;
   }
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName, workspace_name: workspaceName },
-        emailRedirectTo: window.location.origin,
+    const { data, error } = await supabase.functions.invoke("workspace-signup", {
+      body: {
+        full_name: fullName,
+        email,
+        password,
+        workspace_name: workspaceName,
       },
     });
-    setIsLoading(false);
+
     if (error) {
+      setIsLoading(false);
       toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Check your email", description: "We sent you a confirmation link to verify your account." });
+      return;
     }
+
+    if (data?.error) {
+      setIsLoading(false);
+      toast({ title: "Sign up failed", description: data.error, variant: "destructive" });
+      return;
+    }
+
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    setIsLoading(false);
+
+    if (signInError) {
+      toast({ title: "Login failed", description: signInError.message, variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Workspace created", description: "Your account is ready to use." });
+    const destination = signInData.user ? await getDefaultAppPathForUser(signInData.user.id) : "/dashboard";
+    navigate(destination);
   };
 
   return (

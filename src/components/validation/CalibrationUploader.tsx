@@ -64,7 +64,7 @@ export function CalibrationUploader({ onCalibrated }: CalibrationUploaderProps) 
     },
     onSuccess: (data) => {
       toast({
-        title: "Calibration recorded",
+        title: "Real feedback saved",
         description: `Accuracy score: ${Math.round((data.calibration_score || 0) * 100)}%`,
       });
       setResponseText("");
@@ -76,7 +76,7 @@ export function CalibrationUploader({ onCalibrated }: CalibrationUploaderProps) 
     },
     onError: (e) => {
       toast({
-        title: "Calibration failed",
+        title: "Couldn't save real feedback",
         description: e.message,
         variant: "destructive",
       });
@@ -91,19 +91,19 @@ export function CalibrationUploader({ onCalibrated }: CalibrationUploaderProps) 
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Upload className="h-4 w-4 text-primary" />
-          Upload Real Data for Calibration
+          Upload real customer feedback
         </CardTitle>
         <CardDescription>
-          Compare real survey or focus group responses against twin predictions to improve accuracy.
+          Compare real survey or interview responses with the AI output so future results get more accurate.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Segment Selection */}
         <div className="space-y-2">
-          <Label className="text-sm">Target Segment</Label>
+          <Label className="text-sm">Customer profile</Label>
           <Select value={selectedSegmentId} onValueChange={setSelectedSegmentId}>
             <SelectTrigger>
-              <SelectValue placeholder="Select a segment to calibrate..." />
+              <SelectValue placeholder="Select a customer profile..." />
             </SelectTrigger>
             <SelectContent>
               {segments.map((s: any) => (
@@ -117,7 +117,7 @@ export function CalibrationUploader({ onCalibrated }: CalibrationUploaderProps) 
 
         {/* Source Type */}
         <div className="space-y-2">
-          <Label className="text-sm">Data Source</Label>
+          <Label className="text-sm">Feedback source</Label>
           <div className="flex gap-2">
             {(["manual", "survey", "session"] as const).map((type) => (
               <Badge
@@ -134,10 +134,10 @@ export function CalibrationUploader({ onCalibrated }: CalibrationUploaderProps) 
 
         {/* Response Text */}
         <div className="space-y-2">
-          <Label className="text-sm">Real Response Text</Label>
+          <Label className="text-sm">Customer response</Label>
           <Textarea
             rows={4}
-            placeholder="Paste the actual consumer response from your survey or focus group..."
+            placeholder="Paste the real customer response from a survey, interview, or note..."
             value={responseText}
             onChange={(e) => setResponseText(e.target.value)}
             className="resize-none"
@@ -147,7 +147,7 @@ export function CalibrationUploader({ onCalibrated }: CalibrationUploaderProps) 
         {/* Sentiment Slider */}
         <div className="space-y-2">
           <Label className="text-sm">
-            Real Sentiment{" "}
+            Customer sentiment{" "}
             <span className={`font-mono ${sentimentColor}`}>
               ({sentiment[0] > 0 ? "+" : ""}{sentiment[0].toFixed(2)} — {sentimentLabel})
             </span>
@@ -169,10 +169,10 @@ export function CalibrationUploader({ onCalibrated }: CalibrationUploaderProps) 
 
         {/* Themes */}
         <div className="space-y-2">
-          <Label className="text-sm">Key Themes (comma-separated)</Label>
+          <Label className="text-sm">Main themes</Label>
           <Textarea
             rows={2}
-            placeholder="e.g., price sensitivity, brand loyalty, health concerns"
+            placeholder="Example: price sensitivity, trust, setup time"
             value={themes}
             onChange={(e) => setThemes(e.target.value)}
             className="resize-none"
@@ -188,17 +188,17 @@ export function CalibrationUploader({ onCalibrated }: CalibrationUploaderProps) 
           {calibrateMutation.isPending ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Calibrating...
+              Updating accuracy...
             </>
           ) : calibrateMutation.isSuccess ? (
             <>
               <CheckCircle2 className="h-4 w-4 mr-2" />
-              Recorded! Add Another
+              Saved! Add another
             </>
           ) : (
             <>
               <Plus className="h-4 w-4 mr-2" />
-              Submit Calibration Entry
+              Save customer feedback
             </>
           )}
         </Button>

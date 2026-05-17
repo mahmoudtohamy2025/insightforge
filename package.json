@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "sync-types": "npx --yes supabase gen types typescript --project-id pjscposcnznrabswauuw > src/integrations/supabase/types.ts"
+    "sync-types": "npx --yes supabase gen types typescript --project-id xwjvsmwefbukaswkwpbf > src/integrations/supabase/types.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

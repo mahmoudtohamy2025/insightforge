@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Download, Star, Filter, Package, Globe2, Loader2, ArrowRight } from "lucide-react";
+import { Search, Download, Star, Package, Globe2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,13 +84,13 @@ export default function SegmentMarketplace() {
       queryClient.invalidateQueries({ queryKey: ["marketplace_segments"] });
       queryClient.invalidateQueries({ queryKey: ["segments"] });
       toast({
-        title: "Segment Imported!",
-        description: "The digital twin has been successfully added to your workspace.",
+        title: "Playbook added",
+        description: "This customer profile pack is now in your workspace.",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Import Failed",
+        title: "Couldn't add playbook",
         description: error.message,
         variant: "destructive"
       });
@@ -102,29 +102,29 @@ export default function SegmentMarketplace() {
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Segment Marketplace</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Templates Marketplace</h1>
           <p className="text-muted-foreground mt-1">
-            Discover verified industry packs and community-contributed digital twins to accelerate your research.
+            Browse ready-made customer profiles, benchmark packs, and proven research flows to speed up founder decisions.
           </p>
         </div>
       </div>
 
       <div className="bg-primary/5 rounded-xl border p-6 flex flex-col md:flex-row gap-6 items-center shadow-sm">
         <div className="flex-1 space-y-4">
-          <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none">Industry Packs</Badge>
-          <h2 className="text-2xl font-bold">Instantly Calibrated vertical models.</h2>
+          <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none">Founder packs</Badge>
+          <h2 className="text-2xl font-bold">Ready-made customer profiles and research flows.</h2>
           <p className="text-muted-foreground text-sm max-w-xl">
-            Jumpstart your simulations with pre-calibrated segment packs for Healthcare, Fintech, FMCG, and E-commerce. Validated against millions of real-world data points.
+            Start pricing, messaging, and onboarding work with proven founder and buyer profiles. Reuse what already works instead of starting every decision from zero.
           </p>
         </div>
         <div className="hidden md:flex gap-4 p-4 bg-background rounded-lg border shadow-sm items-center">
             <div className="text-center px-4 border-r">
                <div className="text-2xl font-bold text-primary">85%</div>
-               <div className="text-xs text-muted-foreground font-medium uppercase mt-1">Avg Accuracy</div>
+               <div className="text-xs text-muted-foreground font-medium uppercase mt-1">Average accuracy</div>
             </div>
             <div className="text-center px-4">
                <div className="text-2xl font-bold text-primary">10k+</div>
-               <div className="text-xs text-muted-foreground font-medium uppercase mt-1">Data Points</div>
+               <div className="text-xs text-muted-foreground font-medium uppercase mt-1">Real responses</div>
             </div>
         </div>
       </div>
@@ -132,8 +132,8 @@ export default function SegmentMarketplace() {
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-card border rounded-lg p-2 shadow-sm">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
           <TabsList className="grid w-full grid-cols-3 sm:w-[400px]">
-            <TabsTrigger value="all">All Items</TabsTrigger>
-            <TabsTrigger value="industry" className="gap-2"><Package className="h-3 w-3" /> Packs</TabsTrigger>
+            <TabsTrigger value="all">All templates</TabsTrigger>
+            <TabsTrigger value="industry" className="gap-2"><Package className="h-3 w-3" /> Benchmarks</TabsTrigger>
             <TabsTrigger value="community" className="gap-2"><Globe2 className="h-3 w-3" /> Community</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -141,7 +141,7 @@ export default function SegmentMarketplace() {
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search segments..."
+            placeholder="Search templates..."
             className="pl-9 bg-background"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -166,8 +166,8 @@ export default function SegmentMarketplace() {
         ) : segments?.length === 0 ? (
           <div className="col-span-full border-2 border-dashed rounded-xl p-12 text-center text-muted-foreground">
             <Package className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p className="text-lg font-medium">No segments found.</p>
-            <p className="text-sm">Try adjusting your search filters.</p>
+            <p className="text-lg font-medium">No templates found.</p>
+            <p className="text-sm">Try a different search.</p>
           </div>
         ) : (
           segments?.map((segment) => (
@@ -200,17 +200,17 @@ export default function SegmentMarketplace() {
 
               <CardContent className="flex-1 py-4 space-y-4 text-sm">
                 <p className="text-muted-foreground line-clamp-2 min-h-[40px]">
-                  {segment.description || "No description provided."}
+                  {segment.description || "No description yet."}
                 </p>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="bg-muted px-2 py-1.5 rounded text-muted-foreground flex items-center gap-1.5">
                     <Star className="h-3 w-3" />
-                    <span className="truncate">{segment.calibration_score ? `${(segment.calibration_score * 100).toFixed(0)}% Accuracy` : "Uncalibrated"}</span>
+                    <span className="truncate">{segment.calibration_score ? `${(segment.calibration_score * 100).toFixed(0)}% accuracy` : "Early signal"}</span>
                   </div>
                   <div className="bg-muted px-2 py-1.5 rounded text-muted-foreground flex items-center gap-1.5">
                     <Download className="h-3 w-3" />
-                    <span className="truncate">{segment.downloads} Uses</span>
+                    <span className="truncate">{segment.downloads} installs</span>
                   </div>
                   {segment.location && (
                     <div className="bg-muted px-2 py-1.5 rounded text-muted-foreground col-span-2 truncate">
@@ -239,7 +239,7 @@ export default function SegmentMarketplace() {
                   ) : (
                     <Download className="h-4 w-4 mr-2" />
                   )}
-                  Import
+                  Add to workspace
                 </Button>
               </CardFooter>
             </Card>

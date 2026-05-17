@@ -13,24 +13,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
-  ArrowLeft, FileQuestion, Calendar, Users, Tag, Loader2,
-  Send, Sparkles, CheckCircle2, Clock
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  FileQuestion,
+  Loader2,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Tag,
+  TriangleAlert,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import {
+  estimateDecisionConfidence,
+  getRequirementDecisionMemo,
+  getConfidenceMeta,
+  getEvidenceStatus,
+  getRecommendedNextAction,
+} from "@/lib/founderDecision";
 
-const STATUS_OPTIONS = [
-  "submitted","under_review","approved","in_progress","insights_ready","completed","declined","on_hold"
-];
+const STATUS_OPTIONS = ["submitted", "under_review", "approved", "in_progress", "insights_ready", "completed", "declined", "on_hold"];
 const STATUS_LABELS: Record<string, string> = {
-  submitted: "Submitted",
-  under_review: "Under Review",
-  approved: "Approved",
-  in_progress: "In Progress",
-  insights_ready: "Insights Ready",
-  completed: "Completed",
+  submitted: "Captured",
+  under_review: "Scoping",
+  approved: "Ready to test",
+  in_progress: "Running",
+  insights_ready: "Memo ready",
+  completed: "Closed",
   declined: "Declined",
-  on_hold: "On Hold",
+  on_hold: "On hold",
 };
 const STATUS_COLORS: Record<string, string> = {
   submitted: "bg-muted text-muted-foreground",
@@ -100,7 +117,7 @@ export default function RequirementDetail() {
         .update({ status: newStatus, ...(newStatus === "completed" ? { completed_at: new Date().toISOString() } : {}) })
         .eq("id", id);
       if (error) throw error;
-      // Log the status change as a comment
+
       await supabase.from("requirement_comments").insert({
         requirement_id: id,
         workspace_id: workspaceId,
@@ -113,7 +130,7 @@ export default function RequirementDetail() {
       queryClient.invalidateQueries({ queryKey: ["requirement", id] });
       queryClient.invalidateQueries({ queryKey: ["requirement-comments", id] });
       queryClient.invalidateQueries({ queryKey: ["requirements", workspaceId] });
-      toast.success("Status updated");
+      toast.success("Decision status updated");
     },
     onError: () => toast.error("Failed to update status"),
   });
@@ -153,9 +170,9 @@ export default function RequirementDetail() {
       });
       if (error) throw error;
       setAiSuggestion(data);
-      // Save suggestion to the requirement
       await supabase.from("requirements").update({ ai_methodology_suggestion: data }).eq("id", id);
-    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["requirement", id] });
+    } catch {
       toast.error("Failed to get AI suggestion");
     } finally {
       setAiLoading(false);
@@ -164,9 +181,9 @@ export default function RequirementDetail() {
 
   if (isLoading) {
     return (
-      <div className="p-6 flex flex-col gap-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-48 w-full" />
+      <div className="flex flex-col gap-4 p-6">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
@@ -174,129 +191,183 @@ export default function RequirementDetail() {
   if (!req) {
     return (
       <div className="p-6 text-center text-muted-foreground">
-        Requirement not found.
-        <Button variant="link" onClick={() => navigate("/requirements")}>Back to Requirements</Button>
+        Decision not found.
+        <Button variant="link" onClick={() => navigate("/requirements")}>Back to backlog</Button>
       </div>
     );
   }
 
   const suggestion = aiSuggestion || req.ai_methodology_suggestion;
+  const confidenceScore = estimateDecisionConfidence({ ...req, ai_methodology_suggestion: suggestion });
+  const confidence = getConfidenceMeta(confidenceScore);
+  const evidence = getEvidenceStatus(req);
+  const nextAction = getRecommendedNextAction({ ...req, ai_methodology_suggestion: suggestion });
+  const memo = getRequirementDecisionMemo({
+    ...req,
+    ai_methodology_suggestion: suggestion,
+  });
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
-      {/* Back */}
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
       <Button variant="ghost" size="sm" className="w-fit -ml-2" onClick={() => navigate("/requirements")}>
-        <ArrowLeft className="h-4 w-4 me-2" />
-        Requirements
+        <ArrowLeft className="me-2 h-4 w-4" />
+        Decisions
       </Button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          <div>
-            <div className="flex items-start gap-3 mb-2">
-              <FileQuestion className="h-5 w-5 text-primary mt-0.5" />
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-6">
+          <div className="rounded-[28px] border border-border/70 bg-muted/20 p-6">
+            <div className="flex items-start gap-4">
+              <FileQuestion className="mt-1 h-6 w-6 text-primary" />
               <div className="flex-1">
-                <h1 className="text-xl font-bold">{req.title}</h1>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[req.status] || ""}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_COLORS[req.status] || ""}`}>
                     {STATUS_LABELS[req.status] || req.status}
                   </span>
-                  <Badge variant={PRIORITY_COLORS[req.priority] || "secondary"}>
-                    {req.priority} priority
-                  </Badge>
+                  <Badge variant={PRIORITY_COLORS[req.priority] || "secondary"}>{req.priority} risk</Badge>
                   {req.category && (
-                    <Badge variant="outline" className="text-xs">
-                      {req.category.replace("_", " ")}
-                    </Badge>
+                    <Badge variant="outline">{req.category.replace("_", " ")}</Badge>
                   )}
                 </div>
+                <h1 className="mt-4 text-3xl font-semibold tracking-tight">{req.title}</h1>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
+                  {req.description || "No decision summary yet."}
+                </p>
               </div>
             </div>
-
-            {req.description && (
-              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{req.description}</p>
-            )}
           </div>
 
           {req.business_context && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Business Context</CardTitle>
+                <CardTitle className="text-sm">What we believe and why it matters</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">{req.business_context}</p>
+                <p className="text-sm leading-7 text-muted-foreground">{req.business_context}</p>
               </CardContent>
             </Card>
           )}
 
-          {/* AI Methodology Suggestion */}
+          <Card className={`border ${confidence.railClassName}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Confidence level</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div className="flex items-start gap-3">
+                {confidence.level === "low" ? (
+                  <TriangleAlert className="mt-0.5 h-5 w-5" />
+                ) : (
+                  <ShieldCheck className="mt-0.5 h-5 w-5" />
+                )}
+                <div>
+                  <div className="font-medium">{confidence.label}</div>
+                  <div className="mt-1 text-muted-foreground">{confidence.summary}</div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Recommended next move</div>
+                <div className="mt-2 text-sm">{nextAction}</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Decision summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <MemoBlock label="Recommendation" value={memo.recommendation} />
+              <MemoBlock label="Confidence" value={memo.confidence} />
+              <MemoBlock label="Evidence" value={`${memo.evidence}. ${evidence.description}`} />
+              <MemoBlock label="Risk" value={memo.risk} />
+              <div className="sm:col-span-2">
+                <MemoBlock label="Next action" value={memo.nextAction} />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  AI Methodology Suggestion
+                <Sparkles className="h-4 w-4 text-primary" />
+                  Suggested research plan
                 </CardTitle>
                 <Button size="sm" variant="outline" onClick={handleGetAiSuggestion} disabled={aiLoading}>
-                  {aiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Get Suggestion"}
+                  {aiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Refresh"}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               {suggestion ? (
-                <div className="text-sm space-y-2">
+                <div className="space-y-3 text-sm">
                   {suggestion.recommended_methodology && (
-                    <p><span className="font-medium">Recommended:</span> {suggestion.recommended_methodology}</p>
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Recommended step</div>
+                      <div className="mt-1">{suggestion.recommended_methodology}</div>
+                    </div>
                   )}
                   {suggestion.rationale && (
-                    <p className="text-muted-foreground">{suggestion.rationale}</p>
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Why this helps</div>
+                      <div className="mt-1 text-muted-foreground">{suggestion.rationale}</div>
+                    </div>
                   )}
                   {suggestion.estimated_effort && (
-                    <p><span className="font-medium">Effort:</span> {suggestion.estimated_effort}</p>
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Estimated effort</div>
+                      <div className="mt-1">{suggestion.estimated_effort}</div>
+                    </div>
                   )}
                   {suggestion.matching_twin_count !== undefined && (
-                    <p><span className="font-medium">Matching digital twins:</span> {suggestion.matching_twin_count}</p>
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Matching profiles</div>
+                      <div className="mt-1">{suggestion.matching_twin_count} matching profiles</div>
+                    </div>
                   )}
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Click "Get Suggestion" to have AI recommend a research methodology, effort estimate, and matching digital twins.
+                  Ask InsightForge to suggest the best next step, whether that is an AI test, a survey, an interview, or another customer check.
                 </p>
               )}
             </CardContent>
           </Card>
 
-          {/* Comments */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Discussion</CardTitle>
+              <CardTitle className="text-sm">Notes and discussion</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               {comments.length === 0 && (
-                <p className="text-xs text-muted-foreground">No comments yet. Start the discussion.</p>
+                <p className="text-xs text-muted-foreground">No notes yet. Add context, pushback, or new evidence here.</p>
               )}
-              {comments.map((c: any) => (
-                <div key={c.id} className="flex flex-col gap-1">
+
+              {comments.map((comment: any) => (
+                <div key={comment.id} className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-semibold">
-                      {(c.profiles?.full_name || "U").charAt(0).toUpperCase()}
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {(comment.profiles?.full_name || "U").charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-xs font-medium">{c.profiles?.full_name || "User"}</span>
+                    <span className="text-xs font-medium">{comment.profiles?.full_name || "User"}</span>
                     <span className="text-xs text-muted-foreground">
-                      {format(new Date(c.created_at), "MMM d, HH:mm")}
+                      {format(new Date(comment.created_at), "MMM d, HH:mm")}
                     </span>
-                    {c.comment_type !== "comment" && (
-                      <Badge variant="outline" className="text-xs">{c.comment_type.replace("_", " ")}</Badge>
+                    {comment.comment_type !== "comment" && (
+                      <Badge variant="outline" className="text-xs">{comment.comment_type.replace("_", " ")}</Badge>
                     )}
                   </div>
-                  <p className="text-sm ps-8 text-muted-foreground">{c.body}</p>
+                  <p className="ps-8 text-sm text-muted-foreground">{comment.body}</p>
                   <Separator className="mt-1" />
                 </div>
               ))}
-              <div className="flex gap-2 mt-2">
+
+              <div className="mt-2 flex gap-2">
                 <Textarea
-                  placeholder="Add a comment..."
+                  placeholder="Add context, evidence, or a founder note..."
                   value={commentBody}
                   onChange={(e) => setCommentBody(e.target.value)}
                   rows={2}
@@ -315,22 +386,22 @@ export default function RequirementDetail() {
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="flex flex-col gap-4">
-          {/* Status Management */}
+        <div className="space-y-4">
           {canManage && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Update Status</CardTitle>
+                <CardTitle className="text-sm">Update progress</CardTitle>
               </CardHeader>
               <CardContent>
-                <Select value={req.status} onValueChange={(v) => statusMutation.mutate(v)}>
+                <Select value={req.status} onValueChange={(value) => statusMutation.mutate(value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUS_OPTIONS.map((s) => (
-                      <SelectItem key={s} value={s}>{STATUS_LABELS[s] || s}</SelectItem>
+                    {STATUS_OPTIONS.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {STATUS_LABELS[status] || status}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -338,99 +409,119 @@ export default function RequirementDetail() {
             </Card>
           )}
 
-          {/* Details */}
+            <Card>
+              <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Try the next step</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+              <Button onClick={() => navigate("/simulate")}>
+                Run an AI test
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/focus-group")}>
+                Start a panel discussion
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/validation")}>
+                Review real-world accuracy
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Details</CardTitle>
+              <CardTitle className="text-sm">Decision details</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3 text-sm">
+            <CardContent className="flex flex-col gap-4 text-sm">
               {req.target_audience && (
-                <div className="flex items-start gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Target Audience</p>
-                    <p>{req.target_audience}</p>
-                  </div>
-                </div>
+                <DetailRow icon={Users} label="Target customer" value={req.target_audience} />
               )}
               {req.target_market && (
-                <div className="flex items-start gap-2">
-                  <Tag className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Target Market</p>
-                    <p>{req.target_market}</p>
-                  </div>
-                </div>
+                <DetailRow icon={Tag} label="Target market" value={req.target_market} />
               )}
               {req.requested_deadline && (
-                <div className="flex items-start gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Requested By</p>
-                    <p>{format(new Date(req.requested_deadline), "MMM d, yyyy")}</p>
-                  </div>
-                </div>
+                <DetailRow
+                  icon={Calendar}
+                  label="Decision deadline"
+                  value={format(new Date(req.requested_deadline), "MMM d, yyyy")}
+                />
               )}
-              {req.estimated_effort && (
-                <div className="flex items-start gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Estimated Effort</p>
-                    <p className="capitalize">{req.estimated_effort}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-start gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Submitted</p>
-                  <p>{format(new Date(req.created_at), "MMM d, yyyy")}</p>
-                </div>
-              </div>
+              <DetailRow icon={Clock} label="Created" value={format(new Date(req.created_at), "MMM d, yyyy")} />
               {req.completed_at && (
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Completed</p>
-                    <p>{format(new Date(req.completed_at), "MMM d, yyyy")}</p>
-                  </div>
-                </div>
+                <DetailRow
+                  icon={CheckCircle2}
+                  label="Closed"
+                  value={format(new Date(req.completed_at), "MMM d, yyyy")}
+                />
               )}
             </CardContent>
           </Card>
 
-          {/* Tags */}
           {req.tags && req.tags.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Tags</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-2">
                   {req.tags.map((tag: string) => (
-                    <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                    <Badge key={tag} variant="outline">{tag}</Badge>
                   ))}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Linked Research */}
-          {(req.linked_project_ids?.length > 0 || req.linked_session_ids?.length > 0 || req.linked_survey_ids?.length > 0) && (
-            <Card>
+          <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Linked Research</CardTitle>
+                <CardTitle className="text-sm">Evidence summary</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-1 text-xs text-muted-foreground">
-                {req.linked_project_ids?.length > 0 && <p>{req.linked_project_ids.length} Project(s)</p>}
-                {req.linked_session_ids?.length > 0 && <p>{req.linked_session_ids.length} Session(s)</p>}
-                {req.linked_survey_ids?.length > 0 && <p>{req.linked_survey_ids.length} Survey(s)</p>}
-                {req.linked_simulation_ids?.length > 0 && <p>{req.linked_simulation_ids.length} Simulation(s)</p>}
-                {req.linked_insight_ids?.length > 0 && <p>{req.linked_insight_ids.length} Insight(s)</p>}
-              </CardContent>
-            </Card>
-          )}
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                <span>{evidence.label}</span>
+              </div>
+              <p className="text-muted-foreground">{evidence.description}</p>
+              <div className="pt-2 text-xs text-muted-foreground">
+                Linked items:
+                {" "}
+                {(req.linked_project_ids?.length || 0) +
+                  (req.linked_session_ids?.length || 0) +
+                  (req.linked_survey_ids?.length || 0) +
+                  (req.linked_simulation_ids?.length || 0) +
+                  (req.linked_insight_ids?.length || 0)}
+              </div>
+            </CardContent>
+          </Card>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function MemoBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border/70 p-4">
+      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
+      <div className="mt-2 text-sm leading-6">{value}</div>
+    </div>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
+      <div>
+        <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+        <div className="mt-1">{value}</div>
       </div>
     </div>
   );

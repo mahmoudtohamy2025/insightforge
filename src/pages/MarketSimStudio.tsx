@@ -88,9 +88,9 @@ const MarketSimStudio = () => {
     onSuccess: (data) => {
       setResult(data);
       queryClient.invalidateQueries({ queryKey: ["simulation-history"] });
-      toast({ title: "Market simulation complete!", description: `${data.aggregate?.total_adopters_projected?.toLocaleString()} projected adopters` });
+      toast({ title: "Market forecast complete", description: `${data.aggregate?.total_adopters_projected?.toLocaleString()} projected adopters` });
     },
-    onError: (e) => toast({ title: "Simulation failed", description: e.message, variant: "destructive" }),
+    onError: (e) => toast({ title: "Market forecast failed", description: e.message, variant: "destructive" }),
   });
 
   const agg = result?.aggregate;
@@ -106,9 +106,9 @@ const MarketSimStudio = () => {
         <div>
           <h1 id="market-header" className="text-2xl font-bold flex items-center gap-2">
             <TrendingUp className="h-6 w-6 text-primary" />
-            Market Simulation
+            Market Forecast
           </h1>
-          <p className="text-sm text-muted-foreground">Model adoption curves, network effects, and revenue projections.</p>
+          <p className="text-sm text-muted-foreground">Estimate adoption, word of mouth, and revenue potential before you launch.</p>
         </div>
       </div>
 
@@ -119,7 +119,7 @@ const MarketSimStudio = () => {
             <CardContent className="pt-5 space-y-4">
               {/* Segments */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Target Segments</Label>
+                <Label className="text-sm font-medium">Customer profiles</Label>
                 <div className="flex flex-wrap gap-2">
                   {segments.map((seg: any) => (
                     <button key={seg.id} onClick={() => toggleSegment(seg.id)}
@@ -131,24 +131,24 @@ const MarketSimStudio = () => {
                       {seg.name}
                     </button>
                   ))}
-                  {segments.length === 0 && <p className="text-xs text-muted-foreground">No segments. <button className="text-primary underline" onClick={() => navigate("/segments")}>Create one first</button>.</p>}
+                  {segments.length === 0 && <p className="text-xs text-muted-foreground">No customer profiles yet. <button className="text-primary underline" onClick={() => navigate("/segments")}>Create one first</button>.</p>}
                 </div>
               </div>
 
               {/* Product */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Product / Service Description</Label>
-                <Textarea id="market-product-input" rows={3} placeholder="Describe the product or service you want to simulate...&#10;&#10;Example: 'A premium organic meal-kit delivery service with locally sourced ingredients, weekly subscription, targeting health-conscious urban professionals'" value={product} onChange={e => setProduct(e.target.value)} className="resize-none" />
+                <Label className="text-sm font-medium">What are you launching?</Label>
+                <Textarea id="market-product-input" rows={3} placeholder="Describe the product or service you want feedback on...&#10;&#10;Example: 'AI founder research platform for early-stage SaaS teams with instant AI tests and optional real-customer validation'" value={product} onChange={e => setProduct(e.target.value)} className="resize-none" />
               </div>
 
               {/* Pricing + Market Size */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" />Price Point</Label>
+                  <Label className="text-sm font-medium flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" />Price point</Label>
                   <Input type="number" placeholder="29.99" value={pricing} onChange={e => setPricing(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium flex items-center gap-1"><Users2 className="h-3.5 w-3.5" />Market Size</Label>
+                  <Label className="text-sm font-medium flex items-center gap-1"><Users2 className="h-3.5 w-3.5" />Market size</Label>
                   <div className="flex items-center gap-2">
                     <Slider min={1000} max={10000000} step={1000} value={marketSize} onValueChange={setMarketSize} className="flex-1" />
                     <span className="text-xs font-mono w-16 text-right">{marketSize[0] >= 1000000 ? `${(marketSize[0]/1000000).toFixed(1)}M` : `${(marketSize[0]/1000).toFixed(0)}K`}</span>
@@ -158,7 +158,7 @@ const MarketSimStudio = () => {
 
               {/* Time Horizon */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Time Horizon</Label>
+                <Label className="text-sm font-medium">Time horizon</Label>
                 <div className="flex items-center gap-2">
                   <Slider min={6} max={60} step={3} value={timeHorizon} onValueChange={setTimeHorizon} className="flex-1" />
                   <span className="text-xs font-mono w-20 text-right">{timeHorizon[0]} months</span>
@@ -169,9 +169,9 @@ const MarketSimStudio = () => {
                 disabled={selectedSegmentIds.length < 1 || !product.trim() || runMutation.isPending}
               >
                 {runMutation.isPending ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running market simulation...</>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Building market forecast...</>
                 ) : (
-                  <><TrendingUp className="h-4 w-4 mr-2" />Run Market Simulation</>
+                  <><TrendingUp className="h-4 w-4 mr-2" />Run market forecast</>
                 )}
               </Button>
             </CardContent>
@@ -183,7 +183,7 @@ const MarketSimStudio = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" />
-                  Adoption Curve (Bass Diffusion Model)
+                  Adoption curve
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -196,7 +196,7 @@ const MarketSimStudio = () => {
           {result?.segment_evaluations?.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Segment Evaluations</CardTitle>
+                <CardTitle className="text-sm">Profile reactions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {result.segment_evaluations.map((ev: any, i: number) => (

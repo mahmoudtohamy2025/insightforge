@@ -3,6 +3,8 @@ import { Link, useNavigate, Navigate } from "react-router-dom";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import { getDefaultAppPathForUser } from "@/lib/appDestination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +16,8 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 
 const Login = () => {
   const { t, language, setLanguage } = useI18n();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { isSuperAdmin, loading: superAdminLoading } = useSuperAdmin();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
@@ -22,26 +25,35 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirect if already logged in
+  if (user && (authLoading || superAdminLoading)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={isSuperAdmin ? "/admin" : "/dashboard"} replace />;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setIsLoading(false);
     if (error) {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
     } else {
-      navigate("/dashboard");
+      const destination = data.user ? await getDefaultAppPathForUser(data.user.id) : "/dashboard";
+      navigate(destination);
     }
   };
 
   const handleOAuth = async (provider: "google" | "github" | "twitter") => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     if (error) {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });

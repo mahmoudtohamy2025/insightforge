@@ -1,4 +1,4 @@
-project_id = "pjscposcnznrabswauuw"
+project_id = "xwjvsmwefbukaswkwpbf"
 
 [functions.invite-member]
 verify_jwt = false
@@ -13,6 +13,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.analyze-transcript]
+verify_jwt = false
+
+[functions.simulate]
 verify_jwt = false
 
 [functions.synthesize-insights]
@@ -67,6 +70,9 @@ entrypoint = "./functions/cron-calibration/index.ts"
 [functions.suggest-methodology]
 verify_jwt = false
 
+[functions.twin-orchestrator]
+verify_jwt = false
+
 [functions.disburse-incentive]
 verify_jwt = false
 
@@ -89,3 +95,12 @@ entrypoint = "./functions/marketplace-handler/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/marketplace-handler/*.html" ]
+
+[functions.participant-signup]
+verify_jwt = false
+
+[functions.public-demo-simulate]
+verify_jwt = false
+
+[functions.workspace-signup]
+verify_jwt = false

@@ -77,11 +77,11 @@ export const CalibrationPanel = ({ segmentId, workspaceId, calibrationScore }: C
       setResponseText("");
       setSentiment("0");
       toast({
-        title: "Calibration updated",
-        description: `Accuracy: ${Math.round((data.calibration_score || 0) * 100)}% (${data.total_calibration_entries} samples)`,
+        title: "Accuracy updated",
+        description: `${Math.round((data.calibration_score || 0) * 100)}% accuracy from ${data.total_calibration_entries} real responses`,
       });
     },
-    onError: (e) => toast({ title: "Calibration failed", description: e.message, variant: "destructive" }),
+    onError: (e) => toast({ title: "Couldn't update accuracy", description: e.message, variant: "destructive" }),
   });
 
   const score = calibrationScore || 0;
@@ -105,39 +105,39 @@ export const CalibrationPanel = ({ segmentId, workspaceId, calibrationScore }: C
         <DialogTrigger asChild>
           <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]">
             <Upload className="h-3 w-3 mr-1" />
-            Calibrate
+            Add real feedback
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base">Calibrate Segment</DialogTitle>
+            <DialogTitle className="text-base">Add real customer feedback</DialogTitle>
             <DialogDescription>
-              Feed real consumer response data to improve twin accuracy. {calCount > 0 && `(${calCount} samples so far)`}
+              Use real customer feedback to improve this profile's accuracy. {calCount > 0 && `(${calCount} responses so far)`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <Label className="text-xs">Source Type</Label>
+              <Label className="text-xs">Feedback source</Label>
               <Select value={sourceType} onValueChange={setSourceType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="manual">Manual Entry</SelectItem>
-                  <SelectItem value="survey">Survey Response</SelectItem>
-                  <SelectItem value="session">Session Transcript</SelectItem>
+                  <SelectItem value="manual">Manual note</SelectItem>
+                  <SelectItem value="survey">Survey response</SelectItem>
+                  <SelectItem value="session">Interview transcript</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Real Consumer Response</Label>
+              <Label className="text-xs">Customer response</Label>
               <Textarea
                 rows={3}
-                placeholder="Paste a real consumer response here..."
+                placeholder="Paste a real customer response here..."
                 value={responseText}
                 onChange={(e) => setResponseText(e.target.value)}
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Real Sentiment (-1 to 1)</Label>
+              <Label className="text-xs">Customer sentiment (-1 to 1)</Label>
               <div className="flex items-center gap-2">
                 <input
                   type="range"
@@ -156,14 +156,14 @@ export const CalibrationPanel = ({ segmentId, workspaceId, calibrationScore }: C
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={() => calibrateMutation.mutate()} disabled={!responseText.trim() || calibrateMutation.isPending}>
               {calibrateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Submit Calibration
+              Save feedback
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {calCount > 0 && (
-        <Badge variant="secondary" className="text-[8px] h-4 px-1">{calCount} pts</Badge>
+        <Badge variant="secondary" className="text-[8px] h-4 px-1">{calCount} responses</Badge>
       )}
     </div>
   );

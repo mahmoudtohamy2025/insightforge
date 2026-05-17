@@ -119,7 +119,7 @@ export default function IncentiveDetail() {
     return (
       <div className="p-6 text-center text-muted-foreground">
         Program not found.
-        <Button variant="link" onClick={() => navigate("/incentives")}>Back to Incentives</Button>
+        <Button variant="link" onClick={() => navigate("/incentives")}>Back to Rewards</Button>
       </div>
     );
   }
@@ -137,7 +137,7 @@ export default function IncentiveDetail() {
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
       <Button variant="ghost" size="sm" className="w-fit -ml-2" onClick={() => navigate("/incentives")}>
         <ArrowLeft className="h-4 w-4 me-2" />
-        Incentives
+        Rewards
       </Button>
 
       <div className="flex items-start justify-between flex-wrap gap-3">

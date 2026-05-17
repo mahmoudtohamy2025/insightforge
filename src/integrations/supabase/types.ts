@@ -766,6 +766,211 @@ export type Database = {
           },
         ]
       }
+      requirement_comments: {
+        Row: {
+          body: string
+          comment_type: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          requirement_id: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          body: string
+          comment_type?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          requirement_id: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          comment_type?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          requirement_id?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirement_comments_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "requirements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requirement_comments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requirement_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          requirement_id: string
+          user_id: string
+          vote_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          requirement_id: string
+          user_id: string
+          vote_type?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          requirement_id?: string
+          user_id?: string
+          vote_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirement_votes_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requirements: {
+        Row: {
+          ai_methodology_suggestion: Json | null
+          assigned_to: string | null
+          business_context: string | null
+          category: string | null
+          completed_at: string | null
+          confidence_label: string | null
+          confidence_score: number | null
+          created_at: string | null
+          decision_memo: Json | null
+          description: string | null
+          estimated_effort: string | null
+          evidence_status: string | null
+          findings_summary: string | null
+          id: string
+          impact_rating: number | null
+          last_evaluated_at: string | null
+          linked_insight_ids: string[] | null
+          linked_project_ids: string[] | null
+          linked_session_ids: string[] | null
+          linked_simulation_ids: string[] | null
+          linked_survey_ids: string[] | null
+          priority: string | null
+          recommended_next_action: string | null
+          requested_by: string
+          requested_deadline: string | null
+          research_questions: Json | null
+          reviewed_by: string | null
+          stakeholder_satisfaction: number | null
+          status: string | null
+          suggested_methodology: string[] | null
+          tags: string[] | null
+          target_audience: string | null
+          target_market: string | null
+          title: string
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          ai_methodology_suggestion?: Json | null
+          assigned_to?: string | null
+          business_context?: string | null
+          category?: string | null
+          completed_at?: string | null
+          confidence_label?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          decision_memo?: Json | null
+          description?: string | null
+          estimated_effort?: string | null
+          evidence_status?: string | null
+          findings_summary?: string | null
+          id?: string
+          impact_rating?: number | null
+          last_evaluated_at?: string | null
+          linked_insight_ids?: string[] | null
+          linked_project_ids?: string[] | null
+          linked_session_ids?: string[] | null
+          linked_simulation_ids?: string[] | null
+          linked_survey_ids?: string[] | null
+          priority?: string | null
+          recommended_next_action?: string | null
+          requested_by: string
+          requested_deadline?: string | null
+          research_questions?: Json | null
+          reviewed_by?: string | null
+          stakeholder_satisfaction?: number | null
+          status?: string | null
+          suggested_methodology?: string[] | null
+          tags?: string[] | null
+          target_audience?: string | null
+          target_market?: string | null
+          title: string
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          ai_methodology_suggestion?: Json | null
+          assigned_to?: string | null
+          business_context?: string | null
+          category?: string | null
+          completed_at?: string | null
+          confidence_label?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          decision_memo?: Json | null
+          description?: string | null
+          estimated_effort?: string | null
+          evidence_status?: string | null
+          findings_summary?: string | null
+          id?: string
+          impact_rating?: number | null
+          last_evaluated_at?: string | null
+          linked_insight_ids?: string[] | null
+          linked_project_ids?: string[] | null
+          linked_session_ids?: string[] | null
+          linked_simulation_ids?: string[] | null
+          linked_survey_ids?: string[] | null
+          priority?: string | null
+          recommended_next_action?: string | null
+          requested_by?: string
+          requested_deadline?: string | null
+          research_questions?: Json | null
+          reviewed_by?: string | null
+          stakeholder_satisfaction?: number | null
+          status?: string | null
+          suggested_methodology?: string[] | null
+          tags?: string[] | null
+          target_audience?: string | null
+          target_market?: string | null
+          title?: string
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       segment_profiles: {
         Row: {
           avatar_url: string | null

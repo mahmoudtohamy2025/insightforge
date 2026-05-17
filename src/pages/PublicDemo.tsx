@@ -1,89 +1,96 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import {
-  Sparkles,
-  Loader2,
-  Send,
-  ThumbsUp,
-  ThumbsDown,
-  Minus,
-  TrendingUp,
-  Tag,
-  Users2,
-  Zap,
   ArrowRight,
   CheckCircle2,
   Clock,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  TrendingUp,
+  TriangleAlert,
+  Users2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import {
+  FOUNDER_DECISION_TEMPLATES,
+  buildDecisionMemo,
+  getConfidenceMeta,
+} from "@/lib/founderDecision";
 
-const PERSONAS = [
+const DEMO_PERSONAS = [
   {
     key: "health-millennials",
-    name: "Health-Conscious Millennials",
-    description: "25-34, urban USA, wellness-focused",
-    emoji: "🥗",
-    color: "from-emerald-500/20 to-green-500/20",
+    label: "Pricing",
+    templateId: "pricing",
+    description: "See whether founders buy a premium plan when the promise is better decision quality.",
   },
   {
     key: "gen-z-tech",
-    name: "Gen-Z Tech Enthusiasts",
-    description: "18-24, global, digital-native",
-    emoji: "📱",
-    color: "from-blue-500/20 to-indigo-500/20",
+    label: "Messaging",
+    templateId: "messaging",
+    description: "Find which positioning creates trust fastest for first-time founder visitors.",
   },
   {
     key: "mena-professionals",
-    name: "MENA Working Professionals",
-    description: "30-45, GCC, career-driven",
-    emoji: "🏢",
-    color: "from-amber-500/20 to-orange-500/20",
+    label: "Onboarding",
+    templateId: "onboarding",
+    description: "Check which onboarding story gets a founder to first value before they bounce.",
   },
-];
-
-const sentimentColor = (s: number) => {
-  if (s > 0.2) return "text-emerald-500";
-  if (s < -0.2) return "text-red-500";
-  return "text-amber-500";
-};
-
-const sentimentIcon = (s: number) => {
-  if (s > 0.2) return <ThumbsUp className="h-4 w-4 text-emerald-500" />;
-  if (s < -0.2) return <ThumbsDown className="h-4 w-4 text-red-500" />;
-  return <Minus className="h-4 w-4 text-amber-500" />;
-};
+] as const;
 
 const intentLabel: Record<string, string> = {
-  definitely_yes: "Definitely Yes",
-  probably_yes: "Probably Yes",
-  neutral: "Neutral",
-  probably_no: "Probably No",
-  definitely_no: "Definitely No",
+  definitely_yes: "Strong positive signal",
+  probably_yes: "Positive signal",
+  neutral: "Mixed signal",
+  probably_no: "Caution signal",
+  definitely_no: "Negative signal",
 };
 
-const emotionEmoji: Record<string, string> = {
-  excited: "🤩", interested: "🤔", neutral: "😐",
-  skeptical: "🧐", concerned: "😟", opposed: "😠",
-};
+function getRiskLine(confidenceLevel: "high" | "medium" | "low", purchaseIntent?: string, sentiment?: number) {
+  if (confidenceLevel === "high" && (purchaseIntent === "definitely_yes" || purchaseIntent === "probably_yes")) {
+    return "The decision is directionally strong. Monitor real conversion after launch.";
+  }
 
-const SAMPLE_PROMPTS = [
-  "We're launching an organic energy drink priced at $3.99. How do you feel about it?",
-  "Should we offer a monthly subscription box for curated skincare products at $29/month?",
-  "Our app now requires Face ID to log in. What's your honest reaction?",
-];
+  if (confidenceLevel === "medium" || purchaseIntent === "neutral") {
+    return "The signal is useful, but a cheap real-user validation loop should happen before rollout.";
+  }
+
+  if (typeof sentiment === "number" && sentiment < 0) {
+    return "The current framing is creating skepticism. Do not ship without further validation.";
+  }
+
+  return "The evidence is still thin. Treat this as a hypothesis rather than a decision.";
+}
 
 export default function PublicDemo() {
-  const [selectedPersona, setSelectedPersona] = useState<string | null>(null);
-  const [stimulus, setStimulus] = useState("");
+  const [selectedPersona, setSelectedPersona] = useState<(typeof DEMO_PERSONAS)[number] | null>(DEMO_PERSONAS[1]);
+  const [stimulus, setStimulus] = useState(FOUNDER_DECISION_TEMPLATES[1].starterPrompt);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
+
+  const selectedTemplate = useMemo(() => {
+    const templateId = selectedPersona?.templateId ?? "messaging";
+    return FOUNDER_DECISION_TEMPLATES.find((template) => template.id === templateId) ?? FOUNDER_DECISION_TEMPLATES[1];
+  }, [selectedPersona]);
+
+  const confidence = getConfidenceMeta(result?.confidence ?? 0.52);
+  const riskLine = getRiskLine(confidence.level, result?.purchase_intent, result?.sentiment);
+  const memo = buildDecisionMemo({
+    title: selectedTemplate.title,
+    confidenceScore: result?.confidence ?? 0.52,
+    evidenceLabel: "Synthetic founder demo",
+    summary: result?.response || "Run the demo to generate a decision summary.",
+    risk: riskLine,
+    nextAction: confidence.ctaLabel,
+  });
 
   const runDemo = async () => {
     if (!selectedPersona || !stimulus.trim()) return;
@@ -94,7 +101,7 @@ export default function PublicDemo() {
     try {
       const response = await supabase.functions.invoke("public-demo-simulate", {
         body: {
-          persona_key: selectedPersona,
+          persona_key: selectedPersona.key,
           stimulus: stimulus.trim(),
         },
       });
@@ -112,209 +119,252 @@ export default function PublicDemo() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <header className="border-b">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center">
-              IF
+      <header className="border-b border-border/70">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400 text-slate-950">
+              <Sparkles className="h-5 w-5" />
             </div>
-            <span className="font-bold text-lg">InsightForge</span>
-            <Badge variant="secondary" className="text-[9px] ml-1">DEMO</Badge>
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">InsightForge</div>
+              <div className="text-xs text-muted-foreground">Founder Decision OS</div>
+            </div>
           </Link>
+
           <Link to="/signup">
-            <Button size="sm">
-              Sign Up Free <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            <Button>
+              Open founder workspace
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-10 space-y-8">
-        {/* Hero */}
-        <div className="text-center space-y-3">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Try Digital Consumer Twins — <span className="text-primary">Live</span>
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Choose a pre-built consumer persona, ask any question, and see how an AI-simulated
-            consumer responds — with sentiment, confidence, and purchase intent.
-          </p>
-          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> No sign-up required</span>
-            <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-amber-500" /> 3 free runs</span>
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-blue-500" /> Results in seconds</span>
-          </div>
-        </div>
-
-        {/* Step 1: Select Persona */}
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">1</span>
-            Choose a Consumer Persona
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {PERSONAS.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => setSelectedPersona(p.key)}
-                className={`text-left p-4 rounded-xl border-2 transition-all ${
-                  selectedPersona === p.key
-                    ? "border-primary bg-primary/5 shadow-md"
-                    : "border-border hover:border-primary/30 hover:bg-muted/30"
-                }`}
-              >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${p.color} flex items-center justify-center text-2xl mb-3`}>
-                  {p.emoji}
-                </div>
-                <p className="font-semibold text-sm">{p.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Step 2: Enter question */}
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">2</span>
-            Ask a Question
-          </h2>
-          <Textarea
-            rows={3}
-            placeholder="Describe a product, campaign, or ask a direct consumer question..."
-            value={stimulus}
-            onChange={(e) => setStimulus(e.target.value)}
-            className="resize-none"
-            maxLength={2000}
-          />
-          {/* Sample prompts */}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-[10px] text-muted-foreground">Try:</span>
-            {SAMPLE_PROMPTS.map((prompt, i) => (
-              <button
-                key={i}
-                onClick={() => setStimulus(prompt)}
-                className="text-[10px] px-2 py-1 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
-              >
-                {prompt.slice(0, 50)}...
-              </button>
-            ))}
-          </div>
-
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={runDemo}
-            disabled={!selectedPersona || !stimulus.trim() || loading}
-          >
-            {loading ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Simulating consumer response...</>
-            ) : (
-              <><Send className="h-4 w-4 mr-2" /> Run Simulation</>
-            )}
-          </Button>
-
-          {remaining !== null && (
-            <p className="text-[10px] text-center text-muted-foreground">
-              {remaining} demo runs remaining this hour
+      <main className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
+        <section className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Founder demo
+            </div>
+            <h1 className="mt-6 text-4xl font-semibold tracking-tight sm:text-5xl">
+              Run one founder test and get a clear read in seconds.
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+              This gives founders a fast first read on pricing, messaging, and onboarding decisions. Start with an AI test, then decide whether you should move forward or talk to real customers next.
             </p>
-          )}
-        </div>
+            <div className="mt-6 flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> No signup required</span>
+              <span className="flex items-center gap-2"><Clock className="h-4 w-4 text-sky-600" /> Results in seconds</span>
+              <span className="flex items-center gap-2"><Users2 className="h-4 w-4 text-purple-600" /> Designed for founders, not researchers</span>
+            </div>
+          </div>
 
-        {/* Error */}
-        {error && (
-          <Card className="border-red-500/30 bg-red-500/5">
-            <CardContent className="p-4">
-              <p className="text-sm text-red-500">{error}</p>
-            </CardContent>
-          </Card>
-        )}
+          <div className="rounded-[28px] border border-border/70 bg-muted/20 p-6">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Simple flow</div>
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="rounded-2xl bg-emerald-500/8 px-4 py-3 text-emerald-700 dark:text-emerald-400">1. Run an AI test</div>
+              <div className="rounded-2xl bg-amber-500/8 px-4 py-3 text-amber-700 dark:text-amber-400">2. Do a quick real-customer check if needed</div>
+              <div className="rounded-2xl bg-rose-500/8 px-4 py-3 text-rose-700 dark:text-rose-400">3. Use participants when the decision is still risky</div>
+            </div>
+          </div>
+        </section>
 
-        {/* Results */}
-        {result && (
-          <Card className="border-primary/30 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                {result.persona}'s Response
-                <Badge variant="secondary" className="text-[9px] ml-auto">DEMO</Badge>
-              </CardTitle>
+        <section className="grid gap-8 lg:grid-cols-[360px_1fr]">
+          <Card className="border-border/70">
+            <CardHeader>
+              <CardTitle className="text-base">Choose a decision to test</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-muted/50 rounded-lg p-4 text-sm leading-relaxed border-l-2 border-purple-500">
-                {result.response}
+            <CardContent className="space-y-3">
+              {DEMO_PERSONAS.map((persona) => (
+                <button
+                  key={persona.key}
+                  onClick={() => {
+                    setSelectedPersona(persona);
+                    const template = FOUNDER_DECISION_TEMPLATES.find((item) => item.id === persona.templateId);
+                    if (template) setStimulus(template.starterPrompt);
+                  }}
+                  className={`w-full rounded-2xl border p-4 text-left transition ${
+                    selectedPersona?.key === persona.key
+                      ? "border-emerald-500/40 bg-emerald-500/5"
+                      : "border-border/70 hover:border-emerald-500/20 hover:bg-muted/25"
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{persona.label}</div>
+                  <div className="mt-2 text-sm leading-6 text-muted-foreground">{persona.description}</div>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/70">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{selectedTemplate.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">What you believe</div>
+                <p className="mt-2 text-sm leading-6 text-foreground/85">{selectedTemplate.hypothesis}</p>
               </div>
 
-              {/* Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-card border rounded-lg p-3 text-center">
-                  <div className="flex items-center justify-center gap-1.5 mb-1">
-                    {sentimentIcon(result.sentiment)}
-                    <span className={`text-lg font-bold ${sentimentColor(result.sentiment)}`}>
-                      {result.sentiment > 0 ? "+" : ""}{result.sentiment?.toFixed(2)}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground uppercase">Sentiment</p>
-                </div>
-
-                <div className="bg-card border rounded-lg p-3 text-center">
-                  <div className="flex items-center justify-center gap-1.5 mb-1">
-                    <TrendingUp className="h-4 w-4 text-blue-500" />
-                    <span className="text-lg font-bold text-blue-500">
-                      {Math.round(result.confidence * 100)}%
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground uppercase">Confidence</p>
-                </div>
-
-                <div className="bg-card border rounded-lg p-3 text-center">
-                  <div className="text-lg mb-1">{emotionEmoji[result.emotional_reaction] || "😐"}</div>
-                  <p className="text-[10px] text-muted-foreground uppercase capitalize">{result.emotional_reaction}</p>
-                </div>
-
-                <div className="bg-card border rounded-lg p-3 text-center">
-                  <Badge className="text-[10px] mb-1">{intentLabel[result.purchase_intent] || result.purchase_intent}</Badge>
-                  <p className="text-[10px] text-muted-foreground uppercase">Intent</p>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">What do you want feedback on?</label>
+                <Textarea
+                  rows={5}
+                  placeholder="Describe the pricing, messaging, or onboarding decision you want help with."
+                  value={stimulus}
+                  onChange={(e) => setStimulus(e.target.value)}
+                  className="resize-none text-base leading-7"
+                  maxLength={2000}
+                />
               </div>
 
-              {/* Key themes */}
-              {result.key_themes?.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium flex items-center gap-1.5 mb-2">
-                    <Tag className="h-3 w-3" /> Key Decision Factors
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.key_themes.map((theme: string, i: number) => (
-                      <Badge key={i} variant="outline" className="text-xs">{theme}</Badge>
-                    ))}
-                  </div>
-                </div>
+              <Button size="lg" className="w-full" onClick={runDemo} disabled={!selectedPersona || !stimulus.trim() || loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Running founder test
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Run founder test
+                  </>
+                )}
+              </Button>
+
+              {remaining !== null && (
+                <p className="text-center text-[11px] text-muted-foreground">
+                  {remaining} demo runs remaining this hour
+                </p>
               )}
+            </CardContent>
+          </Card>
+        </section>
 
-              {/* Duration */}
-              <div className="text-[10px] text-muted-foreground pt-2 border-t">
-                Generated in {(result.duration_ms / 1000).toFixed(1)}s • This is a demo — sign up for unlimited simulations with custom personas.
-              </div>
+        {error && (
+          <Card className="border-rose-500/30 bg-rose-500/5">
+            <CardContent className="p-4 text-sm text-rose-700 dark:text-rose-400">
+              {error}
             </CardContent>
           </Card>
         )}
 
-        {/* CTA */}
-        <div className="text-center py-8 space-y-4">
-          <h3 className="text-xl font-bold">Want More?</h3>
-          <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-            Sign up to create custom personas with 25+ data points, run focus group simulations,
-            A/B tests, market predictions, and export branded PDF reports.
-          </p>
-          <Link to="/signup">
-            <Button size="lg" className="px-8">
-              <Users2 className="h-4 w-4 mr-2" />
-              Start Free — No Credit Card
-            </Button>
-          </Link>
-        </div>
+        {result && (
+          <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+            <Card className="border-border/70">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <CardTitle className="text-xl">{selectedTemplate.title} scorecard</CardTitle>
+                  <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ${confidence.badgeClassName}`}>
+                    <ShieldCheck className="h-4 w-4" />
+                    {confidence.label}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {result.generation_mode === "heuristic_fallback" && (
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                    {result.notice || "This result is running in sample mode until a Gemini API key is configured."}
+                  </div>
+                )}
+                <div className="rounded-[24px] border border-border/70 bg-muted/25 p-5 text-sm leading-7">
+                  {result.response}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-4">
+                  <div className="rounded-2xl border border-border/70 p-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-emerald-600" />
+                      <span className="text-lg font-semibold">{typeof result.sentiment === "number" ? result.sentiment.toFixed(2) : "0.00"}</span>
+                    </div>
+                    <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Sentiment</div>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 p-4 text-center">
+                    <div className="text-lg font-semibold">{Math.round((result.confidence || 0) * 100)}%</div>
+                    <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Confidence</div>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 p-4 text-center">
+                    <div className="text-sm font-semibold">{intentLabel[result.purchase_intent] || "Directional signal"}</div>
+                    <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Likely reaction</div>
+                  </div>
+                  <div className="rounded-2xl border border-border/70 p-4 text-center">
+                    <div className="text-sm font-semibold">{result.duration_ms ? `${(result.duration_ms / 1000).toFixed(1)}s` : "Fast"}</div>
+                    <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Turnaround</div>
+                  </div>
+                </div>
+
+                {result.key_themes?.length > 0 && (
+                  <div>
+                    <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      <Tag className="h-3.5 w-3.5" />
+                      Main takeaways
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {result.key_themes.map((theme: string, index: number) => (
+                        <Badge key={`${theme}-${index}`} variant="outline">
+                          {theme}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className={`border ${confidence.railClassName}`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Confidence level</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="flex items-start gap-3">
+                    {confidence.level === "low" ? (
+                      <TriangleAlert className="mt-0.5 h-5 w-5" />
+                    ) : (
+                      <CheckCircle2 className="mt-0.5 h-5 w-5" />
+                    )}
+                    <div>{confidence.summary}</div>
+                  </div>
+                  <div className="rounded-2xl bg-background/70 p-3">
+                    Next step: <strong>{confidence.ctaLabel}</strong>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/70">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Quick summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Recommendation</div>
+                    <p className="mt-2">{memo.recommendation}</p>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Evidence</div>
+                    <p className="mt-2">{memo.evidence}</p>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Risk</div>
+                    <p className="mt-2">{memo.risk}</p>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Next action</div>
+                    <p className="mt-2">{memo.nextAction}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Link to="/signup">
+                <Button size="lg" className="w-full">
+                  Open the full founder workspace
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

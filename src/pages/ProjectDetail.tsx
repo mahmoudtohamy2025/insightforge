@@ -458,10 +458,10 @@ const ProjectDetail = () => {
           <div className="mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-purple-600" />
-              InsightForge Synthetic Lab
+              InsightForge AI Lab
             </h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              Pre-test your research hypotheses, optimize discussion guides, and forecast market impact using fully calibrated MENA Digital Consumer Twins before spending your recruitment budget.
+              Pressure-test your questions, discussion guides, and launch ideas with AI customer profiles before you spend recruiting budget.
             </p>
           </div>
 
@@ -471,8 +471,8 @@ const ProjectDetail = () => {
                 <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Bot className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">Custom Twin Builder</h3>
-                <p className="text-sm text-muted-foreground">Architect specific consumer profiles matching this project's exact screener criteria.</p>
+                <h3 className="font-bold text-lg mb-2">Profile Builder</h3>
+                <p className="text-sm text-muted-foreground">Create customer profiles that match this project's exact screener criteria.</p>
               </CardContent>
             </Card>
             
@@ -481,8 +481,8 @@ const ProjectDetail = () => {
                 <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">AI Focus Group</h3>
-                <p className="text-sm text-muted-foreground">Pre-test your discussion guide with synthetic respondents to discover weak questions.</p>
+                <h3 className="font-bold text-lg mb-2">Panel Discussion</h3>
+                <p className="text-sm text-muted-foreground">Pre-test your discussion guide with AI customer profiles to discover weak questions.</p>
               </CardContent>
             </Card>
             
@@ -491,8 +491,8 @@ const ProjectDetail = () => {
                 <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Beaker className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">A/B Concept Testing</h3>
-                <p className="text-sm text-muted-foreground">Rapidly test two concepts or stimulus variants to see which generates higher twin purchase intent.</p>
+                <h3 className="font-bold text-lg mb-2">Compare Options</h3>
+                <p className="text-sm text-muted-foreground">Test two concepts or stimulus variants to see which one creates stronger customer interest.</p>
               </CardContent>
             </Card>
 
@@ -501,8 +501,8 @@ const ProjectDetail = () => {
                 <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <LineChart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">Market Simulation</h3>
-                <p className="text-sm text-muted-foreground">Forecast adoption curves and viral coefficient potential across broad synthetic populations.</p>
+                <h3 className="font-bold text-lg mb-2">Market Forecast</h3>
+                <p className="text-sm text-muted-foreground">Estimate adoption curves and word-of-mouth potential across broader customer groups.</p>
               </CardContent>
             </Card>
 
@@ -511,7 +511,7 @@ const ProjectDetail = () => {
                 <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Scale className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">Policy Testing</h3>
+                <h3 className="font-bold text-lg mb-2">Policy Check</h3>
                 <p className="text-sm text-muted-foreground">Simulate public reaction to pricing changes, feature deprecation, or brand crises.</p>
               </CardContent>
             </Card>

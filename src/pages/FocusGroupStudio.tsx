@@ -104,9 +104,9 @@ const FocusGroupStudio = () => {
     onSuccess: (data) => {
       setResult(data);
       queryClient.invalidateQueries({ queryKey: ["simulation-history", workspaceId] });
-      toast({ title: "Focus group complete!", description: `${data.aggregate.participant_count} participants, ${data.rounds.length} rounds` });
+      toast({ title: "Panel discussion complete", description: `${data.aggregate.participant_count} profiles, ${data.rounds.length} rounds` });
     },
-    onError: (e) => toast({ title: "Focus group failed", description: e.message, variant: "destructive" }),
+    onError: (e) => toast({ title: "Panel discussion failed", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -120,9 +120,9 @@ const FocusGroupStudio = () => {
         <div>
           <h1 id="fg-header" className="text-2xl font-bold flex items-center gap-2">
             <Users2 className="h-6 w-6 text-primary" />
-            {t("focusGroup.title")}
+            Panel Discussion
           </h1>
-          <p className="text-sm text-muted-foreground">{t("focusGroup.description")}</p>
+          <p className="text-sm text-muted-foreground">Use 2 to 5 customer profiles when one AI test is not enough and you want a richer discussion.</p>
         </div>
       </div>
 
@@ -133,7 +133,7 @@ const FocusGroupStudio = () => {
             <CardContent className="pt-5 space-y-4">
               {/* Segment Selection */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">{t("focusGroup.selectParticipants")}</Label>
+                <Label className="text-sm font-medium">Choose 2 to 5 customer profiles</Label>
                 <div id="fg-segment-select" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {segments.map((seg: any, i: number) => {
                     const demo = (seg.demographics || {}) as Record<string, any>;
@@ -161,13 +161,13 @@ const FocusGroupStudio = () => {
                   })}
                 </div>
                 {segments.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No segments created yet. <button className="text-primary underline" onClick={() => navigate("/segments")}>Create one first</button>.</p>
+                  <p className="text-xs text-muted-foreground">No customer profiles yet. <button className="text-primary underline" onClick={() => navigate("/segments")}>Create one first</button>.</p>
                 )}
               </div>
 
               {/* Rounds */}
               <div className="flex items-center gap-3">
-                <Label className="text-sm font-medium whitespace-nowrap">Discussion Rounds</Label>
+                <Label className="text-sm font-medium whitespace-nowrap">How many rounds?</Label>
                 <Select value={numRounds} onValueChange={setNumRounds}>
                   <SelectTrigger id="fg-rounds-select" className="w-24"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -198,11 +198,11 @@ const FocusGroupStudio = () => {
 
               {/* Stimulus */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Discussion Topic / Stimulus</Label>
+                <Label className="text-sm font-medium">What should they react to?</Label>
                 <Textarea
                   id="fg-topic-input"
                   rows={3}
-                  placeholder="What topic should the focus group discuss?&#10;&#10;Example: 'We're considering launching a subscription meal-kit service targeting busy professionals. What do you think?'"
+                  placeholder="Describe the decision, message, or idea you want the profiles to discuss."
                   value={stimulus}
                   onChange={(e) => setStimulus(e.target.value)}
                   className="resize-none"
@@ -218,9 +218,9 @@ const FocusGroupStudio = () => {
                   disabled={selectedSegmentIds.length < 2 || !stimulus.trim() || runMutation.isPending}
                 >
                   {runMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running focus group discussion...</>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running panel discussion...</>
                   ) : (
-                    <><MessageCircle className="h-4 w-4 mr-2" />Start Focus Group ({selectedSegmentIds.length} participants)</>
+                    <><MessageCircle className="h-4 w-4 mr-2" />Start panel discussion ({selectedSegmentIds.length} profiles)</>
                   )}
                 </Button>
               </TierGate>
@@ -257,7 +257,7 @@ const FocusGroupStudio = () => {
                 }}
               >
                 <Download className="h-3.5 w-3.5 mr-1.5" />
-                Export PDF
+                Export summary
               </Button>
             </div>
           )}
@@ -268,7 +268,7 @@ const FocusGroupStudio = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <MessageCircle className="h-4 w-4 text-primary" />
-                  Round {roundIdx + 1} {roundIdx === 0 ? "— Initial Reactions" : "— Group Discussion"}
+                  Round {roundIdx + 1} {roundIdx === 0 ? "— First reactions" : "— Group discussion"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">

@@ -8,6 +8,8 @@ export interface Workspace {
   slug: string;
   tier: string;
   status: string;
+  subscription_status: string | null;
+  stripe_customer_id: string | null;
   role: string; // user's role in this workspace
   created_at: string;
 }
@@ -40,7 +42,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
     const { data, error } = await supabase
       .from("workspace_memberships")
-      .select("role, workspace_id, workspaces(id, name, slug, tier, status, created_at)")
+      .select("role, workspace_id, workspaces(id, name, slug, tier, status, subscription_status, stripe_customer_id, created_at)")
       .eq("user_id", user.id);
 
     if (error) {
@@ -57,6 +59,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         slug: m.workspaces.slug,
         tier: m.workspaces.tier,
         status: m.workspaces.status,
+        subscription_status: m.workspaces.subscription_status,
+        stripe_customer_id: m.workspaces.stripe_customer_id,
         role: m.role,
         created_at: m.workspaces.created_at,
       }));
@@ -73,6 +77,24 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") {
+        fetchWorkspaces();
+      }
+    };
+
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+
+    return () => {
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
+  }, [fetchWorkspaces, user]);
 
   const switchWorkspace = useCallback(
     (workspaceId: string) => {

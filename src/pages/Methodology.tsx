@@ -30,44 +30,44 @@ import {
 } from "@/components/ui/table";
 
 const aiModels = [
-  { feature: "Solo Query / Simulation", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Consumer response generation" },
-  { feature: "Focus Group Discussion", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Multi-round debate synthesis" },
-  { feature: "A/B Test Analysis", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Variant preference scoring" },
-  { feature: "Market Simulation", model: "Bass Diffusion + Gemini", version: "—", purpose: "Adoption curve modeling" },
-  { feature: "Policy Impact", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Societal impact modelling" },
+  { feature: "AI Test", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Customer response generation" },
+  { feature: "Panel Discussion", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Multi-round discussion synthesis" },
+  { feature: "Compare Options", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Option preference scoring" },
+  { feature: "Market Forecast", model: "Bass Diffusion + Gemini", version: "—", purpose: "Adoption curve modeling" },
+  { feature: "Policy Check", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Public impact modeling" },
   { feature: "Theme Extraction", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Transcript analysis" },
-  { feature: "Survey Generation", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Research question creation" },
+  { feature: "Survey Builder", model: "Gemini 2.5 Flash", version: "2025-04", purpose: "Question creation" },
 ];
 
 const pipelineSteps = [
   {
     step: 1,
-    title: "Create Digital Twins",
-    description: "Define consumer personas with demographics, psychographics, cultural context, and behavioral patterns.",
+    title: "Create AI Profiles",
+    description: "Describe the customer types you want to learn from, including who they are, what they care about, and how they behave.",
     icon: Users2,
     color: "text-purple-500",
     bg: "bg-purple-500/10",
   },
   {
     step: 2,
-    title: "Demographic Anchoring",
-    description: "Before any response is generated, the AI is constraint-prompted with intersectional anchors: socioeconomic status, education, location, dialect probabilities.",
+    title: "Ground the Profile",
+    description: "Before the AI responds, the profile is grounded in details like location, education, income, and context so the answer is not generic.",
     icon: Brain,
     color: "text-blue-500",
     bg: "bg-blue-500/10",
   },
   {
     step: 3,
-    title: "Simulate & Generate",
-    description: "The anchored model generates in-character responses with sentiment, confidence, and behavioral tags. Temperature is dynamically scaled based on question type.",
+    title: "Run the Test",
+    description: "The model responds from that profile's point of view and returns an answer, a sentiment score, a confidence score, and key themes.",
     icon: Zap,
     color: "text-amber-500",
     bg: "bg-amber-500/10",
   },
   {
     step: 4,
-    title: "Validate & Calibrate",
-    description: "Upload real survey data. The calibration engine computes accuracy scores and adjusts twin parameters for future inference.",
+    title: "Check Against Real Data",
+    description: "Upload survey or interview results to compare AI output with real customer feedback and improve future accuracy.",
     icon: RefreshCw,
     color: "text-emerald-500",
     bg: "bg-emerald-500/10",
@@ -84,11 +84,10 @@ export default function Methodology() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
           <BookOpen className="h-8 w-8 text-primary" />
-          Methodology
+          How InsightForge Works
         </h1>
         <p className="text-muted-foreground mt-2 max-w-3xl">
-          Understanding how InsightForge digital twins work, the AI models powering them, how
-          confidence scores are calculated, and the scientific foundations behind our simulations.
+          See how InsightForge turns a risky decision into a useful signal, how confidence is scored, and when the product recommends an AI test versus a real-customer check.
         </p>
       </div>
 
@@ -96,12 +95,10 @@ export default function Methodology() {
       <section className="space-y-6">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-primary" />
-          How Digital Twins Work
+          How AI Profiles Work
         </h2>
         <p className="text-muted-foreground leading-relaxed">
-          InsightForge creates AI-powered consumer personas — "digital twins" — that simulate how
-          real people would react to products, campaigns, and policies. Each twin is grounded in
-          empirical demographic and psychographic data, not generic AI outputs.
+          InsightForge creates AI-powered customer profiles, sometimes called "twins," to estimate how real people may react to products, messages, and policies. Each profile is grounded in the customer details you define, not a generic model response.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -132,8 +129,7 @@ export default function Methodology() {
           AI Models Used
         </h2>
         <p className="text-muted-foreground leading-relaxed">
-          Each simulation feature uses specific models optimized for the task. All models are
-          anchored with demographic constraints before inference.
+          Different product areas use different models. Each one is grounded in the profile context before it generates a result.
         </p>
         <Card>
           <CardContent className="p-0">
@@ -167,11 +163,10 @@ export default function Methodology() {
       <section className="space-y-4">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <ShieldCheck className="h-6 w-6 text-primary" />
-          Confidence Scores & Intervals
+          Confidence Scores
         </h2>
         <p className="text-muted-foreground leading-relaxed">
-          Every simulation result includes a confidence score on a 0–1 scale. This score reflects
-          how reliable the twin's response is expected to be based on three factors.
+          Every AI test includes a confidence score on a 0 to 1 scale. The score estimates how reliable the result is based on three things.
         </p>
 
         <Card className="bg-muted/30">
@@ -186,8 +181,7 @@ export default function Methodology() {
                   <span className="font-semibold text-sm">≥ 0.80 — High Confidence</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Twin has been calibrated with real data and has strong demographic anchoring. Results
-                  are highly reliable.
+                  The profile has good grounding and enough real-world support. The result is strong enough to act on.
                 </p>
               </div>
               <div className="space-y-2 p-4 bg-card rounded-lg border">
@@ -196,8 +190,7 @@ export default function Methodology() {
                   <span className="font-semibold text-sm">≥ 0.60 — Medium Confidence</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Twin has partial calibration data. Results are directionally accurate but should be
-                  validated with additional real data.
+                  The result looks directionally useful, but you should still do a quick real-customer check.
                 </p>
               </div>
               <div className="space-y-2 p-4 bg-card rounded-lg border">
@@ -206,8 +199,7 @@ export default function Methodology() {
                   <span className="font-semibold text-sm">&lt; 0.60 — Low Confidence</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Twin is uncalibrated or has sparse demographic data. Use results as early
-                  hypotheses only.
+                  There is not enough supporting data yet. Treat the result as an early signal, not a final answer.
                 </p>
               </div>
             </div>
@@ -219,10 +211,10 @@ export default function Methodology() {
       <section className="space-y-4">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-primary" />
-          Bass Diffusion Model (Market Simulations)
+          Bass Diffusion Model (Market Forecasts)
         </h2>
         <p className="text-muted-foreground leading-relaxed">
-          Market simulations use the <strong>Bass Diffusion Model</strong> (Frank Bass, 1969) to predict
+          Market forecasts use the <strong>Bass Diffusion Model</strong> (Frank Bass, 1969) to predict
           product adoption over time. This is the same model used by Fortune 500 companies for
           market forecasting.
         </p>
@@ -259,21 +251,19 @@ export default function Methodology() {
       <section className="space-y-4">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <RefreshCw className="h-6 w-6 text-primary" />
-          Calibration Feedback Loop
+          How accuracy improves over time
         </h2>
         <p className="text-muted-foreground leading-relaxed">
-          InsightForge uses an <strong>autoregressive correction loop</strong> to continuously improve
-          twin accuracy. When you upload real ground-truth data, the system recalculates calibration
-          scores and adjusts twin parameters.
+          InsightForge gets better when you compare AI output with real customer data. Each new survey or interview result helps the system score what matched, what missed, and how much trust to place in future results.
         </p>
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 justify-center py-4">
               {[
-                { label: "Run Simulation", icon: Zap, color: "text-purple-500" },
+                { label: "Run AI Test", icon: Zap, color: "text-purple-500" },
                 { label: "Collect Real Data", icon: FlaskConical, color: "text-blue-500" },
                 { label: "Upload & Compare", icon: Scale, color: "text-amber-500" },
-                { label: "Auto-Calibrate", icon: RefreshCw, color: "text-emerald-500" },
+                { label: "Update Accuracy", icon: RefreshCw, color: "text-emerald-500" },
               ].map((step, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className="flex flex-col items-center gap-2">
@@ -289,8 +279,7 @@ export default function Methodology() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground text-center mt-4">
-              Each calibration cycle improves future predictions. Variables that deviated from
-              empirical reality are mathematically weighted downwards.
+              Every compare-and-learn cycle makes future confidence scores more useful.
             </p>
           </CardContent>
         </Card>
@@ -305,48 +294,40 @@ export default function Methodology() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="border-amber-500/20">
             <CardHeader>
-              <CardTitle className="text-base">Known Limitations</CardTitle>
+              <CardTitle className="text-base">What to keep in mind</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <div className="flex gap-2">
                 <span className="text-amber-500 mt-0.5">•</span>
-                <p><strong>LLM Hallucination Risk:</strong> AI models may generate plausible but
-                  factually incorrect responses, especially for niche demographics with limited
-                  training data.</p>
+                <p><strong>AI can still be wrong:</strong> Models may give convincing but incorrect answers, especially for niche audiences with little supporting data.</p>
               </div>
               <div className="flex gap-2">
                 <span className="text-amber-500 mt-0.5">•</span>
-                <p><strong>Cultural Bias:</strong> MENA-specific cultural nuances may not be fully
-                  captured by general-purpose language models. Calibration with local data is
-                  strongly recommended.</p>
+                <p><strong>Local context matters:</strong> Region-specific nuances may be missed unless you calibrate with local customer data.</p>
               </div>
               <div className="flex gap-2">
                 <span className="text-amber-500 mt-0.5">•</span>
-                <p><strong>Sample Size:</strong> Twins with fewer than 10 calibration entries should
-                  be treated as exploratory, not predictive.</p>
+                <p><strong>Thin data means lower trust:</strong> Profiles with very little real-world data should be treated as exploratory, not predictive.</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-emerald-500/20">
             <CardHeader>
-              <CardTitle className="text-base">Our Commitments</CardTitle>
+              <CardTitle className="text-base">What we commit to</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <div className="flex gap-2">
                 <span className="text-emerald-500 mt-0.5">✓</span>
-                <p><strong>Transparency:</strong> All confidence scores are computed from auditable
-                  formulas. No black boxes.</p>
+                <p><strong>Transparency:</strong> Confidence scores come from auditable formulas, not hidden logic.</p>
               </div>
               <div className="flex gap-2">
                 <span className="text-emerald-500 mt-0.5">✓</span>
-                <p><strong>Synthetic Label:</strong> All twin-generated content is clearly
-                  labeled as synthetic (purple badge). Never passed off as real human data.</p>
+                <p><strong>Clear labeling:</strong> AI-generated content is always marked clearly and never presented as real human feedback.</p>
               </div>
               <div className="flex gap-2">
                 <span className="text-emerald-500 mt-0.5">✓</span>
-                <p><strong>Data Sovereignty:</strong> Your calibration data never leaves your
-                  workspace. Twins are not cross-trained on other customers' data.</p>
+                <p><strong>Your data stays yours:</strong> Calibration data stays inside your workspace and is not used to train other customers' profiles.</p>
               </div>
             </CardContent>
           </Card>
@@ -356,13 +337,13 @@ export default function Methodology() {
       {/* CTA */}
       <Card className="bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20">
         <CardContent className="py-8 text-center space-y-3">
-          <h3 className="text-xl font-bold">Ready to validate your twins?</h3>
+          <h3 className="text-xl font-bold">Ready to compare AI with real customers?</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Upload real survey data and watch your digital twins improve with every calibration cycle.
+            Upload survey or interview results and see how trustworthy each AI profile really is.
           </p>
           <Link to="/validation">
             <Button>
-              Go to Validation Dashboard <ArrowRight className="h-4 w-4 ml-2" />
+              Go to real-world accuracy <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </Link>
         </CardContent>

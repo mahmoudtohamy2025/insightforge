@@ -8,6 +8,7 @@ interface SubscriptionState {
   subscribed: boolean;
   productId: string | null;
   tier: string;
+  status: string | null;
   subscriptionEnd: string | null;
   isLoading: boolean;
 }
@@ -30,6 +31,7 @@ export function useSubscription() {
     subscribed: false,
     productId: null,
     tier: "free",
+    status: null,
     subscriptionEnd: null,
     isLoading: true,
   });
@@ -48,6 +50,7 @@ export function useSubscription() {
         subscribed: true,
         productId: null,
         tier: workspaceTier,
+        status: currentWorkspace?.subscription_status || "active",
         subscriptionEnd: null,
         isLoading: false,
       });
@@ -56,7 +59,9 @@ export function useSubscription() {
 
     // 2. Fall back to Stripe subscription check
     try {
-      const { data, error } = await supabase.functions.invoke("check-subscription");
+      const { data, error } = await supabase.functions.invoke("check-subscription", {
+        body: { workspace_id: currentWorkspace?.id ?? null },
+      });
       if (error) throw error;
 
       // Use backend-resolved tier (has full mapping including enterprise).
@@ -70,14 +75,20 @@ export function useSubscription() {
         subscribed: data?.subscribed || false,
         productId: data?.product_id || null,
         tier: stripeTier,
+        status: data?.status || null,
         subscriptionEnd: data?.subscription_end || null,
         isLoading: false,
       });
     } catch (err) {
       console.error("Failed to check subscription:", err);
-      setState((s) => ({ ...s, tier: workspaceTier || "free", isLoading: false }));
+      setState((s) => ({
+        ...s,
+        tier: workspaceTier || "free",
+        status: currentWorkspace?.subscription_status || null,
+        isLoading: false,
+      }));
     }
-  }, [session, currentWorkspace?.tier]);
+  }, [session, currentWorkspace?.id, currentWorkspace?.subscription_status, currentWorkspace?.tier]);
 
   useEffect(() => {
     checkSubscription();

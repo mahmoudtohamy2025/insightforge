@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -197,9 +197,8 @@ export default function AdminTenants() {
                 const tokens = tokenMap[ws.id] || 0;
 
                 return (
-                  <>
+                  <Fragment key={ws.id}>
                     <tr
-                      key={ws.id}
                       className="hover:bg-slate-800/30 transition-colors cursor-pointer"
                       onClick={() => setExpandedId(isExpanded ? null : ws.id)}
                     >
@@ -305,7 +304,7 @@ export default function AdminTenants() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>

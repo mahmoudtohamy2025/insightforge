@@ -1,426 +1,362 @@
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { useI18n } from "@/lib/i18n";
-import { Button } from "@/components/ui/button";
 import {
-  Sparkles,
-  Users2,
-  FlaskConical,
-  BarChart3,
-  Shield,
-  Zap,
   ArrowRight,
   CheckCircle2,
-  Globe,
-  MessageSquare,
-  TrendingUp,
-  Scale,
-  ChevronRight,
-  Play
+  Compass,
+  FlaskConical,
+  FolderKanban,
+  LineChart,
+  ShieldCheck,
+  Sparkles,
+  Users2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { InlineDemo } from "@/components/marketing/InlineDemo";
+import { useAuth } from "@/hooks/useAuth";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import { FOUNDER_DECISION_TEMPLATES } from "@/lib/founderDecision";
 
-const Landing = () => {
+const validationLadder = [
+  {
+    title: "Test direction fast",
+    description: "Run an AI test to pressure-test messaging, pricing, and onboarding before you spend research time.",
+    icon: Sparkles,
+  },
+  {
+    title: "Validate with real users",
+    description: "Escalate only the bets that matter into surveys, participant studies, and moderated sessions.",
+    icon: Users2,
+  },
+  {
+    title: "Act with confidence",
+    description: "Use clear confidence levels to know when to move forward, run a quick customer check, or keep learning.",
+    icon: ShieldCheck,
+  },
+];
+
+const founderJobs = [
+  {
+    title: "Pricing",
+    description: "Find the plan structure founders will actually trust and buy.",
+    route: "/simulate",
+  },
+  {
+    title: "Messaging",
+    description: "Compare value props before rewriting your homepage or pitch.",
+    route: "/focus-group",
+  },
+  {
+    title: "Onboarding",
+    description: "Catch activation friction before your next launch or signup push.",
+    route: "/surveys",
+  },
+];
+
+export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { isSuperAdmin } = useSuperAdmin();
 
-  const goToApp = () => navigate(user ? "/dashboard" : "/auth");
+  const goToApp = () => navigate(user ? (isSuperAdmin ? "/admin" : "/dashboard") : "/signup");
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+      <section className="relative min-h-[100svh] isolate overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(22,163,74,0.16),_transparent_40%),radial-gradient(circle_at_80%_20%,_rgba(14,165,233,0.18),_transparent_28%),linear-gradient(180deg,_rgba(10,16,23,0.96),_rgba(10,16,23,0.85)_45%,_rgba(248,250,252,0.98)_100%)]" />
+        <div className="absolute inset-y-0 right-0 w-[44vw] min-w-[320px] bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0))] opacity-80 [clip-path:polygon(22%_0,100%_0,100%_100%,0_100%)]" />
 
-      {/* ═══════════════ HERO ═══════════════ */}
-      <section className="relative py-20 lg:py-32 px-4">
-        {/* Gradient orbs */}
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="relative max-w-6xl mx-auto text-center space-y-8">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium animate-pulse">
-            <Sparkles className="h-3.5 w-3.5" />
-            Digital Consumer Twins — Powered by AI
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
-            <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
-              {t("landing.heroTitle")}
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            {t("landing.heroSubtitle")}
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Button size="lg" onClick={goToApp} className="text-base px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
-              {t("landing.heroCTA")}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => {
-              document.getElementById("interactive-demo")?.scrollIntoView({ behavior: "smooth" });
-            }} className="text-base px-8 py-6 rounded-xl">
-              <Play className="h-4 w-4 mr-2" />
-              Watch Demo
-            </Button>
-          </div>
-
-          {/* Social Proof Bar */}
-          <div className="pt-6 animate-fade-in text-sm font-medium text-muted-foreground flex items-center justify-center gap-2">
-            <span className="flex items-center">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className={`w-6 h-6 rounded-full border-2 border-background bg-muted -ml-2 first:ml-0 flex items-center justify-center overflow-hidden z-[${10-i}]`}>
-                  <Users2 className="h-3 w-3" />
+        <div className="relative mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-between px-4 py-6 sm:px-6 lg:px-8">
+          <header className="flex items-center justify-between">
+            <button
+              onClick={() => navigate("/")}
+              className="flex items-center gap-3 text-left"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-400 text-slate-950 shadow-[0_18px_60px_-24px_rgba(74,222,128,0.9)]">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-300/90">
+                  InsightForge
                 </div>
-              ))}
-            </span>
-            <span className="ml-2">Trusted by 500+ researchers · <strong className="text-foreground">12,847 simulations run</strong></span>
-          </div>
+                <div className="text-xs text-slate-300/70">Founder Decision OS</div>
+              </div>
+            </button>
 
-          {/* Trust Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Zap className="h-4 w-4 text-primary" />
-              {t("landing.trustSimulations")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Globe className="h-4 w-4 text-primary" />
-              {t("landing.trustMENA")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-primary" />
-              {t("landing.trustGDPR")}
-            </span>
-          </div>
-
-          {/* Animated Twin Persona Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto pt-12">
-            {[
-              { name: "Sarah M.", age: "28-34", loc: "Dubai, UAE", emoji: "👩🏽‍💼", trait: "Health-conscious professional", anim: "animate-float-slow" },
-              { name: "Ahmed K.", age: "22-28", loc: "Cairo, Egypt", emoji: "👨🏻‍🎓", trait: "Tech-savvy student", anim: "animate-float-medium" },
-              { name: "Lisa R.", age: "35-45", loc: "London, UK", emoji: "👩🏼‍🔬", trait: "Sustainability advocate", anim: "animate-float-fast" },
-            ].map((twin) => (
-              <div
-                key={twin.name}
-                className={`group relative bg-card/80 backdrop-blur-lg border border-primary/20 rounded-2xl p-5 text-left hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 ${twin.anim}`}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                className="text-slate-100 hover:bg-white/10 hover:text-white"
+                onClick={() => navigate("/demo")}
               >
-                {/* Synthetic badge */}
-                <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-400 text-[9px] font-bold uppercase">
-                  AI Twin
-                </div>
-                <div className="text-3xl mb-3">{twin.emoji}</div>
-                <p className="font-semibold text-sm">{twin.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{twin.age} · {twin.loc}</p>
-                <div className="mt-2 px-2 py-1 rounded-md bg-muted/50 text-[10px] text-muted-foreground italic">
-                  "{twin.trait}"
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ INTERACTIVE DEMO ═══════════════ */}
-      <section id="interactive-demo" className="py-12 px-4 relative z-10 -mt-8">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight">Try it right now. No signup required.</h2>
-            <p className="text-sm text-muted-foreground">Run a mock AI simulation and see the results instantly.</p>
-          </div>
-          <InlineDemo />
-        </div>
-      </section>
-
-      {/* ═══════════════ VIDEO TESTIMONIAL ═══════════════ */}
-      <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="aspect-video bg-muted border border-border/50 rounded-2xl overflow-hidden relative flex items-center justify-center group cursor-pointer shadow-2xl shadow-primary/5">
-            <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-50" />
-            <Play className="h-16 w-16 text-primary opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all" />
-            <div className="absolute bottom-6 left-6 text-left">
-              <p className="text-xl font-bold text-white shadow-sm">"We replaced 3 weeks of focus groups with InsightForge in 2 hours."</p>
-              <p className="text-sm text-white/80">Elena R. — Founder @ ScaleTech</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ HOW IT WORKS ═══════════════ */}
-      <section id="how-it-works" className="py-24 px-4 bg-muted/30">
-        <div className="max-w-5xl mx-auto text-center space-y-16">
-          <div className="space-y-3">
-            <h2 className="text-3xl sm:text-4xl font-bold">{t("landing.howItWorksTitle")}</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">Three simple steps from persona creation to actionable insights.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { step: "01", icon: Users2, title: t("landing.step1Title"), desc: t("landing.step1Desc"), color: "from-primary to-blue-500" },
-              { step: "02", icon: FlaskConical, title: t("landing.step2Title"), desc: t("landing.step2Desc"), color: "from-purple-500 to-pink-500" },
-              { step: "03", icon: BarChart3, title: t("landing.step3Title"), desc: t("landing.step3Desc"), color: "from-amber-500 to-orange-500" },
-            ].map((s) => (
-              <div key={s.step} className="relative group">
-                <div className="bg-card border border-border rounded-2xl p-8 h-full text-left space-y-4 hover:border-primary/40 transition-all hover:shadow-lg">
-                  {/* Step number */}
-                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} text-white text-lg font-bold`}>
-                    {s.step}
-                  </div>
-                  <h3 className="text-lg font-bold">{s.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
-                </div>
-                {/* Connector arrow (hidden on mobile) */}
-                {s.step !== "03" && (
-                  <div className="hidden md:flex absolute top-1/2 -right-5 transform -translate-y-1/2 text-muted-foreground/30">
-                    <ChevronRight className="h-8 w-8" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ SIMULATION STUDIOS ═══════════════ */}
-      <section className="py-24 px-4">
-        <div className="max-w-6xl mx-auto space-y-16">
-          <div className="text-center space-y-3">
-            <h2 className="text-3xl sm:text-4xl font-bold">{t("landing.studiosTitle")}</h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Sparkles,
-                title: t("landing.soloQueryTitle"),
-                desc: t("landing.soloQueryDesc"),
-                gradient: "from-blue-500/10 to-cyan-500/10",
-                iconColor: "text-blue-500",
-                border: "hover:border-blue-500/40",
-              },
-              {
-                icon: Users2,
-                title: t("landing.focusGroupTitle"),
-                desc: t("landing.focusGroupDesc"),
-                gradient: "from-purple-500/10 to-pink-500/10",
-                iconColor: "text-purple-500",
-                border: "hover:border-purple-500/40",
-              },
-              {
-                icon: FlaskConical,
-                title: t("landing.abTestTitle"),
-                desc: t("landing.abTestDesc"),
-                gradient: "from-emerald-500/10 to-teal-500/10",
-                iconColor: "text-emerald-500",
-                border: "hover:border-emerald-500/40",
-              },
-              {
-                icon: TrendingUp,
-                title: t("landing.marketSimTitle"),
-                desc: t("landing.marketSimDesc"),
-                gradient: "from-amber-500/10 to-orange-500/10",
-                iconColor: "text-amber-500",
-                border: "hover:border-amber-500/40",
-              },
-              {
-                icon: Scale,
-                title: t("landing.policyImpactTitle"),
-                desc: t("landing.policyImpactDesc"),
-                gradient: "from-red-500/10 to-rose-500/10",
-                iconColor: "text-red-500",
-                border: "hover:border-red-500/40",
-              },
-            ].map((studio) => (
-              <div
-                key={studio.title}
-                className={`group bg-card border border-border rounded-2xl p-6 space-y-4 transition-all duration-300 hover:shadow-lg ${studio.border}`}
+                Try Demo
+              </Button>
+              <Button
+                className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                onClick={goToApp}
               >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${studio.gradient} flex items-center justify-center`}>
-                  <studio.icon className={`h-6 w-6 ${studio.iconColor}`} />
-                </div>
-                <h3 className="text-lg font-bold">{studio.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{studio.desc}</p>
-              </div>
-            ))}
-
-            {/* Traditional Research Card */}
-            <div className="group bg-card/50 border border-dashed border-border rounded-2xl p-6 space-y-4 transition-all hover:border-muted-foreground/40">
-              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-                <MessageSquare className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-bold">{t("landing.traditionalTitle")}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{t("landing.traditionalDesc")}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ PRICING ═══════════════ */}
-      <section className="py-24 px-4 bg-muted/30">
-        <div className="max-w-7xl mx-auto text-center space-y-12">
-          <div className="space-y-3">
-            <h2 className="text-3xl sm:text-4xl font-bold">{t("landing.pricingTitle")}</h2>
-            <p className="text-muted-foreground">{t("landing.pricingSubtitle")}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {[
-              {
-                name: "Free",
-                price: "$0",
-                period: "/mo",
-                popular: false,
-                features: ["1 seat", "10 simulations/mo"],
-                cta: "Get Started",
-              },
-              {
-                name: "Solo",
-                price: "$19",
-                period: "/mo",
-                popular: false,
-                features: ["1 seat", "100 simulations", "Basic AI Models"],
-                cta: "Start Solo",
-              },
-              {
-                name: "Starter",
-                price: "$49",
-                period: "/mo",
-                popular: true,
-                features: ["5 seats", "500K Tokens", "Custom Studies"],
-                cta: "Start Starter",
-              },
-              {
-                name: "Professional",
-                price: "$149",
-                period: "/mo",
-                popular: false,
-                features: ["15 seats", "2M Tokens", "Priority support"],
-                cta: "Start Pro",
-              },
-              {
-                name: "Enterprise",
-                price: "Custom",
-                period: "",
-                popular: false,
-                features: ["SSO & SCIM", "Custom Models", "Dedicated Manager", "SLA"],
-                cta: "Contact Sales",
-              },
-            ].map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative bg-card border rounded-2xl p-8 text-left space-y-6 transition-all hover:shadow-lg ${
-                  plan.popular ? "border-primary shadow-lg shadow-primary/10 scale-[1.02]" : "border-border"
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                    Most Popular
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{plan.name}</p>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-4xl font-extrabold">{plan.price}</span>
-                    <span className="text-muted-foreground text-sm">{plan.period}</span>
-                  </div>
-                </div>
-                <ul className="space-y-3">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  variant={plan.popular ? "default" : "outline"}
-                  onClick={goToApp}
-                >
-                  {plan.cta}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ FINAL CTA ═══════════════ */}
-      <section className="py-24 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="relative bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 border border-primary/20 rounded-3xl p-12 sm:p-16 space-y-6">
-            {/* Glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 rounded-3xl blur-xl" />
-
-            <div className="relative space-y-6">
-              <h2 className="text-3xl sm:text-4xl font-bold">
-                {t("landing.ctaTitle")}
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                {t("landing.ctaSubtitle")}
-              </p>
-              <Button size="lg" onClick={goToApp} className="text-base px-10 py-6 rounded-xl shadow-lg shadow-primary/20">
-                {t("landing.ctaButton")}
-                <ArrowRight className="h-4 w-4 ml-2" />
+                Test a founder decision
               </Button>
             </div>
+          </header>
+
+          <div className="grid gap-16 pb-10 pt-12 lg:grid-cols-[minmax(0,1.1fr)_420px] lg:items-end lg:pt-16">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs font-medium text-slate-200 backdrop-blur">
+                <Compass className="h-3.5 w-3.5 text-emerald-300" />
+                Decide in days, not weeks
+              </div>
+
+              <h1 className="mt-8 max-w-4xl text-balance text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
+                Test pricing, messaging, and onboarding bets before your team ships them.
+              </h1>
+
+              <p className="mt-6 max-w-xl text-lg leading-8 text-slate-200/78">
+                Capture a risky founder decision, test it with AI customer profiles, validate it with real users when confidence is low, and turn the result into a summary your cofounders and investors can act on.
+              </p>
+
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                <Button
+                  size="lg"
+                  className="h-14 rounded-full bg-emerald-400 px-8 text-base text-slate-950 hover:bg-emerald-300"
+                  onClick={goToApp}
+                >
+                  Test a founder decision
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-14 rounded-full border-white/15 bg-white/5 px-8 text-base text-white hover:bg-white/10"
+                  onClick={() => navigate("/demo")}
+                >
+                  See the founder demo
+                </Button>
+              </div>
+
+              <div className="mt-10 flex flex-wrap gap-6 text-sm text-slate-300/78">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                  AI tests first, real customer checks when needed
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                  Clear confidence levels on every decision
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                  Shareable decision summaries for your team
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[32px] border border-white/10 bg-white/7 p-6 text-slate-50 shadow-[0_42px_120px_-52px_rgba(8,145,178,0.7)] backdrop-blur-xl">
+              <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-emerald-300/80">Founder workspace</p>
+                  <h2 className="mt-2 text-2xl font-semibold">Decision stack</h2>
+                </div>
+                <div className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-medium text-emerald-200">
+                  v1 focus
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                {founderJobs.map((job) => (
+                  <button
+                    key={job.title}
+                    onClick={() => navigate(job.route)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/15 px-4 py-4 text-left transition hover:border-emerald-300/30 hover:bg-white/[0.08]"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-white">{job.title}</div>
+                        <div className="mt-1 text-sm text-slate-300/70">{job.description}</div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-slate-300/60" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-300/70">Validation ladder</p>
+                    <h3 className="mt-2 text-lg font-medium">Move only when the evidence is strong enough</h3>
+                  </div>
+                  <LineChart className="h-5 w-5 text-emerald-300" />
+                </div>
+                <div className="mt-4 space-y-3 text-sm text-slate-300/78">
+                  <div className="flex items-center justify-between rounded-xl bg-emerald-400/10 px-3 py-2">
+                    <span>AI test</span>
+                    <span className="font-medium text-emerald-200">Directional</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-amber-400/10 px-3 py-2">
+                    <span>Quick customer check</span>
+                    <span className="font-medium text-amber-100">Confirm</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-sky-400/10 px-3 py-2">
+                    <span>Decision summary</span>
+                    <span className="font-medium text-sky-100">Act</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
-      {/* ═══════════════ FOR PARTICIPANTS CTA ═══════════════ */}
-      <section className="py-20 px-4 bg-muted/20 border-t border-border">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 bg-card border border-primary/20 rounded-2xl p-8 sm:p-12 shadow-lg shadow-primary/5">
-          <div className="space-y-4 flex-1 text-center md:text-left">
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 text-xs font-bold uppercase tracking-wider mb-2">
-              For Participants
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold">Earn money shaping the future.</h2>
-            <p className="text-muted-foreground leading-relaxed max-w-lg">
-              Join thousands of participants globally. Calibrate your AI twin, answer questions securely, and get paid instantly for your impact.
+
+      <section className="border-y border-border/60 bg-background py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-600">Simple flow</p>
+            <h2 className="mt-4 max-w-lg text-3xl font-semibold tracking-tight">
+              Use one operating system for the founder decisions that actually move the company.
+            </h2>
+            <p className="mt-4 max-w-lg text-base leading-7 text-muted-foreground">
+              The product already has AI tests, participant flows, surveys, and insights. This turns them into one clear founder workflow instead of a loose research toolkit.
             </p>
           </div>
-          <Button size="lg" className="shrink-0 bg-purple-600 hover:bg-purple-700 w-full md:w-auto h-14 px-8 text-base shadow-lg shadow-purple-500/20" onClick={() => navigate('/participate/signup')}>
-            Join as Participant
-            <ArrowRight className="h-4 w-4 ml-2" />
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {validationLadder.map((item) => (
+              <div key={item.title} className="border-l border-border/80 pl-5">
+                <item.icon className="h-5 w-5 text-emerald-600" />
+                <h3 className="mt-4 text-lg font-medium">{item.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-600">Founder jobs</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight">Start with the three decisions founders feel every week.</h2>
+            </div>
+            <Button variant="outline" onClick={() => navigate("/requirements")}>
+              Open decisions
+            </Button>
+          </div>
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-3">
+            {FOUNDER_DECISION_TEMPLATES.map((template) => (
+              <div key={template.id} className="rounded-[28px] border border-border/70 p-7 shadow-sm">
+                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">
+                  {template.category}
+                </div>
+                <h3 className="mt-4 text-2xl font-semibold">{template.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{template.description}</p>
+                <p className="mt-5 text-sm text-foreground/80">{template.hypothesis}</p>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {template.tags.map((tag) => (
+                    <span key={tag} className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="interactive-demo" className="border-y border-border/60 bg-muted/20 py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-600">Founder demo</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight">Run a mock founder decision and get a mini scorecard in seconds.</h2>
+            <p className="mt-4 text-base leading-7 text-muted-foreground">
+              The public demo is now oriented around actual startup choices instead of generic persona theater.
+            </p>
+          </div>
+          <div className="mt-12">
+            <InlineDemo />
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:px-8">
+          <div className="rounded-[28px] border border-border/70 bg-muted/20 p-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">Decision summary</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight">Every study should end with a recommendation, not another pile of notes.</h2>
+            <p className="mt-4 text-base leading-7 text-muted-foreground">
+              Wrap each decision in a memo that explains what to do, how confident the system is, which evidence supports it, and what risk remains.
+            </p>
+            <Button className="mt-8" onClick={() => navigate("/requirements")}>
+              Review your decisions
+              <FolderKanban className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="rounded-[28px] border border-border/70 p-8">
+            <div className="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Example memo</div>
+                <div className="mt-2 text-xl font-semibold">Homepage Messaging Test</div>
+              </div>
+              <div className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                Medium confidence
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recommendation</div>
+                <p className="mt-2 text-sm leading-6">Lead with the "decide faster" message, then validate with a lightweight founder survey before updating paid acquisition creative.</p>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Risk</div>
+                <p className="mt-2 text-sm leading-6">Could over-index on speed if trust and evidence are not visible enough in the first session.</p>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Evidence</div>
+                <p className="mt-2 text-sm leading-6">AI message test, decision context, and a medium confidence level that points to a quick customer check.</p>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Next step</div>
+                <p className="mt-2 text-sm leading-6">Run a 5-question survey with startup founders and compare conversion on the public demo.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border bg-muted/20 py-16">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-purple-600">Participant engine</p>
+            <h2 className="mt-3 text-2xl font-semibold">Real participants still matter because they make the system smarter over time.</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+              The participant side stays strategic because it helps the system learn, improves accuracy, and makes founder decisions more defensible over time.
+            </p>
+          </div>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-12 rounded-full px-6"
+            onClick={() => navigate("/participate/signup")}
+          >
+            Join as participant
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>
-      {/* ═══════════════ FOOTER ═══════════════ */}
-      <footer className="border-t py-8 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span className="font-bold">InsightForge</span>
+
+      <footer className="border-t py-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 text-foreground">
+            <Sparkles className="h-4 w-4 text-emerald-600" />
+            InsightForge
           </div>
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} InsightForge. All rights reserved.
-          </p>
+          <div>Founder Decision OS for early-stage SaaS teams.</div>
+          <div>&copy; {new Date().getFullYear()} InsightForge</div>
         </div>
       </footer>
-
-      {/* ═══════════════ CSS ANIMATIONS ═══════════════ */}
-      <style>{`
-        @keyframes float-slow {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes float-medium {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-12px); }
-        }
-        @keyframes float-fast {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-6px); }
-        }
-        .animate-float-slow { animation: float-slow 4s ease-in-out infinite; }
-        .animate-float-medium { animation: float-medium 3.5s ease-in-out infinite 0.5s; }
-        .animate-float-fast { animation: float-fast 3s ease-in-out infinite 1s; }
-      `}</style>
     </div>
   );
-};
-
-export default Landing;
+}

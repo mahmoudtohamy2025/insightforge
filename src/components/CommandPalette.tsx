@@ -20,6 +20,7 @@ import {
   GraduationCap, BookOpen, FileQuestion, Gift, GitCompareArrows,
   FlaskConical, TrendingUp, Scale, Plus, Zap,
 } from "lucide-react";
+import { FOUNDER_RESEARCH_NAV } from "@/lib/founderResearchCopy";
 
 interface SearchResult {
   entity_type: string;
@@ -52,34 +53,34 @@ interface ActionCommand {
 }
 
 const NAV_COMMANDS: NavCommand[] = [
-  { label: "Dashboard", icon: LayoutDashboard, url: "/dashboard", group: "Pages" },
-  { label: "Projects", icon: FolderKanban, url: "/projects", group: "Pages" },
+  { label: "Overview", icon: LayoutDashboard, url: "/dashboard", group: "Pages" },
+  { label: "Summaries", icon: FolderKanban, url: "/projects", group: "Pages" },
   { label: "Surveys", icon: ClipboardList, url: "/surveys", group: "Pages" },
-  { label: "Sessions", icon: Video, url: "/sessions", group: "Pages" },
+  { label: "Interviews", icon: Video, url: "/sessions", group: "Pages" },
   { label: "Insights", icon: Lightbulb, url: "/insights", group: "Pages" },
-  { label: "Digital Twins", icon: Sparkles, url: "/segments", group: "Pages" },
-  { label: "Simulation Studio", icon: FlaskConical, url: "/simulate", group: "Pages" },
-  { label: "Focus Group Studio", icon: Users, url: "/focus-group", group: "Pages" },
-  { label: "A/B Test Studio", icon: FlaskConical, url: "/ab-test", group: "Pages" },
-  { label: "Market Sim Studio", icon: TrendingUp, url: "/market-sim", group: "Pages" },
-  { label: "Policy Sim Studio", icon: Scale, url: "/policy-sim", group: "Pages" },
-  { label: "Compare Simulations", icon: GitCompareArrows, url: "/simulations/compare", group: "Pages" },
-  { label: "Participants", icon: Users, url: "/participants", group: "Pages" },
-  { label: "Requirements", icon: FileQuestion, url: "/requirements", group: "Pages" },
-  { label: "Incentives", icon: Gift, url: "/incentives", group: "Pages" },
-  { label: "Marketplace", icon: Globe2, url: "/marketplace", group: "Pages" },
-  { label: "Validation Studies", icon: GraduationCap, url: "/validation", group: "Pages" },
-  { label: "Methodology", icon: BookOpen, url: "/methodology", group: "Pages" },
+  { label: "Customer Profiles", icon: Sparkles, url: "/segments", group: "Pages" },
+  { label: "AI Test", icon: FlaskConical, url: "/simulate", group: "Pages" },
+  { label: "Panel Discussion", icon: Users, url: "/focus-group", group: "Pages" },
+  { label: "Compare Options", icon: FlaskConical, url: "/ab-test", group: "Pages" },
+  { label: "Market Forecast", icon: TrendingUp, url: "/market-sim", group: "Pages" },
+  { label: "Policy Check", icon: Scale, url: "/policy-sim", group: "Pages" },
+  { label: "Compare AI Tests", icon: GitCompareArrows, url: "/simulations/compare", group: "Pages" },
+  { label: FOUNDER_RESEARCH_NAV.items.people, icon: Users, url: "/participants", group: "Pages" },
+  { label: "Decisions", icon: FileQuestion, url: "/requirements", group: "Pages" },
+  { label: FOUNDER_RESEARCH_NAV.items.rewards, icon: Gift, url: "/incentives", group: "Pages" },
+  { label: "Templates Marketplace", icon: Globe2, url: "/marketplace", group: "Pages" },
+  { label: FOUNDER_RESEARCH_NAV.items.confidence, icon: GraduationCap, url: "/validation", group: "Pages" },
+  { label: "How It Works", icon: BookOpen, url: "/methodology", group: "Pages" },
   { label: "Trust Center", icon: ShieldCheck, url: "/trust-center", group: "Pages" },
   { label: "Settings", icon: Settings, url: "/settings", group: "Pages" },
 ];
 
 const ACTION_COMMANDS: ActionCommand[] = [
   { label: "Create Survey", icon: Plus, url: "/surveys", group: "Quick Actions" },
-  { label: "Schedule Session", icon: Plus, url: "/sessions", group: "Quick Actions" },
-  { label: "Run Simulation", icon: Zap, url: "/simulate", group: "Quick Actions" },
-  { label: "Post Study to Marketplace", icon: Plus, url: "/participants", group: "Quick Actions" },
-  { label: "Build Custom Twin", icon: Sparkles, url: "/twin-builder", group: "Quick Actions" },
+  { label: "Schedule Interview", icon: Plus, url: "/sessions", group: "Quick Actions" },
+  { label: "Run AI Test", icon: Zap, url: "/simulate", group: "Quick Actions" },
+  { label: "Add Person", icon: Plus, url: "/participants", group: "Quick Actions" },
+  { label: "Build Custom Profile", icon: Sparkles, url: "/twin-builder", group: "Quick Actions" },
 ];
 
 const RECENT_STORAGE_KEY = "if_recent_pages";

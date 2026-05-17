@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,25 +8,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, FileQuestion, ChevronRight, ArrowUp } from "lucide-react";
-import { toast } from "sonner";
-import { logActivity } from "@/lib/activityLogger";
+import {
+  ArrowUp,
+  Compass,
+  FileQuestion,
+  Plus,
+  Search,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { SubmitRequirementDialog } from "@/components/requirements/SubmitRequirementDialog";
-import { ProductTour } from "@/components/onboarding/ProductTour";
-import { TOUR_REQUIREMENTS } from "@/lib/tourDefinitions";
+import {
+  FOUNDER_DECISION_TEMPLATES,
+  estimateDecisionConfidence,
+  getConfidenceMeta,
+} from "@/lib/founderDecision";
 
 const STATUSES = ["submitted", "under_review", "approved", "in_progress", "insights_ready", "completed"] as const;
 type RequirementStatus = typeof STATUSES[number];
 
 const STATUS_LABELS: Record<RequirementStatus, string> = {
-  submitted: "Submitted",
-  under_review: "Under Review",
-  approved: "Approved",
-  in_progress: "In Progress",
-  insights_ready: "Insights Ready",
-  completed: "Completed",
+  submitted: "Captured",
+  under_review: "Scoping",
+  approved: "Ready to test",
+  in_progress: "Running",
+  insights_ready: "Memo ready",
+  completed: "Closed",
 };
 
 const STATUS_COLORS: Record<RequirementStatus, string> = {
@@ -38,21 +47,14 @@ const STATUS_COLORS: Record<RequirementStatus, string> = {
   completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
 };
 
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: "destructive",
-  high: "default",
-  medium: "secondary",
-  low: "outline",
-};
-
 const CATEGORY_LABELS: Record<string, string> = {
-  product: "Product",
+  product: "Feature bet",
   market: "Market",
-  ux: "UX",
-  brand: "Brand",
+  ux: "Onboarding",
+  brand: "Messaging",
   competitor: "Competitor",
   pricing: "Pricing",
-  customer_experience: "CX",
+  customer_experience: "Retention",
   general: "General",
 };
 
@@ -61,9 +63,11 @@ export default function Requirements() {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
   const workspaceId = currentWorkspace?.id;
 
@@ -88,9 +92,9 @@ export default function Requirements() {
       const { error } = await supabase
         .from("requirement_votes")
         .insert({ requirement_id: requirementId, user_id: user.id });
+
       if (error) {
         if (error.code === "23505") {
-          // Already voted — delete the vote (toggle)
           await supabase
             .from("requirement_votes")
             .delete()
@@ -104,89 +108,115 @@ export default function Requirements() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["requirements", workspaceId] }),
   });
 
-  const filtered = requirements.filter((r: any) =>
-    r.title.toLowerCase().includes(search.toLowerCase()) ||
-    (r.description || "").toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(
+    () =>
+      requirements.filter((requirement: any) =>
+        requirement.title.toLowerCase().includes(search.toLowerCase()) ||
+        (requirement.description || "").toLowerCase().includes(search.toLowerCase()) ||
+        (requirement.business_context || "").toLowerCase().includes(search.toLowerCase())
+      ),
+    [requirements, search]
   );
 
   const byStatus = (status: RequirementStatus) =>
-    filtered.filter((r: any) => r.status === status);
+    filtered.filter((requirement: any) => requirement.status === status);
 
   const stats = {
     total: requirements.length,
-    open: requirements.filter((r: any) => !["completed", "declined"].includes(r.status)).length,
-    critical: requirements.filter((r: any) => r.priority === "critical").length,
+    open: requirements.filter((requirement: any) => !["completed", "declined"].includes(requirement.status)).length,
+    critical: requirements.filter((requirement: any) => requirement.priority === "critical").length,
   };
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <ProductTour tourId="requirements" steps={TOUR_REQUIREMENTS} />
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <FileQuestion className="h-6 w-6 text-primary" />
-          <div id="requirements-header">
-            <h1 className="text-2xl font-bold">Requirements</h1>
-            <p className="text-sm text-muted-foreground">Track research needs from stakeholders to insights</p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <div className="flex items-center gap-3">
+            <FileQuestion className="h-6 w-6 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold">Decisions</h1>
+              <p className="text-sm text-muted-foreground">
+                Keep track of pricing, messaging, onboarding, and feature decisions. Start with an AI test, then move to real-customer checks when needed.
+              </p>
+            </div>
           </div>
         </div>
-        <Button id="create-requirement-btn" onClick={() => setSubmitOpen(true)}>
-          <Plus className="h-4 w-4 me-2" />
-          Submit Requirement
+
+        <Button
+          onClick={() => {
+            setSelectedTemplateId(null);
+            setSubmitOpen(true);
+          }}
+        >
+          <Plus className="me-2 h-4 w-4" />
+          Add decision
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-xs text-muted-foreground">Total Requirements</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-blue-600">{stats.open}</div>
-            <div className="text-xs text-muted-foreground">Open</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-destructive">{stats.critical}</div>
-            <div className="text-xs text-muted-foreground">Critical Priority</div>
-          </CardContent>
-        </Card>
+      <section className="rounded-[28px] border border-border/70 bg-muted/20 p-6">
+        <div className="flex items-center gap-3">
+          <Sparkles className="h-5 w-5 text-emerald-600" />
+          <div>
+            <h2 className="text-lg font-semibold">Start with a template</h2>
+            <p className="text-sm text-muted-foreground">
+              Use a ready-made starting point for the founder jobs people usually tackle first.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          {FOUNDER_DECISION_TEMPLATES.map((template) => (
+            <button
+              key={template.id}
+              onClick={() => {
+                setSelectedTemplateId(template.id);
+                setSubmitOpen(true);
+              }}
+              className="rounded-[24px] border border-border/70 bg-background p-5 text-left transition hover:border-emerald-500/30"
+            >
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">
+                {template.category}
+              </div>
+              <h3 className="mt-3 text-lg font-medium">{template.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{template.description}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <MetricCard title="Total decisions" value={stats.total} />
+        <MetricCard title="Open decisions" value={stats.open} tone="blue" />
+        <MetricCard title="High-risk decisions" value={stats.critical} tone="rose" />
       </div>
 
-      {/* Search + View Toggle */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search requirements..."
+            placeholder="Search decisions..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")}>
-          <TabsList>
-            <TabsTrigger value="kanban">Kanban</TabsTrigger>
+        <Tabs value={view} onValueChange={(value) => setView(value as "kanban" | "list")}>
+            <TabsList>
+            <TabsTrigger value="kanban">Board</TabsTrigger>
             <TabsTrigger value="list">List</TabsTrigger>
-          </TabsList>
-        </Tabs>
+            </TabsList>
+          </Tabs>
       </div>
 
-      {/* Kanban view */}
       {view === "kanban" && (
         <div className="overflow-x-auto pb-4">
           {isLoading ? (
             <div className="flex gap-4">
-              {STATUSES.map((s) => (
-                <div key={s} className="w-72 shrink-0">
-                  <Skeleton className="h-8 w-full mb-3" />
-                  <Skeleton className="h-32 w-full mb-2" />
-                  <Skeleton className="h-32 w-full" />
+              {STATUSES.map((status) => (
+                <div key={status} className="w-80 shrink-0">
+                  <Skeleton className="mb-3 h-8 w-full" />
+                  <Skeleton className="mb-2 h-36 w-full" />
+                  <Skeleton className="h-36 w-full" />
                 </div>
               ))}
             </div>
@@ -195,25 +225,27 @@ export default function Requirements() {
               {STATUSES.map((status) => {
                 const cards = byStatus(status);
                 return (
-                  <div key={status} className="w-72 shrink-0">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUS_COLORS[status]}`}>
+                  <div key={status} className="w-80 shrink-0">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${STATUS_COLORS[status]}`}>
                         {STATUS_LABELS[status]}
                       </span>
                       <span className="text-xs text-muted-foreground">{cards.length}</span>
                     </div>
-                    <div className="flex flex-col gap-2">
+
+                    <div className="flex flex-col gap-3">
                       {cards.length === 0 && (
-                        <div className="border border-dashed rounded-lg p-4 text-xs text-muted-foreground text-center">
-                          No requirements
+                        <div className="rounded-2xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">
+                          No decisions in this step yet
                         </div>
                       )}
-                      {cards.map((req: any) => (
-                        <RequirementCard
-                          key={req.id}
-                          req={req}
-                          onVote={() => voteMutation.mutate(req.id)}
-                          onClick={() => navigate(`/requirements/${req.id}`)}
+
+                      {cards.map((requirement: any) => (
+                        <DecisionCard
+                          key={requirement.id}
+                          requirement={requirement}
+                          onVote={() => voteMutation.mutate(requirement.id)}
+                          onClick={() => navigate(`/requirements/${requirement.id}`)}
                         />
                       ))}
                     </div>
@@ -225,41 +257,40 @@ export default function Requirements() {
         </div>
       )}
 
-      {/* List view */}
       {view === "list" && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           {isLoading ? (
-            Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
+            Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-20 w-full" />)
           ) : filtered.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <FileQuestion className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>No requirements yet. Submit the first one!</p>
+            <div className="rounded-[28px] border border-dashed border-border/70 py-12 text-center text-muted-foreground">
+              <Compass className="mx-auto mb-3 h-10 w-10 opacity-30" />
+              <p>No decisions yet. Add the first one you want help with.</p>
             </div>
           ) : (
-            filtered.map((req: any) => (
-              <div
-                key={req.id}
-                className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                onClick={() => navigate(`/requirements/${req.id}`)}
+            filtered.map((requirement: any) => (
+              <button
+                key={requirement.id}
+                onClick={() => navigate(`/requirements/${requirement.id}`)}
+                className="flex items-center gap-4 rounded-[24px] border border-border/70 p-5 text-left transition hover:border-emerald-500/30"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm truncate">{req.title}</span>
-                    <Badge variant={PRIORITY_COLORS[req.priority] as any} className="text-xs shrink-0">
-                      {req.priority}
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{requirement.title}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {CATEGORY_LABELS[requirement.category] || requirement.category || "General"}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[req.status as RequirementStatus] || ""}`}>
-                      {STATUS_LABELS[req.status as RequirementStatus] || req.status}
-                    </span>
-                    {req.category && (
-                      <span className="text-xs text-muted-foreground">{CATEGORY_LABELS[req.category] || req.category}</span>
-                    )}
-                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {requirement.description || requirement.business_context || "No summary yet."}
+                  </p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </div>
+                <div className="min-w-[140px] text-right">
+                  <div className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getConfidenceMeta(estimateDecisionConfidence(requirement)).badgeClassName}`}>
+                    {getConfidenceMeta(estimateDecisionConfidence(requirement)).label}
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">{STATUS_LABELS[requirement.status as RequirementStatus] || requirement.status}</div>
+                </div>
+              </button>
             ))
           )}
         </div>
@@ -271,42 +302,95 @@ export default function Requirements() {
         workspaceId={workspaceId}
         userId={user?.id}
         onCreated={() => queryClient.invalidateQueries({ queryKey: ["requirements", workspaceId] })}
+        templateId={selectedTemplateId}
       />
     </div>
   );
 }
 
-function RequirementCard({ req, onVote, onClick }: { req: any; onVote: () => void; onClick: () => void }) {
-  const voteCount = req.requirement_votes?.[0]?.count ?? 0;
+function MetricCard({
+  title,
+  value,
+  tone = "default",
+}: {
+  title: string;
+  value: number;
+  tone?: "default" | "blue" | "rose";
+}) {
+  const valueClassName =
+    tone === "blue"
+      ? "text-blue-600"
+      : tone === "rose"
+        ? "text-rose-600 dark:text-rose-400"
+        : "text-foreground";
 
   return (
-    <Card
-      className="cursor-pointer hover:shadow-md transition-shadow"
-      onClick={onClick}
-    >
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <p className="text-sm font-medium leading-snug line-clamp-2">{req.title}</p>
-          <Badge variant={PRIORITY_COLORS[req.priority] as any} className="text-xs shrink-0">
-            {req.priority}
-          </Badge>
-        </div>
-        {req.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{req.description}</p>
-        )}
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            {CATEGORY_LABELS[req.category] || req.category}
-          </span>
-          <button
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-            onClick={(e) => { e.stopPropagation(); onVote(); }}
-          >
-            <ArrowUp className="h-3 w-3" />
-            {voteCount}
-          </button>
-        </div>
+    <Card>
+      <CardContent className="pt-5">
+        <div className={`text-3xl font-semibold ${valueClassName}`}>{value}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{title}</div>
       </CardContent>
     </Card>
+  );
+}
+
+function DecisionCard({
+  requirement,
+  onVote,
+  onClick,
+}: {
+  requirement: any;
+  onVote: () => void;
+  onClick: () => void;
+}) {
+  const confidence = getConfidenceMeta(estimateDecisionConfidence(requirement));
+
+  return (
+    <div
+      className="rounded-[24px] border border-border/70 bg-background p-4 shadow-sm transition hover:border-emerald-500/30"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onClick();
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2">
+          <div className="text-sm font-medium leading-6">{requirement.title}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              {CATEGORY_LABELS[requirement.category] || requirement.category || "General"}
+            </Badge>
+            <span className={`rounded-full px-3 py-1 text-[11px] font-medium ${confidence.badgeClassName}`}>
+              {confidence.label}
+            </span>
+          </div>
+        </div>
+
+        <button
+          className="flex items-center gap-1 rounded-full border border-border/70 px-3 py-1 text-xs text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+          onClick={(event) => {
+            event.stopPropagation();
+            onVote();
+          }}
+        >
+          <ArrowUp className="h-3 w-3" />
+          {requirement.requirement_votes?.[0]?.count ?? 0}
+        </button>
+      </div>
+
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        {requirement.description || requirement.business_context || "No supporting context yet."}
+      </p>
+
+      <div className={`mt-4 rounded-2xl border p-3 text-xs ${confidence.railClassName}`}>
+        <div className="flex items-center gap-2 font-medium">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          {confidence.ctaLabel}
+        </div>
+        <div className="mt-1 text-muted-foreground">{confidence.summary}</div>
+      </div>
+    </div>
   );
 }

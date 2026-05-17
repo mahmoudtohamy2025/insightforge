@@ -41,6 +41,9 @@ export interface SimulationResult {
   key_themes: string[];
   purchase_intent: string;
   emotional_reaction: string;
+  generation_mode?: "ai" | "heuristic_fallback";
+  provider_status?: string;
+  notice?: string | null;
   tokens_used: number;
   duration_ms: number;
 }

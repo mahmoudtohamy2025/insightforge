@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -208,7 +209,10 @@ const Participants = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">{t("participants.title")}</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Audience CRM</h1>
+          <p className="text-sm text-muted-foreground mt-1">Monitor owned participants, cohort readiness, quality, and recruitment supply.</p>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setStudyDialogOpen(true)}>
             <Megaphone className="h-4 w-4 me-2" />Post Study
@@ -254,7 +258,13 @@ const Participants = () => {
         </div>
       </div>
 
-      {/* Stats */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Audience Health</TabsTrigger>
+          <TabsTrigger value="directory">Directory</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
@@ -284,6 +294,84 @@ const Participants = () => {
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-semibold">Recruitment source mix</p>
+            <div className="mt-4 space-y-3">
+              {uniqueSources.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No sources yet. Import or recruit participants to build supply.</p>
+              ) : uniqueSources.map((source) => {
+                const count = participants.filter((p: any) => (p.source || "manual") === source).length;
+                const pct = participants.length ? Math.round((count / participants.length) * 100) : 0;
+                return (
+                  <div key={source}>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium capitalize">{String(source).replace(/_/g, " ")}</span>
+                      <span className="text-muted-foreground">{pct}%</span>
+                    </div>
+                    <div className="mt-1 h-2 rounded-full bg-muted">
+                      <div className="h-2 rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-semibold">Cohort readiness</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold">{participants.filter((p: any) => Number(p.quality_score || 0) >= 4).length}</p>
+                <p className="text-xs text-muted-foreground">High-quality profiles</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold">{participants.filter((p: any) => (p.email || p.phone)).length}</p>
+                <p className="text-xs text-muted-foreground">Reachable contacts</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold">{participants.filter((p: any) => p.location).length}</p>
+                <p className="text-xs text-muted-foreground">Location known</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-2xl font-bold">{participants.filter((p: any) => Number(p.session_count || 0) > 0).length}</p>
+                <p className="text-xs text-muted-foreground">Previously engaged</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-semibold">Study eligibility signals</p>
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Average quality</span>
+                <Badge variant={Number(avgQuality) >= 4 ? "secondary" : "outline"}>{avgQuality}/5</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Average sessions</span>
+                <span className="font-medium">{avgSessions}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Active filters ready</span>
+                <span className="font-medium">{uniqueSources.length + GENDER_OPTIONS.length}</span>
+              </div>
+            </div>
+            <Button className="mt-5 w-full" onClick={() => setStudyDialogOpen(true)}>
+              <Megaphone className="h-4 w-4 me-2" />
+              Launch against this audience
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+        </TabsContent>
+
+        <TabsContent value="directory" className="space-y-4">
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3">
@@ -409,6 +497,8 @@ const Participants = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       <CSVImportDialog open={importOpen} onOpenChange={setImportOpen} />
 

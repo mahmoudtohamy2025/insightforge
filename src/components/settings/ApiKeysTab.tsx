@@ -238,11 +238,11 @@ export function ApiKeysTab({ workspaceId }: ApiKeysTabProps) {
       </Card>
       
       <div className="pt-8">
-        <h3 className="text-lg font-medium mb-4">Simulation API (Digital Twins)</h3>
+        <h3 className="text-lg font-medium mb-4">AI Test API (Customer Profiles)</h3>
         <Card>
           <CardContent className="pt-6 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Use the same API key to access the <strong>Digital Twin Simulation API</strong> via the <code className="bg-muted px-1 rounded text-xs">X-API-Key</code> header.
+              Use the same API key to access the <strong>AI test API</strong> via the <code className="bg-muted px-1 rounded text-xs">X-API-Key</code> header.
             </p>
             <div className="space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase">cURL Example</p>

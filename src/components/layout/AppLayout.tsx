@@ -1,9 +1,15 @@
+import { Suspense, lazy } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { Outlet } from "react-router-dom";
-import { CommandPalette } from "@/components/CommandPalette";
-import { FirstSimulationWizard } from "@/components/onboarding/FirstSimulationWizard";
+
+const CommandPalette = lazy(async () => ({
+  default: (await import("@/components/CommandPalette")).CommandPalette,
+}));
+const FirstSimulationWizard = lazy(async () => ({
+  default: (await import("@/components/onboarding/FirstSimulationWizard")).FirstSimulationWizard,
+}));
 
 export function AppLayout() {
   return (
@@ -17,8 +23,10 @@ export function AppLayout() {
           </main>
         </div>
       </div>
-      <CommandPalette />
-      <FirstSimulationWizard />
+      <Suspense fallback={null}>
+        <CommandPalette />
+        <FirstSimulationWizard />
+      </Suspense>
     </SidebarProvider>
   );
 }

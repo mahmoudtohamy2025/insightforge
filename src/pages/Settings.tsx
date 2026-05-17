@@ -10,19 +10,31 @@ import { ApiKeysTab } from "@/components/settings/ApiKeysTab";
 import { WhiteLabelTab } from "@/components/settings/WhiteLabelTab";
 import { ReferralsTab } from "@/components/settings/ReferralsTab";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useSearchParams } from "react-router-dom";
+
+const VALID_TABS = new Set(["profile", "workspace", "team", "billing", "integrations", "activity", "api", "branding", "referrals"]);
 
 const Settings = () => {
   const { t } = useI18n();
   const { currentWorkspace } = useWorkspace();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const isAdminOrOwner = currentWorkspace?.role === "owner" || currentWorkspace?.role === "admin";
   const isOwner = currentWorkspace?.role === "owner";
+  const requestedTab = searchParams.get("tab");
+  const activeTab = requestedTab && VALID_TABS.has(requestedTab) ? requestedTab : "profile";
+
+  const handleTabChange = (nextTab: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", nextTab);
+    setSearchParams(nextParams, { replace: true });
+  };
 
   return (
     <div className="space-y-6 max-w-4xl">
       <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
 
-      <Tabs defaultValue="profile">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="profile">{t("settings.profile")}</TabsTrigger>
           <TabsTrigger value="workspace">{t("settings.workspace")}</TabsTrigger>

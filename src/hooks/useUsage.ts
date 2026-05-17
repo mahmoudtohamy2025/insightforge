@@ -34,7 +34,7 @@ export function useUsage() {
       const [sessions, surveys, members, simulations, projects, tokenUsage] = await Promise.all([
         supabase.from("sessions").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
         supabase.from("surveys").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-        supabase.from("workspace_members").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
+        supabase.from("workspace_memberships").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
         supabase.from("simulations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
         supabase.from("projects").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
         // Token usage for current month

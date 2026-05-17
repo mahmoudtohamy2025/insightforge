@@ -137,9 +137,9 @@ const PolicySimStudio = () => {
       setResult(data);
       queryClient.invalidateQueries({ queryKey: ["simulation-history"] });
       const supportPct = Math.round(((data.aggregate.support_ratio + 1) / 2) * 100);
-      toast({ title: "Policy simulation complete!", description: `Support: ${supportPct}%, Compliance: ${Math.round(data.aggregate.avg_compliance * 100)}%` });
+      toast({ title: "Policy check complete", description: `Support: ${supportPct}%, compliance: ${Math.round(data.aggregate.avg_compliance * 100)}%` });
     },
-    onError: (e) => toast({ title: "Simulation failed", description: e.message, variant: "destructive" }),
+    onError: (e) => toast({ title: "Policy check failed", description: e.message, variant: "destructive" }),
   });
 
   const agg = result?.aggregate;
@@ -155,9 +155,9 @@ const PolicySimStudio = () => {
         <div>
           <h1 id="policy-header" className="text-2xl font-bold flex items-center gap-2">
             <Scale className="h-6 w-6 text-primary" />
-            Policy Impact Simulation
+            Policy Check
           </h1>
-          <p className="text-sm text-muted-foreground">Simulate how different consumer segments would react to a proposed policy.</p>
+          <p className="text-sm text-muted-foreground">Estimate how different customer groups may react to a proposed policy or rule change.</p>
         </div>
       </div>
 
@@ -168,7 +168,7 @@ const PolicySimStudio = () => {
             <CardContent className="pt-5 space-y-4">
               {/* Segments */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Affected Segments</Label>
+                <Label className="text-sm font-medium">Affected customer profiles</Label>
                 <div className="flex flex-wrap gap-2">
                   {segments.map((seg: any) => (
                     <button key={seg.id} onClick={() => toggleSegment(seg.id)}
@@ -180,19 +180,19 @@ const PolicySimStudio = () => {
                       {seg.name}
                     </button>
                   ))}
-                  {segments.length === 0 && <p className="text-xs text-muted-foreground">No segments. <button className="text-primary underline" onClick={() => navigate("/segments")}>Create one first</button>.</p>}
+                  {segments.length === 0 && <p className="text-xs text-muted-foreground">No customer profiles yet. <button className="text-primary underline" onClick={() => navigate("/segments")}>Create one first</button>.</p>}
                 </div>
               </div>
 
               {/* Policy description */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Policy Description</Label>
-                <Textarea id="policy-desc-input" rows={4} placeholder="Describe the proposed policy in detail...&#10;&#10;Example: 'Mandatory 4-day work week for all companies with 50+ employees, maintaining current salaries. Companies that don't comply will face a 5% payroll tax penalty.'" value={policyDescription} onChange={e => setPolicyDescription(e.target.value)} className="resize-none" />
+                <Label className="text-sm font-medium">Policy description</Label>
+                <Textarea id="policy-desc-input" rows={4} placeholder="Describe the policy or rule change in plain language...&#10;&#10;Example: 'All companies with 50+ employees move to a 4-day work week while keeping current salaries.'" value={policyDescription} onChange={e => setPolicyDescription(e.target.value)} className="resize-none" />
               </div>
 
               {/* Impact Areas */}
               <div className="space-y-2" id="policy-type-select">
-                <Label className="text-sm font-medium">Impact Areas</Label>
+                <Label className="text-sm font-medium">Impact areas</Label>
                 <div className="flex flex-wrap gap-2">
                   {IMPACT_AREAS.map(area => (
                     <button key={area.id} onClick={() => toggleArea(area.id)}
@@ -224,9 +224,9 @@ const PolicySimStudio = () => {
                 disabled={selectedSegmentIds.length < 1 || !policyDescription.trim() || runMutation.isPending}
               >
                 {runMutation.isPending ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Evaluating policy impact...</>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Checking likely impact...</>
                 ) : (
-                  <><Scale className="h-4 w-4 mr-2" />Run Policy Simulation</>
+                  <><Scale className="h-4 w-4 mr-2" />Run policy check</>
                 )}
               </Button>
             </CardContent>
