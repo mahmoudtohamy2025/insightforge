@@ -247,7 +247,7 @@ export function ApiKeysTab({ workspaceId }: ApiKeysTabProps) {
             <div className="space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase">cURL Example</p>
               <pre className="bg-muted p-3 rounded-md text-xs overflow-x-auto"><code>{`curl -X POST \\
-  https://pjscposcnznrabswauuw.supabase.co/functions/v1/api-simulate \\
+  https://xwjvsmwefbukaswkwpbf.supabase.co/functions/v1/api-simulate \\
   -H "X-API-Key: sk_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -264,7 +264,7 @@ export function ApiKeysTab({ workspaceId }: ApiKeysTabProps) {
               <pre className="bg-muted p-3 rounded-md text-xs overflow-x-auto"><code>{`import requests
 
 resp = requests.post(
-    "https://pjscposcnznrabswauuw.supabase.co/functions/v1/api-simulate",
+    "https://xwjvsmwefbukaswkwpbf.supabase.co/functions/v1/api-simulate",
     headers={"X-API-Key": "sk_live_YOUR_KEY"},
     json={
         "type": "policy",
