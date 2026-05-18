@@ -45,6 +45,27 @@ export interface SimulationResult {
   duration_ms: number;
 }
 
+export type NextTestFocusArea =
+  | "price"
+  | "feature"
+  | "messaging"
+  | "audience"
+  | "positioning";
+
+export interface NextTestSuggestion {
+  headline: string;
+  rationale: string;
+  stimulus_template: string;
+  focus_area: NextTestFocusArea;
+}
+
+export interface NextTestResponse {
+  simulation_id: string;
+  suggestions: NextTestSuggestion[];
+  tokens_used: number;
+  duration_ms: number;
+}
+
 // ── Queries ────────────────────────────────────────────
 
 /**
@@ -189,4 +210,26 @@ export async function runPolicySimulation(params: {
   });
   if (response.error) throw new Error(response.error.message);
   return response.data;
+}
+
+/**
+ * Ask the `suggest-next-test` edge function for 3 result-aware
+ * follow-up tests based on a completed simulation. Powers the aha-loop.
+ */
+export async function getNextTestSuggestions(params: {
+  simulation_id: string;
+  workspace_id: string;
+}): Promise<NextTestResponse> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const response = await supabase.functions.invoke("suggest-next-test", {
+    body: {
+      simulation_id: params.simulation_id,
+      workspace_id: params.workspace_id,
+    },
+  });
+
+  if (response.error) throw new Error(response.error.message);
+  return response.data as NextTestResponse;
 }

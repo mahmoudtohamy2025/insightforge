@@ -34,7 +34,10 @@ export function useUsage() {
       const [sessions, surveys, members, simulations, projects, tokenUsage] = await Promise.all([
         supabase.from("sessions").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
         supabase.from("surveys").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-        supabase.from("workspace_members").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
+        // Real table is `workspace_memberships` — see supabase/functions/_shared/validation.ts.
+        // Previously read from `workspace_members` so the dashboard usage panel
+        // always reported 0 members regardless of actual membership count.
+        supabase.from("workspace_memberships").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
         supabase.from("simulations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
         supabase.from("projects").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
         // Token usage for current month
