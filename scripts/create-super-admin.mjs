@@ -13,7 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = "https://pjscposcnznrabswauuw.supabase.co";
+const SUPABASE_URL = "https://xwjvsmwefbukaswkwpbf.supabase.co";
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SERVICE_ROLE_KEY) {
@@ -117,7 +117,7 @@ async function setupWorkspace(userId) {
 
   // ── Done ──────────────────────────────────────────────────────────────────
   console.log(`\n🎉  Super admin setup complete!\n`);
-  console.log(`    Login URL : https://pjscposcnznrabswauuw.supabase.co (or your app URL)`);
+  console.log(`    Login URL : https://xwjvsmwefbukaswkwpbf.supabase.co (or your app URL)`);
   console.log(`    Email     : ${ADMIN_EMAIL}`);
   console.log(`    Password  : Test@2026`);
   console.log(`    Role      : owner (enterprise plan)\n`);
