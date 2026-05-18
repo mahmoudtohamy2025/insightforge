@@ -29,13 +29,11 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
-        });
-      }
-    </script>
+    <!-- Service worker registration removed.
+         The prior PWA service worker (public/sw.js) was intercepting Supabase
+         auth fetches and breaking signup. /sw.js is now a self-unregistering
+         no-op (see its source for details). Once existing users hit this page
+         once, their broken SW removes itself; new users don't install one. -->
   </body>
 </html>
 
