@@ -73,7 +73,8 @@ export async function getWorkspaceUsage(
   const [sessions, surveys, members, simulations] = await Promise.all([
     supabase.from("sessions").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.from("surveys").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("workspace_members").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
+    // See note in validation.ts — real table is `workspace_memberships`.
+    supabase.from("workspace_memberships").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.from("simulations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
   ]);
 
