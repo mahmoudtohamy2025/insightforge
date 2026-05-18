@@ -125,8 +125,14 @@ export async function validateWorkspaceMembership(
     return jsonResponse(req, { error: "workspace_id must be a valid UUID" }, 400);
   }
 
+  // NOTE: The real table is `workspace_memberships` (plural-with-ships), created
+  // by migration 20260308155823. Earlier code in this shared module queried
+  // `workspace_members` which silently returned 0 rows on every call, producing
+  // a 403 WORKSPACE_ACCESS_DENIED for every authenticated user — including the
+  // workspace owner. That was the bug blocking every edge function call after
+  // the new-project migration. Do not "fix" this back to `workspace_members`.
   const { data, error } = await supabase
-    .from("workspace_members")
+    .from("workspace_memberships")
     .select("id")
     .eq("workspace_id", workspaceId)
     .eq("user_id", userId)
