@@ -7,7 +7,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL     = "https://pjscposcnznrabswauuw.supabase.co";
+const SUPABASE_URL     = "https://xwjvsmwefbukaswkwpbf.supabase.co";
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const USER_ID          = "d7466901-d2d8-4198-bc05-90a161a8599d";
 
@@ -128,7 +128,7 @@ async function main() {
   // or use the postgres connection string approach.
   // Actually the simplest way: use the Supabase SQL Editor API endpoint
   
-  const projectId = "pjscposcnznrabswauuw";
+  const projectId = "xwjvsmwefbukaswkwpbf";
   
   // Try Supabase Management API for SQL execution
   const mgmtResponse = await fetch(`https://api.supabase.com/v1/projects/${projectId}/database/query`, {
