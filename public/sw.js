@@ -1,57 +1,56 @@
-const CACHE_NAME = 'insightforge-v1';
-const SHELL_ASSETS = [
-  '/',
-  '/index.html',
-];
+// Self-unregistering service worker.
+//
+// The previous version of this file (a PWA cache-first/network-first router)
+// caused Supabase Auth signup/login fetches to fail with "Failed to fetch" in
+// production. The bug was not worth debugging — the PWA caching wasn't
+// providing meaningful value yet, and the fetch interception was breaking
+// the primary user flow on every pitch URL.
+//
+// This replacement takes over from the broken SW, drops every cache it left
+// behind, unregisters itself, and forces every open tab to reload — so users
+// who already have the broken SW installed get freed automatically without
+// having to clear site data manually.
+//
+// Paired with a change in index.html that removes the SW registration entirely,
+// so new visitors never install a service worker.
+//
+// To bring back PWA caching later, do it via vite-plugin-pwa or workbox with
+// careful cross-origin handling — don't hand-roll the fetch handler.
 
-// Install: cache app shell
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
-  );
+self.addEventListener("install", () => {
+  // Take over immediately instead of waiting for old SW to finish.
   self.skipWaiting();
 });
 
-// Activate: clean old caches
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      )
-    )
-  );
-  self.clients.claim();
-});
+    (async () => {
+      // 1. Drop every cache the old SW may have populated.
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((name) => caches.delete(name)));
 
-// Fetch: network-first for API/navigation, cache-first for assets
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+      // 2. Unregister this service worker. After this completes, the page
+      //    has no SW intercepting fetches.
+      await self.registration.unregister();
 
-  // Skip non-GET and external requests
-  if (request.method !== 'GET' || url.origin !== location.origin) return;
-
-  // API calls & navigation: network-first
-  if (url.pathname.startsWith('/rest/') || url.pathname.startsWith('/auth/') || request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // Static assets: cache-first
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        // Cache successful responses for static assets
-        if (response.ok && (url.pathname.match(/\.(js|css|woff2?|png|svg|ico|webp)$/))) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+      // 3. Force every open tab pointing at this origin to reload so they
+      //    pick up the no-SW state immediately. Without this, the user
+      //    would need to refresh manually before signup works.
+      const clients = await self.clients.matchAll({ type: "window" });
+      for (const client of clients) {
+        // navigate() reloads the tab to the same URL.
+        if (typeof client.navigate === "function") {
+          try {
+            await client.navigate(client.url);
+          } catch {
+            // Some browsers reject navigate() on cross-origin clients;
+            // safe to ignore — the user will see the fix on next manual reload.
+          }
         }
-        return response;
-      });
-    })
+      }
+    })()
   );
 });
+
+// Intentionally NO `fetch` listener. Every request goes straight to the
+// network with no SW interception.
