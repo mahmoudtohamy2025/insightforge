@@ -42,8 +42,12 @@ interface CommentsThreadProps {
 // Helper to bypass type-gen mismatches until `supabase gen types` is re-run
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const commentsTable = () => (supabase as any).from("comments");
+// The real table is `workspace_memberships` (plural-with-ships) — see note in
+// supabase/functions/_shared/validation.ts. Previously this read from
+// `workspace_members` and silently returned 0 rows, so the @-mention name
+// list in comment threads was always empty.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const membersTable = () => (supabase as any).from("workspace_members");
+const membersTable = () => (supabase as any).from("workspace_memberships");
 
 export function CommentsThread({
   entityType,
