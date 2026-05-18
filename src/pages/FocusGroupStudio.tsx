@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import { getSegments } from "@/services/segmentService";
-import { runFocusGroup } from "@/services/simulationService";
+import {
+  getNextTestSuggestions,
+  runFocusGroup,
+  type NextTestFocusArea,
+  type NextTestSuggestion,
+} from "@/services/simulationService";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,7 +36,10 @@ import {
   Tag,
   ShieldCheck,
   AlertTriangle,
-  Info
+  Info,
+  Lightbulb,
+  ArrowRight,
+  DollarSign,
 } from "lucide-react";
 import { TierGate } from "@/components/TierGate";
 import { generateFocusGroupPDF } from "@/lib/pdfExport";
@@ -62,6 +70,14 @@ const avatarColors = [
   "bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30",
 ];
 
+const focusAreaMeta: Record<NextTestFocusArea, { icon: typeof Sparkles; label: string }> = {
+  price: { icon: DollarSign, label: "Price" },
+  feature: { icon: Sparkles, label: "Feature" },
+  messaging: { icon: MessageCircle, label: "Messaging" },
+  audience: { icon: Users2, label: "Audience" },
+  positioning: { icon: Tag, label: "Positioning" },
+};
+
 const FocusGroupStudio = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
@@ -78,12 +94,34 @@ const FocusGroupStudio = () => {
   const [numRounds, setNumRounds] = useState("2");
   const [ramadanMode, setRamadanMode] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const stimulusRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { data: segments = [] } = useQuery({
     queryKey: ["segment-profiles", workspaceId],
     queryFn: () => getSegments(workspaceId!),
     enabled: !!workspaceId,
   });
+
+  // Aha-loop: ask the strategist what to test next, keyed by the completed simulation
+  const nextTestsQuery = useQuery({
+    queryKey: ["next-tests", result?.simulation_id],
+    queryFn: () =>
+      getNextTestSuggestions({
+        simulation_id: result!.simulation_id,
+        workspace_id: workspaceId!,
+      }),
+    enabled: !!result?.simulation_id && !!workspaceId,
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  const applySuggestion = (suggestion: NextTestSuggestion) => {
+    setStimulus(suggestion.stimulus_template);
+    requestAnimationFrame(() => {
+      stimulusRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      stimulusRef.current?.focus();
+    });
+  };
 
   const toggleSegment = (id: string) => {
     setSelectedSegmentIds(prev =>
@@ -201,6 +239,7 @@ const FocusGroupStudio = () => {
                 <Label className="text-sm font-medium">Discussion Topic / Stimulus</Label>
                 <Textarea
                   id="fg-topic-input"
+                  ref={stimulusRef}
                   rows={3}
                   placeholder="What topic should the focus group discuss?&#10;&#10;Example: 'We're considering launching a subscription meal-kit service targeting busy professionals. What do you think?'"
                   value={stimulus}
@@ -260,6 +299,61 @@ const FocusGroupStudio = () => {
                 Export PDF
               </Button>
             </div>
+          )}
+
+          {/* Aha-loop: result-aware next-test suggestions */}
+          {result?.simulation_id && (nextTestsQuery.isLoading || nextTestsQuery.data?.suggestions?.length) && (
+            <Card className="border-primary/30 bg-primary/[0.02]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-primary" />
+                  What to test next
+                  <Badge variant="outline" className="ml-auto text-[10px]">
+                    Result-aware
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {nextTestsQuery.isLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="rounded-lg border border-dashed p-3 space-y-2">
+                        <div className="h-3 w-1/2 rounded bg-muted animate-pulse" />
+                        <div className="h-3 w-full rounded bg-muted animate-pulse" />
+                        <div className="h-3 w-3/4 rounded bg-muted animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {nextTestsQuery.data!.suggestions.map((s, i) => {
+                      const meta = focusAreaMeta[s.focus_area] ?? focusAreaMeta.positioning;
+                      const Icon = meta.icon;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => applySuggestion(s)}
+                          className="group text-left rounded-lg border p-3 hover:border-primary hover:bg-primary/[0.04] transition-colors flex flex-col gap-2"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <Icon className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {meta.label}
+                            </span>
+                            <ArrowRight className="ml-auto h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                          </div>
+                          <p className="text-sm font-semibold leading-snug">{s.headline}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{s.rationale}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="mt-3 text-[10px] text-muted-foreground">
+                  Click a card to load the test into the topic field above — review, adjust, and run.
+                </p>
+              </CardContent>
+            </Card>
           )}
 
           {/* Results: Round-by-round discussion */}
