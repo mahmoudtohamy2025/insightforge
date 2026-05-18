@@ -9,7 +9,7 @@ const ALLOWED_ORIGINS: string[] = [
   "https://insightforge.io",
   "https://www.insightforge.io",
   // Staging / preview (Lovable & Vercel)
-  "https://pjscposcnznrabswauuw.lovableproject.com",
+  "https://xwjvsmwefbukaswkwpbf.lovableproject.com",
   "https://ai-hybrid-focus-group-main.vercel.app",
   // Local development
   "http://localhost:8080",
