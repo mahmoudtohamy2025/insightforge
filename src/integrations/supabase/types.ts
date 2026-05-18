@@ -220,6 +220,210 @@ export type Database = {
           },
         ]
       }
+      incentive_disbursements: {
+        Row: {
+          amount_cents: number
+          approved_at: string | null
+          approved_by: string | null
+          claimed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string
+          delivery_method: string
+          expires_at: string | null
+          id: string
+          linked_session_id: string | null
+          linked_survey_id: string | null
+          participant_id: string
+          program_id: string
+          provider_reference: string | null
+          provider_response: Json | null
+          reason: string
+          recipient_email: string | null
+          recipient_phone: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          amount_cents: number
+          approved_at?: string | null
+          approved_by?: string | null
+          claimed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string
+          delivery_method?: string
+          expires_at?: string | null
+          id?: string
+          linked_session_id?: string | null
+          linked_survey_id?: string | null
+          participant_id: string
+          program_id: string
+          provider_reference?: string | null
+          provider_response?: Json | null
+          reason?: string
+          recipient_email?: string | null
+          recipient_phone?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          amount_cents?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          claimed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string
+          delivery_method?: string
+          expires_at?: string | null
+          id?: string
+          linked_session_id?: string | null
+          linked_survey_id?: string | null
+          participant_id?: string
+          program_id?: string
+          provider_reference?: string | null
+          provider_response?: Json | null
+          reason?: string
+          recipient_email?: string | null
+          recipient_phone?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incentive_disbursements_linked_session_id_fkey"
+            columns: ["linked_session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_disbursements_linked_survey_id_fkey"
+            columns: ["linked_survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_disbursements_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_disbursements_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "incentive_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_disbursements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incentive_programs: {
+        Row: {
+          approval_threshold_cents: number | null
+          auto_disburse: boolean
+          created_at: string | null
+          created_by: string | null
+          currency: string
+          default_amount_cents: number
+          description: string | null
+          disburse_on: string
+          id: string
+          incentive_type: string
+          linked_project_id: string | null
+          linked_session_ids: string[] | null
+          linked_survey_ids: string[] | null
+          min_quality_score: number
+          name: string
+          provider: string | null
+          provider_config: Json | null
+          spent_cents: number
+          status: string
+          total_budget_cents: number
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          approval_threshold_cents?: number | null
+          auto_disburse?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string
+          default_amount_cents?: number
+          description?: string | null
+          disburse_on?: string
+          id?: string
+          incentive_type?: string
+          linked_project_id?: string | null
+          linked_session_ids?: string[] | null
+          linked_survey_ids?: string[] | null
+          min_quality_score?: number
+          name: string
+          provider?: string | null
+          provider_config?: Json | null
+          spent_cents?: number
+          status?: string
+          total_budget_cents?: number
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          approval_threshold_cents?: number | null
+          auto_disburse?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string
+          default_amount_cents?: number
+          description?: string | null
+          disburse_on?: string
+          id?: string
+          incentive_type?: string
+          linked_project_id?: string | null
+          linked_session_ids?: string[] | null
+          linked_survey_ids?: string[] | null
+          min_quality_score?: number
+          name?: string
+          provider?: string | null
+          provider_config?: Json | null
+          spent_cents?: number
+          status?: string
+          total_budget_cents?: number
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incentive_programs_linked_project_id_fkey"
+            columns: ["linked_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incentive_programs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       insight_patterns: {
         Row: {
           created_at: string | null
@@ -384,6 +588,87 @@ export type Database = {
           },
         ]
       }
+      participant_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      participant_points_ledger: {
+        Row: {
+          balance_after: number
+          created_at: string | null
+          id: string
+          participant_id: string
+          points: number
+          reason: string
+          reference_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          balance_after: number
+          created_at?: string | null
+          id?: string
+          participant_id: string
+          points: number
+          reason: string
+          reference_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          balance_after?: number
+          created_at?: string | null
+          id?: string
+          participant_id?: string
+          points?: number
+          reason?: string
+          reference_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_points_ledger_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_points_ledger_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       participant_profiles: {
         Row: {
           availability: Json | null
@@ -462,6 +747,66 @@ export type Database = {
         }
         Relationships: []
       }
+      participant_referrals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          referral_code: string
+          referred_bonus_cents: number | null
+          referred_bonus_paid: boolean | null
+          referred_id: string | null
+          referrer_bonus_cents: number | null
+          referrer_bonus_paid: boolean | null
+          referrer_id: string
+          signed_up_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_bonus_cents?: number | null
+          referred_bonus_paid?: boolean | null
+          referred_id?: string | null
+          referrer_bonus_cents?: number | null
+          referrer_bonus_paid?: boolean | null
+          referrer_id: string
+          signed_up_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_bonus_cents?: number | null
+          referred_bonus_paid?: boolean | null
+          referred_id?: string | null
+          referrer_bonus_cents?: number | null
+          referrer_bonus_paid?: boolean | null
+          referrer_id?: string
+          signed_up_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_referrals_referred_id_fkey"
+            columns: ["referred_id"]
+            isOneToOne: false
+            referencedRelation: "participant_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "participant_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       participant_reputation: {
         Row: {
           attention_score: number
@@ -469,7 +814,10 @@ export type Database = {
           badges: Json | null
           completion_rate: number
           id: string
+          last_activity_week: string | null
           participant_id: string
+          streak_bonus_pct: number
+          streak_weeks: number
           tier: string
           total_earned_cents: number
           total_studies: number
@@ -482,7 +830,10 @@ export type Database = {
           badges?: Json | null
           completion_rate?: number
           id?: string
+          last_activity_week?: string | null
           participant_id: string
+          streak_bonus_pct?: number
+          streak_weeks?: number
           tier?: string
           total_earned_cents?: number
           total_studies?: number
@@ -495,7 +846,10 @@ export type Database = {
           badges?: Json | null
           completion_rate?: number
           id?: string
+          last_activity_week?: string | null
           participant_id?: string
+          streak_bonus_pct?: number
+          streak_weeks?: number
           tier?: string
           total_earned_cents?: number
           total_studies?: number
@@ -613,61 +967,6 @@ export type Database = {
           },
         ]
       }
-      pattern_snapshots: {
-        Row: {
-          created_at: string | null
-          id: string
-          pattern_id: string
-          project_id: string | null
-          sentiment: string | null
-          session_count: number
-          snapshot_date: string
-          workspace_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          pattern_id: string
-          project_id?: string | null
-          sentiment?: string | null
-          session_count: number
-          snapshot_date?: string
-          workspace_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          pattern_id?: string
-          project_id?: string | null
-          sentiment?: string | null
-          session_count?: number
-          snapshot_date?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pattern_snapshots_pattern_id_fkey"
-            columns: ["pattern_id"]
-            isOneToOne: false
-            referencedRelation: "insight_patterns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pattern_snapshots_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pattern_snapshots_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -759,6 +1058,211 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "projects_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requirement_comments: {
+        Row: {
+          body: string
+          comment_type: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          requirement_id: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          body: string
+          comment_type?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          requirement_id: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          comment_type?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          requirement_id?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirement_comments_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "requirements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requirement_comments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requirement_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          requirement_id: string
+          user_id: string
+          vote_type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          requirement_id: string
+          user_id: string
+          vote_type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          requirement_id?: string
+          user_id?: string
+          vote_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirement_votes_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requirements: {
+        Row: {
+          ai_methodology_suggestion: Json | null
+          assigned_to: string | null
+          business_context: string | null
+          category: string | null
+          completed_at: string | null
+          confidence_label: string | null
+          confidence_score: number | null
+          created_at: string | null
+          decision_memo: Json | null
+          description: string | null
+          estimated_effort: string | null
+          evidence_status: string | null
+          findings_summary: string | null
+          id: string
+          impact_rating: number | null
+          last_evaluated_at: string | null
+          linked_insight_ids: string[] | null
+          linked_project_ids: string[] | null
+          linked_session_ids: string[] | null
+          linked_simulation_ids: string[] | null
+          linked_survey_ids: string[] | null
+          priority: string | null
+          recommended_next_action: string | null
+          requested_by: string
+          requested_deadline: string | null
+          research_questions: Json | null
+          reviewed_by: string | null
+          stakeholder_satisfaction: number | null
+          status: string | null
+          suggested_methodology: string[] | null
+          tags: string[] | null
+          target_audience: string | null
+          target_market: string | null
+          title: string
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          ai_methodology_suggestion?: Json | null
+          assigned_to?: string | null
+          business_context?: string | null
+          category?: string | null
+          completed_at?: string | null
+          confidence_label?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          decision_memo?: Json | null
+          description?: string | null
+          estimated_effort?: string | null
+          evidence_status?: string | null
+          findings_summary?: string | null
+          id?: string
+          impact_rating?: number | null
+          last_evaluated_at?: string | null
+          linked_insight_ids?: string[] | null
+          linked_project_ids?: string[] | null
+          linked_session_ids?: string[] | null
+          linked_simulation_ids?: string[] | null
+          linked_survey_ids?: string[] | null
+          priority?: string | null
+          recommended_next_action?: string | null
+          requested_by: string
+          requested_deadline?: string | null
+          research_questions?: Json | null
+          reviewed_by?: string | null
+          stakeholder_satisfaction?: number | null
+          status?: string | null
+          suggested_methodology?: string[] | null
+          tags?: string[] | null
+          target_audience?: string | null
+          target_market?: string | null
+          title: string
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          ai_methodology_suggestion?: Json | null
+          assigned_to?: string | null
+          business_context?: string | null
+          category?: string | null
+          completed_at?: string | null
+          confidence_label?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          decision_memo?: Json | null
+          description?: string | null
+          estimated_effort?: string | null
+          evidence_status?: string | null
+          findings_summary?: string | null
+          id?: string
+          impact_rating?: number | null
+          last_evaluated_at?: string | null
+          linked_insight_ids?: string[] | null
+          linked_project_ids?: string[] | null
+          linked_session_ids?: string[] | null
+          linked_simulation_ids?: string[] | null
+          linked_survey_ids?: string[] | null
+          priority?: string | null
+          recommended_next_action?: string | null
+          requested_by?: string
+          requested_deadline?: string | null
+          research_questions?: Json | null
+          reviewed_by?: string | null
+          stakeholder_satisfaction?: number | null
+          status?: string | null
+          suggested_methodology?: string[] | null
+          tags?: string[] | null
+          target_audience?: string | null
+          target_market?: string | null
+          title?: string
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requirements_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -1426,6 +1930,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      super_admins: {
+        Row: {
+          created_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       survey_questions: {
         Row: {
@@ -2249,6 +2768,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { uid: string }; Returns: boolean }
       is_workspace_member: {
         Args: { uid: string; ws_id: string }
         Returns: boolean
