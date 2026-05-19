@@ -213,21 +213,6 @@ export async function runFocusGroup(params: {
 }
 
 /**
- * Run a market simulation via the `simulate-market` edge function.
- */
-export async function runMarketSimulation(params: {
-  segment_ids: string[];
-  product: any;
-  workspace_id: string;
-}): Promise<any> {
-  const response = await supabase.functions.invoke("simulate-market", {
-    body: params,
-  });
-  if (response.error) throw new Error(response.error.message);
-  return response.data;
-}
-
-/**
  * Run an A/B test simulation via the `simulate-ab-test` edge function.
  */
 export async function runABTest(params: {
@@ -237,21 +222,6 @@ export async function runABTest(params: {
   workspace_id: string;
 }): Promise<any> {
   const response = await supabase.functions.invoke("simulate-ab-test", {
-    body: params,
-  });
-  if (response.error) throw new Error(response.error.message);
-  return response.data;
-}
-
-/**
- * Run a policy impact simulation via the `simulate-policy` edge function.
- */
-export async function runPolicySimulation(params: {
-  segment_ids: string[];
-  policy: any;
-  workspace_id: string;
-}): Promise<any> {
-  const response = await supabase.functions.invoke("simulate-policy", {
     body: params,
   });
   if (response.error) throw new Error(response.error.message);
