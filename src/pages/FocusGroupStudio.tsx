@@ -47,6 +47,14 @@ import { generateFocusGroupPDF } from "@/lib/pdfExport";
 import { Download } from "lucide-react";
 import { ProductTour } from "@/components/onboarding/ProductTour";
 import { TOUR_FOCUS_GROUP } from "@/lib/tourDefinitions";
+import {
+  bassDiffusion,
+  deriveBassParams,
+  findPeakMonth,
+  findSaturationMonth,
+} from "@/lib/bassDiffusion";
+import { BassDiffusionChart } from "@/components/charts/BassDiffusionChart";
+import { Input } from "@/components/ui/input";
 
 const sentimentColor = (s: number) => {
   if (s > 0.2) return "text-emerald-500";
@@ -102,6 +110,12 @@ const FocusGroupStudio = () => {
   // strategist turns into a pre-filled setup.
   const [idea, setIdea] = useState("");
   const [seedRationale, setSeedRationale] = useState<string | null>(null);
+
+  // Market Projection (Option A): user inputs for the adoption-curve forecast.
+  // Derived Bass params come from focus-group aggregate (sentiment, consensus,
+  // confidence) — see comment block where bassDiffusion is called.
+  const [projectionMarketSize, setProjectionMarketSize] = useState("100000");
+  const [projectionMonths, setProjectionMonths] = useState("24");
 
   const { data: segments = [] } = useQuery({
     queryKey: ["segment-profiles", workspaceId],
@@ -529,6 +543,132 @@ const FocusGroupStudio = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Market Projection — Option A: bake the Bass diffusion forecast
+              directly into focus-group results. The math runs against signals
+              the personas just produced (sentiment, consensus, confidence)
+              rather than abstract inputs. Heuristic mapping today; can swap
+              in a more rigorous AI-extraction edge function later. */}
+          {result?.aggregate && (() => {
+            const agg = (result.aggregate || {}) as Record<string, any>;
+            const sentiment01 = (Math.max(-1, Math.min(1, Number(agg.avg_sentiment) || 0)) + 1) / 2;
+            const consensus = Math.max(0, Math.min(1, Number(agg.consensus_score) || 0));
+            const confidence = Math.max(0, Math.min(1, Number(agg.avg_confidence) || 0));
+            // Heuristic: purchase probability blends positivity with how
+            // confident the personas were; WOM blends positivity with how
+            // much the group agreed. Both bounded to [0,1].
+            const avgPurchaseProb = sentiment01 * confidence;
+            const avgWOM = sentiment01 * consensus;
+            const { p, q } = deriveBassParams(avgPurchaseProb, avgWOM);
+            const months = Math.max(6, Math.min(parseInt(projectionMonths) || 24, 60));
+            const marketSize = Math.max(1000, parseInt(projectionMarketSize) || 100000);
+            const curve = bassDiffusion({ months, marketSize, p, q });
+            const peak = findPeakMonth(curve);
+            const saturationMonth = findSaturationMonth(curve, 0.9);
+            const finalPenetration = curve.length > 0 ? curve[curve.length - 1].penetration : 0;
+            return (
+              <Card className="border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    Market projection
+                    <Badge variant="outline" className="ml-auto text-[10px]">
+                      Derived from this group
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Adoption curve based on this group's reaction. The Bass-model
+                    parameters are derived from the personas' aggregate sentiment,
+                    confidence, and consensus — not from numbers you typed cold.
+                    Adjust market size and time horizon to see how the curve shifts.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Market size (people)</Label>
+                      <Input
+                        type="number"
+                        min={1000}
+                        step={1000}
+                        value={projectionMarketSize}
+                        onChange={(e) => setProjectionMarketSize(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Time horizon (months, 6–60)</Label>
+                      <Input
+                        type="number"
+                        min={6}
+                        max={60}
+                        value={projectionMonths}
+                        onChange={(e) => setProjectionMonths(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border p-3 bg-muted/30">
+                    <BassDiffusionChart data={curve} />
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="rounded-md border p-2.5">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Peak month</p>
+                      <p className="text-base font-semibold mt-0.5">
+                        {peak ? `M${peak.month}` : "—"}
+                      </p>
+                      {peak && (
+                        <p className="text-[10px] text-muted-foreground">
+                          {peak.new_adopters.toLocaleString()} new
+                        </p>
+                      )}
+                    </div>
+                    <div className="rounded-md border p-2.5">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">90% saturation</p>
+                      <p className="text-base font-semibold mt-0.5">
+                        {saturationMonth ? `M${saturationMonth}` : `>M${months}`}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {saturationMonth ? "reached" : "not within horizon"}
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-2.5">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Final penetration</p>
+                      <p className="text-base font-semibold mt-0.5">
+                        {Math.round(finalPenetration * 100)}%
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        at M{months}
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-2.5" title={`p=${p.toFixed(3)} (innovation), q=${q.toFixed(3)} (imitation)`}>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Bass params</p>
+                      <p className="text-base font-semibold mt-0.5 font-mono">
+                        p={p.toFixed(2)} q={q.toFixed(2)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        from this group
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground leading-relaxed border-t pt-3">
+                    <strong>How it's derived:</strong> p (innovation) and q (imitation)
+                    are computed from this focus group's aggregate signals —
+                    sentiment ({((Number(agg.avg_sentiment) || 0).toFixed(2))}),
+                    confidence ({Math.round(confidence * 100)}%),
+                    consensus ({Math.round(consensus * 100)}%) —
+                    via the Bass diffusion model. Treat as directional, not
+                    precise. The math is bounded so extreme inputs don't produce
+                    runaway curves.
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Results: Round-by-round discussion */}
           {result?.rounds?.map((round: any[], roundIdx: number) => (
