@@ -95,8 +95,6 @@ const NAV_GROUPS: NavGroup[] = [
       { titleKey: "nav.simulate" as any, url: "/simulate", icon: FlaskConical },
       { titleKey: "nav.focusGroup" as any, url: "/focus-group", icon: Users },
       { titleKey: "nav.abTest" as any, url: "/ab-test", icon: FlaskConical },
-      { titleKey: "nav.marketSim" as any, url: "/market-sim", icon: TrendingUp },
-      { titleKey: "nav.policySim" as any, url: "/policy-sim", icon: Scale },
       { titleKey: "nav.compare" as any, url: "/simulations/compare", icon: GitCompareArrows },
     ],
   },
@@ -115,7 +113,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Intelligence",
     items: [
       { titleKey: "nav.insights", url: "/insights", icon: Lightbulb },
-      { titleKey: "nav.marketplace", url: "/marketplace", icon: Globe2 },
       { titleKey: "nav.validation", url: "/validation", icon: GraduationCap },
       { titleKey: "nav.methodology", url: "/methodology", icon: BookOpen },
       { titleKey: "nav.trustCenter", url: "/trust-center", icon: ShieldCheck },

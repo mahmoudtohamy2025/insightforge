@@ -62,13 +62,10 @@ const NAV_COMMANDS: NavCommand[] = [
   { label: "Simulation Studio", icon: FlaskConical, url: "/simulate", group: "Pages" },
   { label: "Focus Group Studio", icon: Users, url: "/focus-group", group: "Pages" },
   { label: "A/B Test Studio", icon: FlaskConical, url: "/ab-test", group: "Pages" },
-  { label: "Market Sim Studio", icon: TrendingUp, url: "/market-sim", group: "Pages" },
-  { label: "Policy Sim Studio", icon: Scale, url: "/policy-sim", group: "Pages" },
   { label: "Compare Simulations", icon: GitCompareArrows, url: "/simulations/compare", group: "Pages" },
   { label: FOUNDER_RESEARCH_NAV.items.people, icon: Users, url: "/participants", group: "Pages" },
   { label: "Requirements", icon: FileQuestion, url: "/requirements", group: "Pages" },
   { label: FOUNDER_RESEARCH_NAV.items.rewards, icon: Gift, url: "/incentives", group: "Pages" },
-  { label: "Marketplace", icon: Globe2, url: "/marketplace", group: "Pages" },
   { label: FOUNDER_RESEARCH_NAV.items.confidence, icon: GraduationCap, url: "/validation", group: "Pages" },
   { label: "Methodology", icon: BookOpen, url: "/methodology", group: "Pages" },
   { label: "Trust Center", icon: ShieldCheck, url: "/trust-center", group: "Pages" },
@@ -80,7 +77,6 @@ const ACTION_COMMANDS: ActionCommand[] = [
   { label: "Schedule Interview", icon: Plus, url: "/sessions", group: "Quick Actions" },
   { label: "Run Simulation", icon: Zap, url: "/simulate", group: "Quick Actions" },
   { label: "Add Person", icon: Plus, url: "/participants", group: "Quick Actions" },
-  { label: "Build Custom Twin", icon: Sparkles, url: "/twin-builder", group: "Quick Actions" },
 ];
 
 const RECENT_STORAGE_KEY = "if_recent_pages";

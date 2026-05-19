@@ -25,8 +25,6 @@ export function HelpDrawer() {
     if (path === "/simulate") return "simulation";
     if (path === "/focus-group") return "focusGroup";
     if (path === "/ab-test") return "abTest";
-    if (path === "/market-sim") return "marketSim";
-    if (path === "/policy-sim") return "policySim";
     if (path === "/sessions") return "sessions";
     if (path === "/surveys") return "surveys";
     if (path === "/requirements") return "requirements";

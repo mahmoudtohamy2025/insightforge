@@ -180,22 +180,6 @@ const SegmentLibrary = () => {
               </Button>
             </>
           )}
-          {segments.length >= 1 && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => navigate("/market-sim")}>
-                <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
-                Market Sim
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate("/policy-sim")}>
-                <Scale className="h-3.5 w-3.5 mr-1.5" />
-                Policy Impact
-              </Button>
-            </>
-          )}
-          <Button id="twin-builder-btn" variant="outline" size="sm" onClick={() => navigate("/twin-builder")}>
-            <Wand2 className="h-3.5 w-3.5 mr-1.5" />
-            Twin Builder
-          </Button>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button id="create-segment-btn">

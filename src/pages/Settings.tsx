@@ -4,10 +4,8 @@ import { ProfileTab } from "@/components/settings/ProfileTab";
 import { WorkspaceTab } from "@/components/settings/WorkspaceTab";
 import { TeamTab } from "@/components/settings/TeamTab";
 import { BillingTab } from "@/components/settings/BillingTab";
-import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 import { ActivityTab } from "@/components/settings/ActivityTab";
 import { ApiKeysTab } from "@/components/settings/ApiKeysTab";
-import { WhiteLabelTab } from "@/components/settings/WhiteLabelTab";
 import { ReferralsTab } from "@/components/settings/ReferralsTab";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
@@ -28,10 +26,8 @@ const Settings = () => {
           <TabsTrigger value="workspace">{t("settings.workspace")}</TabsTrigger>
           <TabsTrigger value="team">{t("settings.team")}</TabsTrigger>
           <TabsTrigger value="billing">{t("settings.billing")}</TabsTrigger>
-          <TabsTrigger value="integrations">{t("integrations.title")}</TabsTrigger>
           <TabsTrigger value="activity">{t("activity.title")}</TabsTrigger>
           {isAdminOrOwner && <TabsTrigger value="api">{"API & Webhooks"}</TabsTrigger>}
-          {isAdminOrOwner && <TabsTrigger value="branding">{"White-Label"}</TabsTrigger>}
           <TabsTrigger value="referrals">Referrals <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold">NEW</span></TabsTrigger>
         </TabsList>
 
@@ -51,10 +47,6 @@ const Settings = () => {
           <BillingTab currentWorkspace={currentWorkspace} t={t} isOwner={isOwner} />
         </TabsContent>
 
-        <TabsContent value="integrations" className="space-y-6 mt-4">
-          <IntegrationsTab workspaceId={currentWorkspace?.id} isAdminOrOwner={isAdminOrOwner} t={t} />
-        </TabsContent>
-
         <TabsContent value="activity" className="space-y-6 mt-4">
           <ActivityTab workspaceId={currentWorkspace?.id} t={t} />
         </TabsContent>
@@ -66,12 +58,6 @@ const Settings = () => {
         {isAdminOrOwner && currentWorkspace && (
           <TabsContent value="api" className="space-y-6 mt-4">
             <ApiKeysTab workspaceId={currentWorkspace.id} />
-          </TabsContent>
-        )}
-
-        {isAdminOrOwner && currentWorkspace && (
-          <TabsContent value="branding" className="space-y-6 mt-4">
-            <WhiteLabelTab />
           </TabsContent>
         )}
       </Tabs>

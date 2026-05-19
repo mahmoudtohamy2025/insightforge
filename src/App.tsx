@@ -34,11 +34,7 @@ import SegmentLibrary from "./pages/SegmentLibrary";
 import SimulationStudio from "./pages/SimulationStudio";
 import FocusGroupStudio from "./pages/FocusGroupStudio";
 import ABTestStudio from "./pages/ABTestStudio";
-import MarketSimStudio from "./pages/MarketSimStudio";
-import PolicySimStudio from "./pages/PolicySimStudio";
-import CustomTwinBuilder from "./pages/CustomTwinBuilder";
 import TrustCenter from "./pages/TrustCenter";
-import SegmentMarketplace from "./pages/SegmentMarketplace";
 import ValidationStudies from "./pages/ValidationStudies";
 import Methodology from "./pages/Methodology";
 import Requirements from "./pages/Requirements";
@@ -145,10 +141,6 @@ const App = () => (
                   <Route path="/simulate/:id" element={<SimulationStudio />} />
                   <Route path="/focus-group" element={<FocusGroupStudio />} />
                   <Route path="/ab-test" element={<ABTestStudio />} />
-                  <Route path="/market-sim" element={<MarketSimStudio />} />
-                  <Route path="/policy-sim" element={<PolicySimStudio />} />
-                  <Route path="/twin-builder" element={<CustomTwinBuilder />} />
-                  <Route path="/marketplace" element={<SegmentMarketplace />} />
                   <Route path="/trust-center" element={<TrustCenter />} />
                   <Route path="/validation" element={<ValidationStudies />} />
                   <Route path="/methodology" element={<Methodology />} />

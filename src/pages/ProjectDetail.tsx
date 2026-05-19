@@ -466,16 +466,6 @@ const ProjectDetail = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="hover:border-purple-500/50 hover:shadow-md transition-all cursor-pointer group" onClick={() => navigate(`/twin-builder?project_id=${id}`)}>
-              <CardContent className="p-6">
-                <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Bot className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">Custom Twin Builder</h3>
-                <p className="text-sm text-muted-foreground">Architect specific consumer profiles matching this project's exact screener criteria.</p>
-              </CardContent>
-            </Card>
-            
             <Card className="hover:border-purple-500/50 hover:shadow-md transition-all cursor-pointer group" onClick={() => navigate(`/focus-group?project_id=${id}`)}>
               <CardContent className="p-6">
                 <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -485,7 +475,7 @@ const ProjectDetail = () => {
                 <p className="text-sm text-muted-foreground">Pre-test your discussion guide with synthetic respondents to discover weak questions.</p>
               </CardContent>
             </Card>
-            
+
             <Card className="hover:border-purple-500/50 hover:shadow-md transition-all cursor-pointer group" onClick={() => navigate(`/ab-test?project_id=${id}`)}>
               <CardContent className="p-6">
                 <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -493,26 +483,6 @@ const ProjectDetail = () => {
                 </div>
                 <h3 className="font-bold text-lg mb-2">A/B Concept Testing</h3>
                 <p className="text-sm text-muted-foreground">Rapidly test two concepts or stimulus variants to see which generates higher twin purchase intent.</p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:border-purple-500/50 hover:shadow-md transition-all cursor-pointer group" onClick={() => navigate(`/market-sim?project_id=${id}`)}>
-              <CardContent className="p-6">
-                <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LineChart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">Market Simulation</h3>
-                <p className="text-sm text-muted-foreground">Forecast adoption curves and viral coefficient potential across broad synthetic populations.</p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:border-purple-500/50 hover:shadow-md transition-all cursor-pointer group" onClick={() => navigate(`/policy-sim?project_id=${id}`)}>
-              <CardContent className="p-6">
-                <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Scale className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">Policy Testing</h3>
-                <p className="text-sm text-muted-foreground">Simulate public reaction to pricing changes, feature deprecation, or brand crises.</p>
               </CardContent>
             </Card>
           </div>
