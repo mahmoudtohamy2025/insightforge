@@ -65,7 +65,12 @@ export default function ValidationStudies() {
     <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto py-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/15">
+              Alpha · in active development
+            </Badge>
+          </div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
             <GraduationCap className="h-8 w-8 text-primary" />
             {FOUNDER_RESEARCH_HEADERS.confidence.title}
@@ -86,6 +91,21 @@ export default function ValidationStudies() {
           </Link>
         </div>
       </div>
+
+      {/* Alpha banner — honest about what works today vs. what's coming */}
+      <Card className="border-amber-500/30 bg-amber-500/[0.04]">
+        <CardContent className="py-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+          <div className="space-y-1.5 text-sm">
+            <p className="font-semibold text-amber-900 dark:text-amber-200">
+              Currently in alpha — manual calibration only.
+            </p>
+            <p className="text-amber-900/80 dark:text-amber-200/80">
+              You can upload real customer responses today to score how well your AI twins match real behavior. <span className="font-medium">What's coming next:</span> live orchestration that runs an AI focus group and a real-participant study side-by-side, then auto-flags where they diverge — so you don't have to upload anything manually. On the roadmap; not shipped yet.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-dashed border-primary/20 bg-primary/5">
         <CardContent className="py-4">
