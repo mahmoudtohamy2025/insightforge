@@ -422,29 +422,57 @@ const FocusGroupStudio = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {nextTestsQuery.data!.suggestions.map((s, i) => {
-                      const meta = focusAreaMeta[s.focus_area] ?? focusAreaMeta.positioning;
-                      const Icon = meta.icon;
+                  <>
+                    {/* Aha-loop part 2: dominant objection headline above the cards */}
+                    {nextTestsQuery.data?.dominant_objection && (() => {
+                      const obj = nextTestsQuery.data!.dominant_objection!;
+                      const positive = obj.affected_pct === 0;
+                      const high = obj.affected_pct >= 50;
+                      const tone = positive
+                        ? "border-emerald-500/30 bg-emerald-500/[0.04] text-emerald-800 dark:text-emerald-300"
+                        : high
+                          ? "border-red-500/30 bg-red-500/[0.04] text-red-800 dark:text-red-300"
+                          : "border-amber-500/30 bg-amber-500/[0.05] text-amber-800 dark:text-amber-300";
+                      const Icon = positive ? ShieldCheck : AlertTriangle;
                       return (
-                        <button
-                          key={i}
-                          onClick={() => applySuggestion(s)}
-                          className="group text-left rounded-lg border p-3 hover:border-primary hover:bg-primary/[0.04] transition-colors flex flex-col gap-2"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <Icon className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              {meta.label}
-                            </span>
-                            <ArrowRight className="ml-auto h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <div className={`mb-3 p-3 rounded-lg border flex items-start gap-2.5 ${tone}`}>
+                          <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold leading-snug">{obj.headline}</p>
+                            {!positive && (
+                              <p className="text-[11px] mt-0.5 opacity-80">
+                                ~{obj.affected_pct}% of personas raised this. The suggestions below address it.
+                              </p>
+                            )}
                           </div>
-                          <p className="text-sm font-semibold leading-snug">{s.headline}</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">{s.rationale}</p>
-                        </button>
+                        </div>
                       );
-                    })}
-                  </div>
+                    })()}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {nextTestsQuery.data!.suggestions.map((s, i) => {
+                        const meta = focusAreaMeta[s.focus_area] ?? focusAreaMeta.positioning;
+                        const Icon = meta.icon;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => applySuggestion(s)}
+                            className="group text-left rounded-lg border p-3 hover:border-primary hover:bg-primary/[0.04] transition-colors flex flex-col gap-2"
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <Icon className="h-3.5 w-3.5 text-primary" />
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                {meta.label}
+                              </span>
+                              <ArrowRight className="ml-auto h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <p className="text-sm font-semibold leading-snug">{s.headline}</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{s.rationale}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
                 <p className="mt-3 text-[10px] text-muted-foreground">
                   Click a card to load the test into the topic field above — review, adjust, and run.

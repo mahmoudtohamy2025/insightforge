@@ -99,11 +99,15 @@ Deno.serve(async (req: any) => {
 
     const systemPrompt = `You are a sharp research strategist helping a solo founder decide what to test next.
 
-The founder just ran a simulated study. Based on what the personas said, propose EXACTLY 3 follow-up tests that would most reduce decision risk.
+The founder just ran a simulated study. Your job has TWO parts:
 
-Be opinionated and specific. Avoid generic advice like "test more personas" — name a concrete variant (a price point, a feature, a message, a different segment).
+1. **Identify the dominant objection.** Read what the personas said and find the single most important pushback, hesitation, or concern that came up. Express it as a one-line headline ("27% pushed back on the $15 price as too high for the perceived value") and estimate what percentage of personas raised it.
+   - If the simulation was broadly positive with no meaningful pushback, set affected_pct to 0 and write a headline like "No clear objection — reception was broadly positive across personas".
+   - Otherwise be specific. Don't say "some personas had concerns" — say what the concern was.
 
-Order the 3 suggestions by which would most resolve the biggest remaining uncertainty.`;
+2. **Propose EXACTLY 3 follow-up tests** that would most reduce decision risk — ordered with the test that resolves the biggest uncertainty FIRST. Be opinionated and specific. Name a concrete variant (a price point, a feature, a message, a different segment). Avoid generic advice like "test more personas".
+
+The 3 suggestions should ideally address the dominant objection you just identified — but at least one can probe an adjacent risk if that's more valuable.`;
 
     const userPrompt = `ORIGINAL STIMULUS:
 ${stimulusText}
@@ -111,7 +115,8 @@ ${stimulusText}
 WHAT HAPPENED:
 ${summary}
 
-Generate 3 follow-up tests. For each:
+First, identify the dominant_objection (headline + affected_pct).
+Then generate 3 follow-up tests. For each:
 - headline: 8-12 words, action-oriented (e.g. "Test a $5 lower price with the same group")
 - rationale: ONE sentence on why this resolves the biggest uncertainty
 - stimulus_template: the actual 3-5 sentence stimulus the founder can run as-is (write the full prompt, don't be coy)
@@ -132,10 +137,30 @@ Generate 3 follow-up tests. For each:
           type: "function",
           function: {
             name: "next_tests",
-            description: "Return 3 specific follow-up tests for the founder",
+            description:
+              "Return the dominant objection cluster + 3 specific follow-up tests for the founder",
             parameters: {
               type: "object",
               properties: {
+                dominant_objection: {
+                  type: "object",
+                  description:
+                    "The single most important pushback/concern raised by the personas. If no clear objection, affected_pct is 0 and the headline says so.",
+                  properties: {
+                    headline: {
+                      type: "string",
+                      description:
+                        "One-line description of the pushback (e.g. '27% pushed back on the $15 price as too high'). Or, if positive: 'No clear objection — reception was broadly positive'.",
+                    },
+                    affected_pct: {
+                      type: "integer",
+                      minimum: 0,
+                      maximum: 100,
+                      description: "Estimated % of personas who raised this concern. 0 if no objection.",
+                    },
+                  },
+                  required: ["headline", "affected_pct"],
+                },
                 suggestions: {
                   type: "array",
                   minItems: 3,
@@ -155,7 +180,7 @@ Generate 3 follow-up tests. For each:
                   },
                 },
               },
-              required: ["suggestions"],
+              required: ["dominant_objection", "suggestions"],
             },
           },
         },
@@ -172,6 +197,7 @@ Generate 3 follow-up tests. For each:
 
     const aiData = await aiResponse.json();
     let parsed: {
+      dominant_objection?: { headline: string; affected_pct: number };
       suggestions: Array<{
         headline: string;
         rationale: string;
@@ -189,11 +215,21 @@ Generate 3 follow-up tests. For each:
       return jsonResponse(req, { error: "AI response could not be parsed" }, 502);
     }
 
+    // Sanitize the dominant_objection. AI may omit it or produce out-of-range values.
+    const rawObj = parsed.dominant_objection;
+    const dominantObjection = rawObj && typeof rawObj.headline === "string" && rawObj.headline.trim().length > 0
+      ? {
+          headline: rawObj.headline.trim(),
+          affected_pct: Math.min(Math.max(Math.round(Number(rawObj.affected_pct) || 0), 0), 100),
+        }
+      : null;
+
     const tokensUsed = aiData.usage?.total_tokens || 0;
     await recordTokenUsage(supabase, workspace_id as string, tokensUsed);
 
     return jsonResponse(req, {
       simulation_id,
+      dominant_objection: dominantObjection,
       suggestions: parsed.suggestions || [],
       tokens_used: tokensUsed,
       duration_ms: durationMs,

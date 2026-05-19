@@ -59,8 +59,19 @@ export interface NextTestSuggestion {
   focus_area: NextTestFocusArea;
 }
 
+export interface DominantObjection {
+  headline: string;
+  /** 0-100. 0 means no clear objection (broadly positive simulation). */
+  affected_pct: number;
+}
+
 export interface NextTestResponse {
   simulation_id: string;
+  /**
+   * Aha-loop part 2: the dominant pushback/concern the personas raised, with an
+   * estimate of how many were affected. Null when the AI didn't surface one.
+   */
+  dominant_objection: DominantObjection | null;
   suggestions: NextTestSuggestion[];
   tokens_used: number;
   duration_ms: number;
