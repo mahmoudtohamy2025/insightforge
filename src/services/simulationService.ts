@@ -65,6 +65,14 @@ export interface DominantObjection {
   affected_pct: number;
 }
 
+export type ExploredAxisStatus = "covered" | "open" | "untested";
+
+export interface ExploredAxis {
+  focus_area: NextTestFocusArea;
+  status: ExploredAxisStatus;
+  evidence: string;
+}
+
 export interface NextTestResponse {
   simulation_id: string;
   /**
@@ -72,6 +80,19 @@ export interface NextTestResponse {
    * estimate of how many were affected. Null when the AI didn't surface one.
    */
   dominant_objection: DominantObjection | null;
+  /**
+   * Aha-loop part 4: cross-cycle state across the workspace's testing history.
+   * Always 5 entries — one per focus_area. Drives the explored-axes chips UI.
+   */
+  explored_axes: ExploredAxis[];
+  /**
+   * Aha-loop part 4: one-sentence framing of where the founder is in their
+   * testing journey. Null on the founder's first run (no past sims to reason
+   * about).
+   */
+  meta_recommendation: string | null;
+  /** How many past sims (besides the current one) informed the explored_axes state. */
+  past_sim_count: number;
   suggestions: NextTestSuggestion[];
   tokens_used: number;
   duration_ms: number;

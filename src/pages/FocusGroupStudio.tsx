@@ -423,6 +423,55 @@ const FocusGroupStudio = () => {
                   </div>
                 ) : (
                   <>
+                    {/* Aha-loop part 4: meta_recommendation banner (cross-cycle journey) */}
+                    {nextTestsQuery.data?.meta_recommendation && (
+                      <div className="mb-3 p-3 rounded-lg border border-primary/30 bg-primary/[0.04] flex items-start gap-2.5">
+                        <Lightbulb className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-primary/80 mb-0.5">
+                            Where you are
+                          </p>
+                          <p className="text-sm font-semibold leading-snug">
+                            {nextTestsQuery.data.meta_recommendation}
+                          </p>
+                          {typeof nextTestsQuery.data.past_sim_count === "number" && nextTestsQuery.data.past_sim_count > 0 && (
+                            <p className="text-[11px] mt-0.5 opacity-70">
+                              Based on this run plus your last {nextTestsQuery.data.past_sim_count} simulation
+                              {nextTestsQuery.data.past_sim_count === 1 ? "" : "s"}.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Aha-loop part 4: explored-axes chips */}
+                    {nextTestsQuery.data?.explored_axes && nextTestsQuery.data.explored_axes.length > 0 && (
+                      <div className="mb-3 flex flex-wrap gap-1.5">
+                        {nextTestsQuery.data.explored_axes.map((axis) => {
+                          const meta = focusAreaMeta[axis.focus_area] ?? focusAreaMeta.positioning;
+                          const Icon = meta.icon;
+                          const tone =
+                            axis.status === "covered"
+                              ? "border-emerald-500/40 bg-emerald-500/[0.06] text-emerald-800 dark:text-emerald-300"
+                              : axis.status === "open"
+                                ? "border-amber-500/40 bg-amber-500/[0.06] text-amber-800 dark:text-amber-300"
+                                : "border-border bg-muted/40 text-muted-foreground";
+                          return (
+                            <span
+                              key={axis.focus_area}
+                              title={axis.evidence}
+                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${tone}`}
+                            >
+                              <Icon className="h-3 w-3" />
+                              {meta.label}
+                              <span className="opacity-60">·</span>
+                              <span className="lowercase">{axis.status}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     {/* Aha-loop part 2: dominant objection headline above the cards */}
                     {nextTestsQuery.data?.dominant_objection && (() => {
                       const obj = nextTestsQuery.data!.dominant_objection!;
