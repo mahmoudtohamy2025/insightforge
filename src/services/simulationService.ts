@@ -66,6 +66,20 @@ export interface NextTestResponse {
   duration_ms: number;
 }
 
+export interface SeedFromIdeaRequest {
+  idea: string;
+  workspace_id: string;
+}
+
+export interface SeedFromIdeaResponse {
+  segment_ids: string[];
+  stimulus: string;
+  num_rounds: number;
+  rationale: string;
+  tokens_used: number;
+  duration_ms: number;
+}
+
 // ── Queries ────────────────────────────────────────────
 
 /**
@@ -232,4 +246,26 @@ export async function getNextTestSuggestions(params: {
 
   if (response.error) throw new Error(response.error.message);
   return response.data as NextTestResponse;
+}
+
+/**
+ * Ask the `seed-from-idea` edge function to turn a one-sentence idea into
+ * a pre-filled simulation setup (segments + stimulus + num_rounds).
+ *
+ * Closes the blank-screen problem: founder lands in the studio with
+ * something concrete to react to instead of an empty form.
+ */
+export async function seedFromIdea(params: SeedFromIdeaRequest): Promise<SeedFromIdeaResponse> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const response = await supabase.functions.invoke("seed-from-idea", {
+    body: {
+      idea: params.idea,
+      workspace_id: params.workspace_id,
+    },
+  });
+
+  if (response.error) throw new Error(response.error.message);
+  return response.data as SeedFromIdeaResponse;
 }

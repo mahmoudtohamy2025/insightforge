@@ -8,6 +8,7 @@ import { getSegments } from "@/services/segmentService";
 import {
   getNextTestSuggestions,
   runFocusGroup,
+  seedFromIdea,
   type NextTestFocusArea,
   type NextTestSuggestion,
 } from "@/services/simulationService";
@@ -96,6 +97,12 @@ const FocusGroupStudio = () => {
   const [result, setResult] = useState<any>(null);
   const stimulusRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Blank-screen fix: idea-seed input. When the form is empty (no segments
+  // picked, no stimulus, no result), show a one-sentence idea box that the
+  // strategist turns into a pre-filled setup.
+  const [idea, setIdea] = useState("");
+  const [seedRationale, setSeedRationale] = useState<string | null>(null);
+
   const { data: segments = [] } = useQuery({
     queryKey: ["segment-profiles", workspaceId],
     queryFn: () => getSegments(workspaceId!),
@@ -147,6 +154,33 @@ const FocusGroupStudio = () => {
     onError: (e) => toast({ title: "Focus group failed", description: e.message, variant: "destructive" }),
   });
 
+  const seedMutation = useMutation({
+    mutationFn: () => seedFromIdea({ idea: idea.trim(), workspace_id: workspaceId! }),
+    onSuccess: (data) => {
+      setSelectedSegmentIds(data.segment_ids);
+      setStimulus(data.stimulus);
+      const rounds = Math.min(Math.max(data.num_rounds || 2, 1), 3).toString();
+      setNumRounds(rounds);
+      setSeedRationale(data.rationale || null);
+      toast({ title: "Setup ready", description: "Review and run — or edit anything first." });
+      requestAnimationFrame(() => {
+        stimulusRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    },
+    onError: (e: any) => {
+      const msg = e?.message || "Could not seed simulation";
+      toast({ title: "Couldn't set up from idea", description: msg, variant: "destructive" });
+    },
+  });
+
+  // The seed card shows only on the blank-screen state: no segments selected,
+  // no stimulus typed, no result yet, and the workspace has at least one segment.
+  const showIdeaSeed =
+    segments.length > 0 &&
+    selectedSegmentIds.length === 0 &&
+    stimulus.trim().length === 0 &&
+    !result;
+
   return (
     <div className="space-y-6 max-w-7xl">
       <ProductTour tourId="focus-group" steps={TOUR_FOCUS_GROUP} />
@@ -167,6 +201,69 @@ const FocusGroupStudio = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Setup Panel */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Idea-seed: blank-screen fix. Shows only when nothing is filled in yet. */}
+          {showIdeaSeed && (
+            <Card className="border-primary/30 bg-primary/[0.02]">
+              <CardContent className="pt-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <Lightbulb className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <h2 className="text-sm font-semibold">Have an idea? We'll set everything up.</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Describe what you want to test in one sentence — we'll pick the right segments, write a focused stimulus, and pre-fill the form. You can edit anything before running.
+                    </p>
+                  </div>
+                </div>
+                <Textarea
+                  rows={2}
+                  placeholder="e.g. We're launching a $15 monthly meal-kit subscription for busy young professionals — would they pay for it?"
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  className="resize-none"
+                  maxLength={1000}
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] text-muted-foreground">{idea.length}/1000</p>
+                  <Button
+                    size="sm"
+                    onClick={() => seedMutation.mutate()}
+                    disabled={idea.trim().length < 10 || seedMutation.isPending}
+                  >
+                    {seedMutation.isPending ? (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
+                        Setting up...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Set up for me
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AI rationale shown above the setup once seeded */}
+          {seedRationale && !showIdeaSeed && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-primary/[0.03] border border-primary/15 text-xs text-muted-foreground">
+              <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
+              <span>
+                <span className="font-medium text-foreground">Why these picks: </span>
+                {seedRationale}
+              </span>
+              <button
+                onClick={() => setSeedRationale(null)}
+                className="ml-auto text-muted-foreground hover:text-foreground"
+                aria-label="Dismiss rationale"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           <Card>
             <CardContent className="pt-5 space-y-4">
               {/* Segment Selection */}
