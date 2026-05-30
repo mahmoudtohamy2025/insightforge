@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# Local pre-push gate — stands in for GitHub Actions while it's frozen.
+#
+# Blocks the push if type-check or unit tests fail. Lint runs as advisory
+# only (the repo currently has pre-existing lint errors; blocking on them
+# would reject every push). Mirrors .github/workflows/ci.yml.
+#
+# Bypass once with:  git push --no-verify
+# Disable entirely:  git config --unset core.hooksPath
+#
+set -e
+
+echo "[pre-push] 1/3 Type check (tsc --noEmit)…"
+npx tsc --noEmit
+
+echo "[pre-push] 2/3 Unit tests (vitest run)…"
+npm test
+
+echo "[pre-push] 3/3 Lint (advisory — does NOT block the push)…"
+if npm run lint; then
+  echo "[pre-push] ✓ lint clean"
+else
+  echo "[pre-push] ⚠ lint reported problems — allowed through (advisory). Fix when you can."
+fi
+
+echo "[pre-push] ✓ blocking gates passed — pushing."
