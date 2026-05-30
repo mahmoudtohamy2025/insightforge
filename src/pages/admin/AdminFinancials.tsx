@@ -95,7 +95,11 @@ export default function AdminFinancials() {
 
   const toggleSelect = (id: string) => {
     const ns = new Set(selectedIds);
-    ns.has(id) ? ns.delete(id) : ns.add(id);
+    if (ns.has(id)) {
+      ns.delete(id);
+    } else {
+      ns.add(id);
+    }
     setSelectedIds(ns);
   };
 
