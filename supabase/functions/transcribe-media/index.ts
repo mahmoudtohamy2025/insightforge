@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -19,6 +19,16 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Verify the caller's JWT before doing anything with the service-role client
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
 
     const { media_id } = await req.json();
     if (!media_id) {
@@ -41,6 +51,10 @@ Deno.serve(async (req) => {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
+
+    // Authorize: the caller must belong to the workspace that owns this media
+    const memberCheck = await validateWorkspaceMembership(supabase, req, user.id, media.workspace_id);
+    if (memberCheck) return memberCheck;
 
     // Mark as processing
     await supabase

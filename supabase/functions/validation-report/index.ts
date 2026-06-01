@@ -6,7 +6,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, jsonResponse } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 
 Deno.serve(async (req: Request) => {
   const corsResponse = handleCors(req);
@@ -35,7 +35,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Verify workspace membership
-    const memberError = await requireWorkspaceMember(supabase, workspace_id, user.id);
+    const memberError = await validateWorkspaceMembership(supabase, req, user.id, workspace_id as string);
     if (memberError) return memberError;
 
     // ── 1. Get all segments for this workspace ──

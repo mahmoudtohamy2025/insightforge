@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const membershipError = await requireWorkspaceMember(supabase, claimsData.claims.sub, workspace_id);
+    const membershipError = await validateWorkspaceMembership(supabase, req, claimsData.claims.sub as string, workspace_id);
     if (membershipError) return membershipError;
 
     let query = supabase

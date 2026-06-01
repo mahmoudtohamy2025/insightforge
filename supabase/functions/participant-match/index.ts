@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
@@ -86,6 +87,16 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Verify the caller's JWT before touching platform-wide participant data
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const body = await req.json();
     const { study_id } = body;
@@ -110,6 +121,10 @@ Deno.serve(async (req) => {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
+
+    // Authorize: the caller must belong to the workspace that owns this study
+    const memberCheck = await validateWorkspaceMembership(supabaseAdmin, req, user.id, study.workspace_id);
+    if (memberCheck) return memberCheck;
 
     const requirements = (study.requirements || {}) as StudyRequirements;
 
