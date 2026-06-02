@@ -25,7 +25,7 @@ const Landing = () => {
   const { user } = useAuth();
   const { t } = useI18n();
 
-  const goToApp = () => navigate(user ? "/dashboard" : "/auth");
+  const goToApp = () => navigate(user ? "/dashboard" : "/signup");
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">

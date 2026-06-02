@@ -130,7 +130,7 @@ export function InlineDemo() {
               </div>
             </div>
 
-            <Button size="lg" variant="default" className="w-full bg-gradient-to-r from-primary to-purple-600 hover:opacity-90" onClick={() => window.location.href = '/auth'}>
+            <Button size="lg" variant="default" className="w-full bg-gradient-to-r from-primary to-purple-600 hover:opacity-90" onClick={() => window.location.href = '/signup'}>
               Try with 1,000 Personas
             </Button>
           </div>
