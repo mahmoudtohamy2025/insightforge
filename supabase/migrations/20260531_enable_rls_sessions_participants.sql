@@ -1,0 +1,38 @@
+-- Tier-0 security fix (0.1): enable Row Level Security on the `sessions`
+-- and `participants` base tables.
+--
+-- WHY: both tables were created (migration 20260308175347) with a full set of
+-- correct, workspace-scoped policies, but NO migration ever ran
+-- `ENABLE ROW LEVEL SECURITY` on them — so in the migration history the policies
+-- are inert. A source-only reading implies any authenticated user could read or
+-- write EVERY workspace's sessions and EVERY participant's PII (name, email,
+-- age, gender, location) via the anon-key client.
+--
+-- VERIFIED 2026-05-31 (live DB, project xwjvsmwefbukaswkwpbf): RLS was ALREADY
+-- enabled on both tables in production (relrowsecurity=true, 5 policies each) —
+-- it had been turned on directly in the dashboard, so the live DB had diverged
+-- from the migration history. This migration therefore ran as a NO-OP against
+-- current production; its purpose is to RECONCILE that drift so fresh
+-- environments (local, CI, a re-provisioned project) are never shipped exposed.
+-- `ENABLE ROW LEVEL SECURITY` is idempotent, so re-running is harmless.
+-- For the record, the policies it (re)asserts:
+--   SELECT → is_workspace_member(workspace_id, auth.uid())
+--   INSERT → is_workspace_member(...) AND created_by = auth.uid()
+--   UPDATE → owner/admin/creator
+--   DELETE → owner/admin
+--
+-- SAFE TO APPLY:
+--   * All live insert paths set created_by (src/pages/Sessions.tsx:117,
+--     src/pages/Participants.tsx:92, src/components/participants/CSVImportDialog.tsx:227),
+--     so they satisfy the INSERT WITH CHECK.
+--   * The only insert path that omits created_by — sessionService.createSession()
+--     — is dead code (no callers; also references stale columns).
+--   * Edge functions write these tables with the service-role key, which has
+--     BYPASSRLS, so they are unaffected.
+--   * ENABLE ROW LEVEL SECURITY is harmless if RLS is already on.
+--
+-- After applying, verify with Supabase's security advisor and confirm
+-- cross-tenant reads are blocked.
+
+ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.participants ENABLE ROW LEVEL SECURITY;
