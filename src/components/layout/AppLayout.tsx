@@ -3,7 +3,6 @@ import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { Outlet } from "react-router-dom";
 import { CommandPalette } from "@/components/CommandPalette";
-import { FirstSimulationWizard } from "@/components/onboarding/FirstSimulationWizard";
 
 export function AppLayout() {
   return (
@@ -18,7 +17,6 @@ export function AppLayout() {
         </div>
       </div>
       <CommandPalette />
-      <FirstSimulationWizard />
     </SidebarProvider>
   );
 }
