@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, RefreshCw, Loader2, Pencil, Trash2, ChevronUp, ChevronDown, Plus, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,7 @@ const needsMatrix = (type: string) => type === "matrix";
 
 export function CreateSurveyWizard({ open, onOpenChange, onLaunch, isCreating }: CreateSurveyWizardProps) {
   const { t } = useI18n();
+  const { currentWorkspace } = useWorkspace();
   const [step, setStep] = useState(1);
   const [objective, setObjective] = useState("");
   const [targetResponses, setTargetResponses] = useState(500);
@@ -82,10 +84,14 @@ export function CreateSurveyWizard({ open, onOpenChange, onLaunch, isCreating }:
   };
 
   const generateQuestions = async () => {
+    if (!currentWorkspace?.id) {
+      toast({ title: "No workspace selected", variant: "destructive" });
+      return;
+    }
     setIsGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-survey-questions", {
-        body: { objective },
+        body: { objective, workspace_id: currentWorkspace.id },
       });
 
       if (error) throw new Error(error.message || "Generation failed");

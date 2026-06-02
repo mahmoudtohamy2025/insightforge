@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
+import { validateWorkspaceMembership, isValidUUID } from "../_shared/validation.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -31,13 +32,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { objective } = await req.json();
+    const { objective, workspace_id } = await req.json();
     if (!objective || typeof objective !== "string") {
       return new Response(JSON.stringify({ error: "Missing objective" }), {
         status: 400,
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
+    if (!isValidUUID(workspace_id)) {
+      return new Response(JSON.stringify({ error: "workspace_id is required" }), {
+        status: 400,
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
+    // Authorize: caller must belong to this workspace, then charge its AI budget
+    const memberCheck = await validateWorkspaceMembership(supabase, req, user.id, workspace_id);
+    if (memberCheck) return memberCheck;
+    const tier = await getWorkspaceTier(supabase, workspace_id);
+    const rateLimitCheck = await checkRateLimit(supabase, req, workspace_id, tier);
+    if (rateLimitCheck) return rateLimitCheck;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
@@ -139,6 +153,7 @@ Questions should be clear, unbiased, and professionally worded.`;
     }
 
     const result = await response.json();
+    await recordTokenUsage(supabase, workspace_id, result.usage?.total_tokens || 0);
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
 
     if (!toolCall?.function?.arguments) {

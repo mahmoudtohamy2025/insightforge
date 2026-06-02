@@ -148,7 +148,7 @@ const Projects = () => {
     setAiPlan(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-project-plan", {
-        body: { description: aiPrompt, locale: language },
+        body: { description: aiPrompt, locale: language, workspace_id: workspaceId },
       });
       if (error) throw error;
       if (data?.plan) {

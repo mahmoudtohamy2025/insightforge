@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
+import { validateWorkspaceMembership, isValidUUID } from "../_shared/validation.ts";
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -31,13 +32,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { description, locale = "en" } = await req.json();
+    const { description, locale = "en", workspace_id } = await req.json();
     if (!description || typeof description !== "string") {
       return new Response(JSON.stringify({ error: "description is required" }), {
         status: 400,
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
+    if (!isValidUUID(workspace_id)) {
+      return new Response(JSON.stringify({ error: "workspace_id is required" }), {
+        status: 400,
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
+    // Authorize: caller must belong to this workspace, then charge its AI budget
+    const memberCheck = await validateWorkspaceMembership(supabase, req, user.id, workspace_id);
+    if (memberCheck) return memberCheck;
+    const tier = await getWorkspaceTier(supabase, workspace_id);
+    const rateLimitCheck = await checkRateLimit(supabase, req, workspace_id, tier);
+    if (rateLimitCheck) return rateLimitCheck;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
@@ -154,6 +168,7 @@ ${bilingualInstruction}`,
     }
 
     const data = await response.json();
+    await recordTokenUsage(supabase, workspace_id, data.usage?.total_tokens || 0);
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
       return new Response(JSON.stringify({ error: "AI did not return a structured plan" }), {
