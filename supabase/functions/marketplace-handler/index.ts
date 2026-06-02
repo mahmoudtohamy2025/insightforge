@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { corsHeaders } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 
 /**
  * Marketplace Handler
@@ -19,14 +19,14 @@ import { requireWorkspaceMember } from "../_shared/validation.ts";
 serve(async (req: Request) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
   }
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { 
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } 
       });
     }
 
@@ -34,7 +34,7 @@ serve(async (req: Request) => {
 
     if (!action || !segment_id) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { 
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } 
       });
     }
 
@@ -49,52 +49,67 @@ serve(async (req: Request) => {
     
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), { 
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } 
       });
     }
 
     if (action === "publish") {
-      const { error: updateError } = await supabaseClient
-        .from("segment_profiles")
-        .update({ 
-          is_published: true, 
-          industry: industry || null,
-          price_credits: price_credits || 0 
-        })
-        .eq("id", segment_id);
-
-      if (updateError) throw updateError;
-
-      // Log publish action
-      const { data: segmentData } = await supabaseClient
+      // Verify the segment exists and the caller is a member of its workspace
+      // before publishing it to the marketplace (service-role bypasses RLS).
+      const { data: segmentData, error: segFetchError } = await supabaseClient
         .from("segment_profiles")
         .select("workspace_id")
         .eq("id", segment_id)
         .single();
 
-      if (segmentData) {
-        await supabaseClient.from("audit_logs").insert({
-          workspace_id: segmentData.workspace_id,
-          user_id: user.id,
-          action: 'marketplace_publish',
-          resource_type: 'segment_profile',
-          resource_id: segment_id,
-          details: { industry, price_credits }
+      if (segFetchError || !segmentData) {
+        return new Response(JSON.stringify({ error: "Segment not found" }), {
+          status: 404, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }
         });
       }
 
+      const memberCheck = await validateWorkspaceMembership(supabaseClient, req, user.id, segmentData.workspace_id);
+      if (memberCheck) return memberCheck;
+
+      const { error: updateError } = await supabaseClient
+        .from("segment_profiles")
+        .update({
+          is_published: true,
+          industry: industry || null,
+          price_credits: price_credits || 0
+        })
+        .eq("id", segment_id)
+        .eq("workspace_id", segmentData.workspace_id);
+
+      if (updateError) throw updateError;
+
+      // Log publish action
+      await supabaseClient.from("audit_logs").insert({
+        workspace_id: segmentData.workspace_id,
+        user_id: user.id,
+        action: 'marketplace_publish',
+        resource_type: 'segment_profile',
+        resource_id: segment_id,
+        details: { industry, price_credits }
+      });
+
       return new Response(JSON.stringify({ message: "Segment published successfully" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
         status: 200,
       });
-    } 
+    }
     
     else if (action === "import") {
       if (!target_workspace_id) {
-        return new Response(JSON.stringify({ error: "Missing target_workspace_id" }), { 
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        return new Response(JSON.stringify({ error: "Missing target_workspace_id" }), {
+          status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }
         });
       }
+
+      // Verify the caller is a member of the workspace they're importing into
+      // (service-role bypasses RLS).
+      const memberCheck = await validateWorkspaceMembership(supabaseClient, req, user.id, target_workspace_id);
+      if (memberCheck) return memberCheck;
 
       // 1. Fetch the segment definition from view
       const { data: originalSegment, error: fetchError } = await supabaseClient
@@ -105,7 +120,7 @@ serve(async (req: Request) => {
         
       if (fetchError || !originalSegment) {
         return new Response(JSON.stringify({ error: "Segment not found or not public" }), { 
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          status: 404, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } 
         });
       }
 
@@ -118,7 +133,7 @@ serve(async (req: Request) => {
         
       if (profileFetchError || !fullSegmentData) {
          return new Response(JSON.stringify({ error: "Segment profile data missing" }), { 
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          status: 404, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } 
         });
       }
 
@@ -164,18 +179,18 @@ serve(async (req: Request) => {
       });
 
       return new Response(JSON.stringify({ message: "Segment imported successfully", new_segment_id: insertedSegment.id }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
         status: 200,
       });
     }
 
     return new Response(JSON.stringify({ error: "Invalid action type" }), { 
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } 
     });
 
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), { 
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } 
     });
   }
 });

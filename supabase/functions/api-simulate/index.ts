@@ -1,6 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, jsonResponse } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
 
 /**
  * Unified public API gateway for programmatic simulation access.

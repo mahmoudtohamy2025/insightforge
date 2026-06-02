@@ -2,11 +2,20 @@
 -- and `participants` base tables.
 --
 -- WHY: both tables were created (migration 20260308175347) with a full set of
--- correct, workspace-scoped policies, but RLS was never ENABLED — so the
--- policies are inert. Because the frontend reads/writes these tables with the
--- anon key, PostgREST applied no row filter: any authenticated user could read
--- or write EVERY workspace's sessions and EVERY participant's PII (name, email,
--- age, gender, location). This turns the existing policies on:
+-- correct, workspace-scoped policies, but NO migration ever ran
+-- `ENABLE ROW LEVEL SECURITY` on them — so in the migration history the policies
+-- are inert. A source-only reading implies any authenticated user could read or
+-- write EVERY workspace's sessions and EVERY participant's PII (name, email,
+-- age, gender, location) via the anon-key client.
+--
+-- VERIFIED 2026-05-31 (live DB, project xwjvsmwefbukaswkwpbf): RLS was ALREADY
+-- enabled on both tables in production (relrowsecurity=true, 5 policies each) —
+-- it had been turned on directly in the dashboard, so the live DB had diverged
+-- from the migration history. This migration therefore ran as a NO-OP against
+-- current production; its purpose is to RECONCILE that drift so fresh
+-- environments (local, CI, a re-provisioned project) are never shipped exposed.
+-- `ENABLE ROW LEVEL SECURITY` is idempotent, so re-running is harmless.
+-- For the record, the policies it (re)asserts:
 --   SELECT → is_workspace_member(workspace_id, auth.uid())
 --   INSERT → is_workspace_member(...) AND created_by = auth.uid()
 --   UPDATE → owner/admin/creator

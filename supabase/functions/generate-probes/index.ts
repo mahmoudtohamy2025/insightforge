@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
 
@@ -41,6 +41,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Verify the caller is a member of this workspace (service-role bypasses RLS)
+    const memberCheck = await validateWorkspaceMembership(supabase, req, userId, workspace_id as string);
+    if (memberCheck) return memberCheck;
+
     const probeSource = source || "discussion_guide";
 
     // Fetch session + project
@@ -48,6 +52,7 @@ Deno.serve(async (req) => {
       .from("sessions")
       .select("id, title, project_id, workspace_id")
       .eq("id", session_id)
+      .eq("workspace_id", workspace_id)
       .single();
 
     if (sessErr || !session) {

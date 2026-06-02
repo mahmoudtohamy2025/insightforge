@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, jsonResponse } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
 import { fetchGemini } from "../_shared/aiClient.ts";
@@ -156,6 +156,10 @@ Deno.serve(async (req: any) => {
     if (!segment_id || !workspace_id || !study_context) {
       return jsonResponse(req, { error: "Missing required fields: segment_id, workspace_id, study_context" }, 400);
     }
+
+    // Verify the caller is a member of this workspace (service-role bypasses RLS)
+    const memberCheck = await validateWorkspaceMembership(supabase, req, user.id, workspace_id as string);
+    if (memberCheck) return memberCheck;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
