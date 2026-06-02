@@ -69,18 +69,6 @@ const Landing = () => {
             </Button>
           </div>
 
-          {/* Social Proof Bar */}
-          <div className="pt-6 animate-fade-in text-sm font-medium text-muted-foreground flex items-center justify-center gap-2">
-            <span className="flex items-center">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className={`w-6 h-6 rounded-full border-2 border-background bg-muted -ml-2 first:ml-0 flex items-center justify-center overflow-hidden z-[${10-i}]`}>
-                  <Users2 className="h-3 w-3" />
-                </div>
-              ))}
-            </span>
-            <span className="ml-2">Trusted by 500+ researchers · <strong className="text-foreground">12,847 simulations run</strong></span>
-          </div>
-
           {/* Trust Badges */}
           <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -266,30 +254,22 @@ const Landing = () => {
             <p className="text-muted-foreground">{t("landing.pricingSubtitle")}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               {
                 name: "Free",
                 price: "$0",
                 period: "/mo",
                 popular: false,
-                features: ["1 seat", "10 simulations/mo"],
+                features: ["3 seats", "10 simulations/mo"],
                 cta: "Get Started",
-              },
-              {
-                name: "Solo",
-                price: "$19",
-                period: "/mo",
-                popular: false,
-                features: ["1 seat", "100 simulations", "Basic AI Models"],
-                cta: "Start Solo",
               },
               {
                 name: "Starter",
                 price: "$49",
                 period: "/mo",
                 popular: true,
-                features: ["5 seats", "500K Tokens", "Custom Studies"],
+                features: ["10 seats", "500K Tokens", "Custom Studies"],
                 cta: "Start Starter",
               },
               {
@@ -297,7 +277,7 @@ const Landing = () => {
                 price: "$149",
                 period: "/mo",
                 popular: false,
-                features: ["15 seats", "2M Tokens", "Priority support"],
+                features: ["25 seats", "2M Tokens", "Priority support"],
                 cta: "Start Pro",
               },
               {
