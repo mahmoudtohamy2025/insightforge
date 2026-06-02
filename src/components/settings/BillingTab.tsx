@@ -10,6 +10,7 @@ import { CreditCard, Shield, AlertTriangle, BarChart3, Loader2 } from "lucide-re
 import { Progress } from "@/components/ui/progress";
 import { TIER_LIMITS, TIER_PRICES, TIER_ORDER, STRIPE_TIER_MAP, getUsagePercent, getUsageStatus } from "@/lib/tierLimits";
 import { useSubscription } from "@/hooks/useSubscription";
+import { trackEvent } from "@/lib/analytics";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { UsageMeter } from "@/components/UsageMeter";
@@ -43,6 +44,7 @@ export function BillingTab({ currentWorkspace, t, isOwner }: { currentWorkspace:
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
+      trackEvent("checkout_completed");
       refetch();
       window.history.replaceState({}, "", window.location.pathname + "?tab=billing");
     }
@@ -59,6 +61,7 @@ export function BillingTab({ currentWorkspace, t, isOwner }: { currentWorkspace:
     const mapping = STRIPE_TIER_MAP[tier];
     if (!mapping) return;
     setCheckoutLoading(tier);
+    trackEvent("checkout_started", { tier, price_id: mapping.price_id });
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: { price_id: mapping.price_id, workspace_id: workspaceId },

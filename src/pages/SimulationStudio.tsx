@@ -5,6 +5,7 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { getSegments } from "@/services/segmentService";
 import { getSimulationHistory, getSimulationById, runSimulation } from "@/services/simulationService";
+import { trackEvent } from "@/lib/analytics";
 import { useI18n } from "@/lib/i18n";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -137,6 +138,7 @@ const SimulationStudio = () => {
     onSuccess: (data) => {
       setResult(data);
       queryClient.invalidateQueries({ queryKey: ["simulation-history", workspaceId] });
+      trackEvent("simulation_run", { segment_id: selectedSegmentId, confidence: data?.confidence });
       toast({ title: "Simulation complete", description: `Confidence: ${Math.round((data.confidence || 0) * 100)}%` });
     },
     onError: (e) => toast({ title: "Simulation failed", description: e.message, variant: "destructive" }),

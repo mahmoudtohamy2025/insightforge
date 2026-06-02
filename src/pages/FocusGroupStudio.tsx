@@ -5,6 +5,7 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import { getSegments } from "@/services/segmentService";
+import { trackEvent } from "@/lib/analytics";
 import {
   getNextTestSuggestions,
   runFocusGroup,
@@ -163,6 +164,7 @@ const FocusGroupStudio = () => {
     onSuccess: (data) => {
       setResult(data);
       queryClient.invalidateQueries({ queryKey: ["simulation-history", workspaceId] });
+      trackEvent("focus_group_run", { segments: selectedSegmentIds.length, rounds: data?.rounds?.length });
       toast({ title: "Focus group complete!", description: `${data.aggregate.participant_count} participants, ${data.rounds.length} rounds` });
     },
     onError: (e) => toast({ title: "Focus group failed", description: e.message, variant: "destructive" }),

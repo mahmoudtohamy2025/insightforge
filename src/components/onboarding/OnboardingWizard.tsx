@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
@@ -100,6 +101,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     onSuccess: (data) => {
       setSimResult(data);
       queryClient.invalidateQueries({ queryKey: ["simulation-history"] });
+      trackEvent("onboarding_simulation_run", { confidence: data?.confidence });
       setStep(3);
     },
     onError: (e) => toast({ title: "Simulation failed", description: e.message, variant: "destructive" }),

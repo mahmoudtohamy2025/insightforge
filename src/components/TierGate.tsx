@@ -1,7 +1,8 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUsage } from "@/hooks/useUsage";
 import { useI18n } from "@/lib/i18n";
+import { trackEvent } from "@/lib/analytics";
 import type { TierResource } from "@/lib/tierLimits";
 import { AlertTriangle, Crown } from "lucide-react";
 
@@ -24,6 +25,13 @@ export function TierGate({ resource, children, message, softBlock }: TierGatePro
   const { t } = useI18n();
   const { checkAction, tier } = useUsage();
   const result = checkAction(resource);
+  const blocked = !result.allowed && !softBlock;
+
+  // Fire once when the hard paywall becomes visible — not in the render body,
+  // which would re-fire on every re-render of a blocked gate.
+  useEffect(() => {
+    if (blocked) trackEvent("paywall_viewed", { resource });
+  }, [blocked, resource]);
 
   if (result.allowed) {
     return <>{children}</>;
@@ -60,7 +68,7 @@ export function TierGate({ resource, children, message, softBlock }: TierGatePro
             {message || result.message || t("billing.tierLimitTitle")}
           </p>
           <button
-            onClick={() => navigate("/settings?tab=billing")}
+            onClick={() => { trackEvent("upgrade_clicked", { resource }); navigate("/settings?tab=billing"); }}
             className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
             {t("billing.upgradePlan")}
