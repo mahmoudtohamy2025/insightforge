@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { getWorkspaceTier } from "../_shared/tierEnforcement.ts";
 
@@ -31,6 +31,25 @@ Deno.serve(async (req) => {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
+
+    // ── Verify JWT + workspace membership ──
+    // The anon client above is RLS-scoped, but the writes below use the
+    // service-role key (which bypasses RLS), so the workspace gate must be
+    // enforced explicitly here.
+    const token = authHeader.replace("Bearer ", "");
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+    const memberCheck = await validateWorkspaceMembership(serviceClient, req, user.id, workspace_id as string);
+    if (memberCheck) return memberCheck;
 
     // Fetch all session themes for this workspace
     let themesQuery = supabase
@@ -203,12 +222,7 @@ Rules:
     const parsed = JSON.parse(toolCall.function.arguments);
     const patterns = parsed.patterns || [];
 
-    const serviceClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // Create a synthesis run record
+    // Create a synthesis run record (serviceClient created during the auth check above)
     const now = new Date().toISOString();
     const { data: runData, error: runError } = await serviceClient
       .from("synthesis_runs")

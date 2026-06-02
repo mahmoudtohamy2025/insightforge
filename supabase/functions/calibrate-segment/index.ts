@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, jsonResponse } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
+import { validateWorkspaceMembership } from "../_shared/validation.ts";
 
 Deno.serve(async (req: any) => {
   const corsResponse = handleCors(req);
@@ -29,6 +29,10 @@ Deno.serve(async (req: any) => {
     if (!segment_id || !real_responses?.length || !workspace_id) {
       return jsonResponse(req, { error: "Need segment_id, real_responses[], and workspace_id" }, 400);
     }
+
+    // Verify the caller is a member of this workspace (service-role bypasses RLS)
+    const memberCheck = await validateWorkspaceMembership(supabase, req, user.id, workspace_id as string);
+    if (memberCheck) return memberCheck;
 
     // Verify segment exists and user has access
     const { data: segment, error: segError } = await supabase

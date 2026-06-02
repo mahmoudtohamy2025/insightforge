@@ -1,6 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
 
 const SAMPLE_TRANSCRIPT = `Interviewer: Thank you for joining us today. Can you tell me about your experience with research tools?
 

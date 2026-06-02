@@ -1,7 +1,6 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
 
 // ── Stripe Product → Tier Map ──
 const STRIPE_PRODUCT_TIER: Record<string, string> = {

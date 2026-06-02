@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { requireWorkspaceMember } from "../_shared/validation.ts";
 
 /**
  * Continuous Calibration Engine
@@ -54,7 +53,7 @@ serve(async (req: Request) => {
         segmentScores[row.segment_id] = { 
           total: 0, 
           count: 0,
-          workspace_id: row.segment_profiles?.workspace_id
+          workspace_id: (row.segment_profiles as any)?.workspace_id
         };
       }
       segmentScores[row.segment_id].total += row.accuracy_score;
