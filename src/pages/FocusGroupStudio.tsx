@@ -314,6 +314,9 @@ const FocusGroupStudio = () => {
                 {segments.length === 0 && (
                   <p className="text-xs text-muted-foreground">No segments created yet. <button className="text-primary underline" onClick={() => navigate("/segments")}>Create one first</button>.</p>
                 )}
+                {segments.length === 1 && (
+                  <p className="text-xs text-muted-foreground">A focus group needs at least 2 segments to compare reactions. <button className="text-primary underline" onClick={() => navigate("/segments")}>Add another segment</button>.</p>
+                )}
               </div>
 
               {/* Rounds */}
