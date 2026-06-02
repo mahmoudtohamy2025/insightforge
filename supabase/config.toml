@@ -27,6 +27,13 @@ verify_jwt = false
 [functions.customer-portal]
 verify_jwt = false
 
+[functions.stripe-webhook]
+# Stripe webhooks authenticate via the stripe-signature header (verified in
+# index.ts with STRIPE_WEBHOOK_SECRET), not a Supabase JWT. This MUST stay
+# false or Stripe deliveries are rejected with 401 at the gateway before the
+# function runs. Matches the other billing functions above.
+verify_jwt = false
+
 [functions.dispatch-webhook]
 verify_jwt = false
 

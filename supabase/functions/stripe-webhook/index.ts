@@ -1,11 +1,16 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Map stripe products to our internal tiers
+// ── Stripe Product → Tier Map ──
 const STRIPE_PRODUCT_TIER: Record<string, string> = {
   "prod_starter_plan": "starter",
   "prod_professional_plan": "professional",
   "prod_enterprise_plan": "enterprise",
+  // Real Stripe product IDs — MUST match STRIPE_TIER_MAP in src/lib/tierLimits.ts.
+  // Without these, live subscription events fall through to "free" and paying
+  // customers never get upgraded. (Mirrors check-subscription/index.ts.)
+  "prod_U77vT9icIzokqy": "starter",
+  "prod_U77wrd6NNDHYW2": "professional",
 };
 
 // Allow override via env
@@ -88,7 +93,10 @@ Deno.serve(async (req) => {
       event = JSON.parse(body);
       console.log("⚠️ Bypassing Stripe signature verification (local E2E testing only)");
     } else {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      // Deno's runtime only exposes async SubtleCrypto, so the synchronous
+      // constructEvent() throws "SubtleCryptoProvider cannot be used in a
+      // synchronous context". Must use the async variant in edge functions.
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     }
     
     console.log(`Processing Stripe event: ${event.type}`);
