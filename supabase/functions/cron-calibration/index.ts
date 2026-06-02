@@ -7,10 +7,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
  * `calibration_score` moving average based on new real-world data matched against simulated data.
  */
 
+/** Constant-time string comparison to avoid leaking the secret via timing. */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return mismatch === 0;
+}
+
 serve(async (req: Request) => {
-  // Simple auth check for programmatic/CRON access (usually via service role)
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
+  // Cron-only endpoint: runs with the service-role key and rewrites calibration
+  // scores + audit logs across EVERY workspace. Gate on a shared CRON_SECRET and
+  // fail closed (refuse if the secret is unset) so no external caller can trigger
+  // it. The scheduler must send the secret in the `x-cron-secret` header — same
+  // contract as cleanup-expired-data.
+  const expectedSecret = Deno.env.get("CRON_SECRET");
+  const providedSecret = req.headers.get("x-cron-secret") ?? "";
+  if (!expectedSecret || !safeEqual(providedSecret, expectedSecret)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
