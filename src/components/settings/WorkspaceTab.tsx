@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, Language, ENABLED_LANGUAGES } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "@/hooks/use-toast";
@@ -19,6 +19,17 @@ import {
 import { Building2, AlertTriangle, Loader2, Upload, Globe, Clock, MapPin, Palette, Database, Download } from "lucide-react";
 
 const PRESET_COLORS = ["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
+
+// Default-language options for workspace settings. Filtered by ENABLED_LANGUAGES
+// (src/lib/i18n.tsx) so we never offer a language the UI doesn't actually deliver
+// — re-enabling a language there restores its option here automatically.
+const LOCALE_OPTIONS: { code: Language; label: string }[] = [
+  { code: "en", label: "English" },
+  { code: "ar", label: "العربية (Arabic)" },
+  { code: "fr", label: "Français (French)" },
+  { code: "es", label: "Español (Spanish)" },
+  { code: "de", label: "Deutsch (German)" },
+];
 
 const TIMEZONES = [
   "Asia/Riyadh", "Asia/Dubai", "Asia/Kuwait", "Asia/Bahrain", "Asia/Qatar",
@@ -270,11 +281,9 @@ export function WorkspaceTab() {
               <Select value={defaultLocale} onValueChange={setDefaultLocale} disabled={!isAdminOrOwner}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="ar">العربية (Arabic)</SelectItem>
-                  <SelectItem value="fr">Français (French)</SelectItem>
-                  <SelectItem value="es">Español (Spanish)</SelectItem>
-                  <SelectItem value="de">Deutsch (German)</SelectItem>
+                  {LOCALE_OPTIONS.filter((o) => ENABLED_LANGUAGES.includes(o.code)).map((o) => (
+                    <SelectItem key={o.code} value={o.code}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

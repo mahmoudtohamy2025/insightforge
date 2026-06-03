@@ -1,4 +1,4 @@
-import { useI18n, Language } from "@/lib/i18n";
+import { useI18n, Language, ENABLED_LANGUAGES } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,7 +31,14 @@ export function LanguageSelector({
   showText = false,
 }: LanguageSelectorProps) {
   const { language, setLanguage } = useI18n();
-  const currentLang = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
+  const available = LANGUAGES.filter((l) => ENABLED_LANGUAGES.includes(l.code));
+
+  // English-only launch: with a single enabled language there's nothing to pick,
+  // so render nothing instead of a one-item dropdown. Re-enabling a language in
+  // ENABLED_LANGUAGES (src/lib/i18n.tsx) brings this selector back automatically.
+  if (available.length <= 1) return null;
+
+  const currentLang = available.find((l) => l.code === language) || available[0];
 
   return (
     <DropdownMenu>
@@ -42,7 +49,7 @@ export function LanguageSelector({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {LANGUAGES.map((lang) => (
+        {available.map((lang) => (
           <DropdownMenuItem
             key={lang.code}
             onClick={() => setLanguage(lang.code)}

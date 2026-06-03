@@ -4,6 +4,19 @@ import enTranslations from "@/locales/en.json";
 export type Language = "en" | "ar" | "fr" | "es" | "de";
 export type Direction = "ltr" | "rtl";
 
+/**
+ * Languages currently exposed in the UI.
+ *
+ * English-only for launch (decision 2026-06-03): Spanish/French/German are only
+ * ~82% translated and Arabic's RTL layout is still cosmetic (physical ml-/mr-
+ * rather than logical ms-/me-), so we don't surface them rather than ship a
+ * multilingual UI we don't actually deliver. The translation files
+ * (src/locales/*.json) and all the i18n machinery below are intentionally KEPT,
+ * so re-enabling a language is a one-line change here — add its code back once
+ * its translation is complete (and, for "ar", after a logical-property RTL pass).
+ */
+export const ENABLED_LANGUAGES: Language[] = ["en"];
+
 interface I18nContextType {
   language: Language;
   direction: Direction;
@@ -41,8 +54,10 @@ async function loadLanguage(lang: Language): Promise<Record<string, string>> {
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
-    const saved = localStorage.getItem("insightforge-lang");
-    return (saved as Language) || "en";
+    const saved = localStorage.getItem("insightforge-lang") as Language | null;
+    // Fall back to English for any previously-saved language that is no longer
+    // enabled (e.g. a user who picked Spanish before the English-only launch).
+    return saved && ENABLED_LANGUAGES.includes(saved) ? saved : "en";
   });
   const [translations, setTranslations] = useState<Record<string, string>>(translationCache.en);
 
@@ -54,6 +69,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [language]);
 
   const setLanguage = useCallback((lang: Language) => {
+    if (!ENABLED_LANGUAGES.includes(lang)) return;
     setLanguageState(lang);
     localStorage.setItem("insightforge-lang", lang);
   }, []);
