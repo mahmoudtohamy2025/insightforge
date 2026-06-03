@@ -1,0 +1,28 @@
+-- =====================================================
+-- C3 / Q10: make public.marketplace_segments a SECURITY INVOKER view
+-- =====================================================
+-- The Supabase security advisor flags marketplace_segments as an ERROR:
+-- it was created (20260329100000_moat_monetization.sql) as a plain view, which
+-- in Postgres defaults to SECURITY DEFINER semantics. Combined with
+-- `GRANT SELECT ... TO authenticated`, an authenticated user could query the
+-- view directly via PostgREST and read every workspace's published segments,
+-- bypassing the row-level security on the underlying segment_profiles table.
+--
+-- security_invoker = true makes the view execute with the *caller's* privileges,
+-- so RLS on segment_profiles applies to the querying user. This is the correct,
+-- secure default.
+--
+-- Why ALTER, not DROP: the Segment Marketplace feature is PARKED (no UI), not
+-- killed -- the only live reader is the marketplace-handler edge function, which
+-- uses the service-role key (BYPASSRLS) and is therefore unaffected by this
+-- change. Keeping the view preserves the parked plumbing for a future revival.
+--
+-- Future-revival note: if the marketplace is ever revived to let an authenticated
+-- client browse the view directly (cross-workspace), do NOT revert to SECURITY
+-- DEFINER. Instead add an explicit RLS policy on segment_profiles allowing
+-- SELECT of rows WHERE is_published = true, so cross-workspace visibility is
+-- granted deliberately by policy rather than by bypassing RLS wholesale.
+--
+-- Reversible: ALTER VIEW public.marketplace_segments SET (security_invoker = false);
+
+ALTER VIEW IF EXISTS public.marketplace_segments SET (security_invoker = true);
