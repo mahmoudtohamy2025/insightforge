@@ -120,14 +120,11 @@ Deno.serve(async (req) => {
 
         console.log(`Updating customer ${customerId} to tier: ${tier}, status: ${status}`);
 
-        // Token limits
-        const TOKEN_ALLOCATION: Record<string, number> = {
-          starter: 500_000,
-          professional: 5_000_000,
-          enterprise: 50_000_000, // Effectively unlimited in UI
-          free: 0,
-        };
-        const tokensToAllocate = status === "active" ? (TOKEN_ALLOCATION[tier] || 0) : 0;
+        // No token allocation is written here: monthly budgets are derived from
+        // workspaces.tier at request time by _shared/rateLimiter.ts
+        // (TIER_TOKEN_BUDGETS, kept in sync with src/lib/tierLimits.ts). The webhook
+        // only needs to set the tier below. (A stale, never-read TOKEN_ALLOCATION map
+        // used to live here and had drifted from the canonical budgets — removed.)
 
         // Fetch workspace to get id
         const { data: wsData } = await supabase
