@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Environment variables — never commit. Use .env.example as the committed template.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -33,3 +38,4 @@ new_lint_results*.txt
 
 # Supabase CLI session cache — local-only, drifts per worktree
 supabase/.temp/
+.zaude/e2e-test/
