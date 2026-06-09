@@ -11,6 +11,16 @@ export default defineConfig({
     baseURL: 'http://localhost:8080',
     trace: 'on-first-retry',
   },
+  // Boot the app in `test` mode so it reads .env.test and points at the LOCAL
+  // Supabase stack (`supabase start`), never prod. reuseExistingServer is false
+  // on purpose: always start our own test-mode server rather than risk reusing a
+  // stray prod-pointed `npm run dev` on 8080 (which would sign up users on prod).
+  webServer: {
+    command: 'npm run dev:test',
+    url: 'http://localhost:8080',
+    reuseExistingServer: false,
+    timeout: 120_000,
+  },
   projects: [
     {
       name: 'chromium',

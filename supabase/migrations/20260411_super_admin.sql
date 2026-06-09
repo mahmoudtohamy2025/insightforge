@@ -17,8 +17,15 @@ CREATE POLICY "super_admins_select_own"
   USING (user_id = auth.uid());
 
 -- 2. Insert the first super admin: mahmoudtohamy94@gmail.com
+-- Guarded by an existence check on auth.users so this migration also applies
+-- cleanly to a fresh database (local dev, CI, a new staging project) where that
+-- user has not been created. On prod the user exists, so behaviour is unchanged
+-- (the row is seeded; ON CONFLICT keeps it idempotent on re-apply).
 INSERT INTO public.super_admins (user_id)
-VALUES ('d7466901-d2d8-4198-bc05-90a161a8599d')
+SELECT 'd7466901-d2d8-4198-bc05-90a161a8599d'
+WHERE EXISTS (
+  SELECT 1 FROM auth.users WHERE id = 'd7466901-d2d8-4198-bc05-90a161a8599d'
+)
 ON CONFLICT (user_id) DO NOTHING;
 
 -- 3. Helper function: is_super_admin

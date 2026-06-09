@@ -12,8 +12,14 @@ test.describe('AI Twin Pipeline Tests', () => {
     });
 
     // Inject localStorage BEFORE navigation to cleanly bypass FirstSimulationWizard
+    // and the per-page ProductTour overlays (full-screen z-[9999] spotlight that
+    // intercepts pointer events). Tours are gated by `tour_completed_<id> === "true"`
+    // (see useTour.ts); pre-mark every tour complete so none auto-start during the run.
     await page.addInitScript(() => {
       localStorage.setItem("has_seen_first_sim", "true");
+      for (const id of ["twins", "simulation", "focus-group", "ab-test", "market-sim", "policy-sim", "sessions", "surveys", "requirements", "insights"]) {
+        localStorage.setItem(`tour_completed_${id}`, "true");
+      }
     });
     
     // 1. Isolate test state by creating a brand new workspace/user
@@ -39,7 +45,10 @@ test.describe('AI Twin Pipeline Tests', () => {
     }
     
     // 1.5 Authentically upgrade the workspace to Starter to entirely bypass TierGate API restrictions
-    await page.goto('/settings?tab=billing');
+    // Settings.tsx uses <Tabs defaultValue="profile"> and does NOT honor a ?tab= query
+    // param, so navigate to /settings and click the Billing tab (matches stripe.spec).
+    await page.goto('/settings');
+    await page.getByRole('tab', { name: /billing/i }).click();
     await page.waitForTimeout(1000); // hydrate workspace limits
     await page.route('**/functions/v1/create-checkout', async route => {
       await route.fulfill({
@@ -128,7 +137,9 @@ test.describe('AI Twin Pipeline Tests', () => {
 
     // 8. Explicit Analytics Render Validations!
     // We expect the mocked Sentiment value, the confidence graph, the precise response, and the keys!
-    await expect(page.locator('text="As a health-conscious consumer from the Playwright testing framework"')).toBeVisible();
+    // SimulationStudio renders the FULL response sentence in one element, so match a
+    // substring (getByText exact:false) rather than Playwright's quoted exact-match.
+    await expect(page.getByText("As a health-conscious consumer from the Playwright testing framework", { exact: false })).toBeVisible();
     await expect(page.locator('text="95%"')).toBeVisible(); // 0.95 confidence
     await expect(page.locator('text="+0.85"')).toBeVisible(); // Sentiment
     await expect(page.locator('text="Definitely Yes"')).toBeVisible(); // Purchase Intent Render mapped from definitely_yes

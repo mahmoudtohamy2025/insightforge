@@ -111,7 +111,8 @@ test.describe('Workspace Admin & Researcher Backbone Tests', () => {
     
     // 4. Test Native Payout Approvals (The Core of Admin duties)
     await page.goto('/incentives');
-    await expect(page.locator('h1:has-text("Incentives")')).toBeVisible();
+    // Page heading was rebranded "Incentives" -> "Rewards" (FOUNDER_RESEARCH_HEADERS.rewards.title).
+    await expect(page.locator('h1:has-text("Rewards")')).toBeVisible();
     
     // We mocked incentive_programs, so 'Alpha Phase Insights' should render perfectly!
     const programCard = page.locator('h3', { hasText: 'Alpha Phase Insights' });
