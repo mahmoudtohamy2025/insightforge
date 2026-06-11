@@ -10,21 +10,9 @@
  */
 
 import { jsonResponse } from "./cors.ts";
-
-// ── Tier Limits (mirrors src/lib/tierLimits.ts) ──────
-
-// NOTE: This table drifts from src/lib/tierLimits.ts on the count fields (members/sessions/etc.).
-// That drift is tracked separately as P0.1 in AUDIT.md. This PR only fixes the aiAnalysis
-// boolean for the free tier (P0.8) to avoid scope creep. The drift on counts is a separate fix.
-const TIER_LIMITS: Record<string, Record<string, number | boolean | string>> = {
-  // P0.8 — aiAnalysis flipped to true. Free tier now gets a monthly AI trial via the
-  // rate-limiter's 50K token budget. Without this flag flip, tierEnforcement.ts:130
-  // returns a 403 before the rate-limiter is even reached.
-  free:         { members: 2, sessions: 10, surveys: 5, projects: 3, aiAnalysis: true },
-  starter:      { members: 5, sessions: 50, surveys: 25, projects: 15, aiAnalysis: true },
-  professional: { members: 15, sessions: -1, surveys: -1, projects: -1, aiAnalysis: true },
-  enterprise:   { members: -1, sessions: -1, surveys: -1, projects: -1, aiAnalysis: true },
-};
+// P0.1 — limits now live in tierLimitsData.ts, reconciled with src/lib/tierLimits.ts
+// and guarded by the parity test in src/test/tierParity.test.ts.
+import { TIER_LIMITS } from "./tierLimitsData.ts";
 
 // ── Get Workspace Tier (P0.2 — cache-first) ─────────────
 //
@@ -70,12 +58,15 @@ export async function getWorkspaceUsage(
   supabase: any,
   workspaceId: string,
 ): Promise<Record<string, number>> {
-  const [sessions, surveys, members, simulations] = await Promise.all([
+  const [sessions, surveys, members, simulations, projects] = await Promise.all([
     supabase.from("sessions").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.from("surveys").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     // See note in validation.ts — real table is `workspace_memberships`.
     supabase.from("workspace_memberships").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.from("simulations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
+    // Without this key, enforceTierLimit("projects") would read usage 0 forever
+    // and always allow — the TierResource union includes it, so count it.
+    supabase.from("projects").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
   ]);
 
   return {
@@ -83,6 +74,7 @@ export async function getWorkspaceUsage(
     surveys: surveys.count || 0,
     members: members.count || 0,
     simulations: simulations.count || 0,
+    projects: projects.count || 0,
   };
 }
 
