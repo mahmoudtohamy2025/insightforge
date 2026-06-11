@@ -228,11 +228,14 @@ export default function ParticipantProfile() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Your data is protected under GDPR. You can request full erasure of your data at any time.
+            Your data is protected under GDPR. To request full erasure of your data, email us —
+            erasure requests are processed manually.
           </p>
-          <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10">
-            <Trash2 className="h-3 w-3 me-2" />
-            Request Data Erasure
+          <Button asChild variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10">
+            <a href="mailto:enterprise@insightforge.io?subject=Data%20erasure%20request">
+              <Trash2 className="h-3 w-3 me-2" />
+              Request Data Erasure
+            </a>
           </Button>
         </CardContent>
       </Card>

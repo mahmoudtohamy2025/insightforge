@@ -309,7 +309,7 @@ export function WorkspaceTab() {
             </Label>
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-xs capitalize">
-                {wsSettings?.data_residency || "mena"}
+                {wsSettings?.data_residency || "Not set"}
               </Badge>
               <span className="text-xs text-muted-foreground">{t("branding.dataResidencyHint")}</span>
             </div>

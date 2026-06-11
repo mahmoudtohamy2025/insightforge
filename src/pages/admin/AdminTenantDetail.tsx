@@ -226,7 +226,7 @@ export default function AdminTenantDetail() {
                 ["Name", ws.name],
                 ["Slug", ws.slug],
                 ["Deployment Type", ws.deployment_type || "shared"],
-                ["Data Residency", ws.data_residency || "mena"],
+                ["Data Residency", ws.data_residency || "—"],
                 ["Retention Days", ws.data_retention_days || 730],
                 ["GDPR Enabled", ws.gdpr_enabled ? "Yes" : "No"],
                 ["PDPL Enabled", ws.pdpl_enabled ? "Yes" : "No"],

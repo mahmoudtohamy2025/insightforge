@@ -250,7 +250,7 @@ export default function AdminTenants() {
                                 ["ID", ws.id],
                                 ["Stripe Customer", ws.stripe_customer_id || "—"],
                                 ["Subscription", ws.subscription_status || "—"],
-                                ["Data Residency", ws.data_residency || "mena"],
+                                ["Data Residency", ws.data_residency || "—"],
                                 ["GDPR", ws.gdpr_enabled ? "Enabled" : "Disabled"],
                                 ["Retention", `${ws.data_retention_days || 730} days`],
                               ].map(([k, v]) => (
