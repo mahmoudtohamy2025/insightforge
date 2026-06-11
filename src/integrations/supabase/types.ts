@@ -490,6 +490,27 @@ export type Database = {
           },
         ]
       }
+      keep_warm_heartbeat: {
+        Row: {
+          id: boolean
+          last_request_id: number | null
+          last_run_at: string
+          run_count: number
+        }
+        Insert: {
+          id?: boolean
+          last_request_id?: number | null
+          last_run_at?: string
+          run_count?: number
+        }
+        Update: {
+          id?: boolean
+          last_request_id?: number | null
+          last_run_at?: string
+          run_count?: number
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -973,8 +994,8 @@ export type Database = {
           id: string
           pattern_id: string
           project_id: string | null
-          session_count: number
           sentiment: string
+          session_count: number
           snapshot_date: string
           workspace_id: string
         }
@@ -983,8 +1004,8 @@ export type Database = {
           id?: string
           pattern_id: string
           project_id?: string | null
-          session_count?: number
           sentiment?: string
+          session_count?: number
           snapshot_date?: string
           workspace_id: string
         }
@@ -993,8 +1014,8 @@ export type Database = {
           id?: string
           pattern_id?: string
           project_id?: string | null
-          session_count?: number
           sentiment?: string
+          session_count?: number
           snapshot_date?: string
           workspace_id?: string
         }
@@ -2828,6 +2849,7 @@ export type Database = {
         Args: { uid: string; ws_id: string }
         Returns: boolean
       }
+      keep_warm: { Args: never; Returns: undefined }
       search_transcripts: {
         Args: { search_query: string; ws_id: string }
         Returns: {
