@@ -14,7 +14,7 @@ import {
   Globe,
   MessageSquare,
   TrendingUp,
-  Scale,
+  Compass,
   ChevronRight,
   Play
 } from "lucide-react";
@@ -214,9 +214,9 @@ const Landing = () => {
                 border: "hover:border-amber-500/40",
               },
               {
-                icon: Scale,
-                title: t("landing.policyImpactTitle"),
-                desc: t("landing.policyImpactDesc"),
+                icon: Compass,
+                title: t("landing.nextTestTitle"),
+                desc: t("landing.nextTestDesc"),
                 gradient: "from-red-500/10 to-rose-500/10",
                 iconColor: "text-red-500",
                 border: "hover:border-red-500/40",
