@@ -967,6 +967,61 @@ export type Database = {
           },
         ]
       }
+      pattern_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          pattern_id: string
+          project_id: string | null
+          session_count: number
+          sentiment: string
+          snapshot_date: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pattern_id: string
+          project_id?: string | null
+          session_count?: number
+          sentiment?: string
+          snapshot_date?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pattern_id?: string
+          project_id?: string | null
+          session_count?: number
+          sentiment?: string
+          snapshot_date?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pattern_snapshots_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "insight_patterns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pattern_snapshots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pattern_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

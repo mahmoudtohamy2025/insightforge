@@ -38,8 +38,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Type check (tsc --noEmit)
-        run: npx tsc --noEmit
+      # Bare `npx tsc --noEmit` resolves the root solution-style tsconfig.json
+      # (files: [] + references) and checks ZERO files (PRD known issue #13).
+      - name: Type check (app + node projects)
+        run: |
+          npx tsc -p tsconfig.app.json --noEmit
+          npx tsc -p tsconfig.node.json --noEmit
 
       - name: Unit tests (vitest)
         run: npm test

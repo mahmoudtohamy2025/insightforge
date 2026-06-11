@@ -11,8 +11,12 @@
 #
 set -e
 
-echo "[pre-push] 1/3 Type check (tsc --noEmit)…"
-npx tsc --noEmit
+echo "[pre-push] 1/3 Type check (tsc app + node projects)…"
+# The bare `npx tsc --noEmit` resolves the root solution-style tsconfig.json
+# (files: [] + references) and checks ZERO files — it passed vacuously for
+# months (PRD known issue #13, fixed 2026-06-10). Check the real projects:
+npx tsc -p tsconfig.app.json --noEmit
+npx tsc -p tsconfig.node.json --noEmit
 
 echo "[pre-push] 2/3 Unit tests (vitest run)…"
 npm test
