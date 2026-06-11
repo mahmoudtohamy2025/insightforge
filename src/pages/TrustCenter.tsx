@@ -50,29 +50,26 @@ export default function TrustCenter() {
       <div className="flex flex-col md:flex-row shadow-sm bg-card border rounded-lg overflow-hidden">
         <div className="bg-primary/5 p-8 md:w-1/3 flex flex-col justify-center border-r">
           <Shield className="h-12 w-12 text-primary mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Enterprise Trust Center</h2>
+          <h2 className="text-2xl font-bold mb-2">Trust Center</h2>
           <p className="text-muted-foreground text-sm">
-            Continuous compliance tracking and audit logging. Designed for strict data sovereignty and SOC 2 requirements.
+            An append-only audit trail and strict access controls for everything that happens in your workspace.
           </p>
         </div>
         <div className="p-8 md:w-2/3 grid grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2">
             <Lock className="h-5 w-5 text-emerald-500" />
             <h3 className="font-semibold text-sm">Data Encryption</h3>
-            <p className="text-xs text-muted-foreground">AES-256 at rest, TLS 1.3 in transit</p>
+            <p className="text-xs text-muted-foreground">Encrypted at rest and in transit via Supabase-managed infrastructure</p>
           </div>
           <div className="space-y-2">
             <Server className="h-5 w-5 text-emerald-500" />
-            <h3 className="font-semibold text-sm">Data Residency</h3>
-            <p className="text-xs text-muted-foreground">EU (Frankfurt) / US (N. Virginia)</p>
+            <h3 className="font-semibold text-sm">Data Hosting</h3>
+            <p className="text-xs text-muted-foreground">Workspace data in one Supabase-managed region; payments via Stripe, AI processing via Google</p>
           </div>
           <div className="space-y-2">
             <ShieldAlert className="h-5 w-5 text-emerald-500" />
             <h3 className="font-semibold text-sm">Compliance</h3>
-            <p className="text-xs text-muted-foreground flex gap-1 mt-1">
-              <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] uppercase font-bold">SOC 2 Type II</span>
-              <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] uppercase font-bold">ISO 27001</span>
-            </p>
+            <p className="text-xs text-muted-foreground">Built on SOC 2-compliant infrastructure providers (Supabase, Stripe, Vercel, Google)</p>
           </div>
           <div className="space-y-2">
             <Fingerprint className="h-5 w-5 text-emerald-500" />
@@ -86,7 +83,7 @@ export default function TrustCenter() {
         <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
           <div>
             <CardTitle className="text-lg">Audit Log</CardTitle>
-            <CardDescription>Immutable record of all critical workspace activities.</CardDescription>
+            <CardDescription>Append-only record of all critical workspace activities.</CardDescription>
           </div>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />

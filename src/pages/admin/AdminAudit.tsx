@@ -104,7 +104,7 @@ export default function AdminAudit() {
             <ShieldCheck className="h-6 w-6 text-indigo-400" />
             Audit Trail
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">SOC 2 compliant activity log — {auditLogs.length.toLocaleString()} total events</p>
+          <p className="text-slate-500 text-sm mt-0.5">Append-only activity log — {auditLogs.length.toLocaleString()} total events</p>
         </div>
         <button
           onClick={exportCSV}
