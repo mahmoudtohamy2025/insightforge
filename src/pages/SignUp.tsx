@@ -42,7 +42,12 @@ const SignUp = () => {
     if (error) {
       toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
     } else {
-      trackEvent("signup_completed", { has_workspace_name: !!workspaceName });
+      trackEvent("signup_completed", {
+        has_workspace_name: !!workspaceName,
+        // Which persona landing door (if any) this signup came through — set by
+        // PersonaLanding, null for direct/organic signups.
+        door: localStorage.getItem("insightforge-door"),
+      });
       toast({ title: "Check your email", description: "We sent you a confirmation link to verify your account." });
     }
   };

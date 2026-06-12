@@ -54,9 +54,9 @@
 **The build queue that survives the holes, in order:**
 1. **Multi-twin sampling per segment** (engine, needs scoping; token cost scales with N) — one investment that makes the "50 customers" positioning true, gives A/B a defensible n, and is the prerequisite for any brand credibility. PRD #17.
 2. **Simulation comments + share** (small; the one genuine PM item).
-3. **Three landing-page doors** — only once there is traffic or spend to send through them.
+3. **Three landing-page doors — BUILT 2026-06-12** (`/for-founders`, `/for-product-teams`, `/for-brands`; Mahmoud's call: built early to serve as outreach destinations, not as an analytics test). One shared `PersonaLanding` component + `src/lib/personaLandingCopy.ts` config; visiting a door stores `insightforge-door` and fires `door_viewed`; `signup_completed` carries a `door` property. An honesty tripwire test (`src/test/personaLanding.test.ts`) bans the overclaim family from door copy.
 
-**The demand test (v2 — corrected):** at ~zero traffic, door analytics produce noise for months. The real test is **ten manual outreach conversations per persona** (~2 weeks): pitch each persona their own framing, ask what they'd pay, watch which one leans in. Doors + the PostHog `door` property come *after* something is driving visitors.
+**The demand test (v2 — corrected):** at ~zero traffic, door analytics produce noise for months. The real test is **ten manual outreach conversations per persona** (~2 weeks): pitch each persona their own framing **with its door link**, ask what they'd pay, watch which one leans in. The `door` attribution makes every resulting signup traceable.
 
 **Decision rules:**
 - Copy / templates / landing / onboarding per persona → green light.

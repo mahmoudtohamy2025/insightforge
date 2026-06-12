@@ -193,6 +193,7 @@ See §8 for the full tier table. Flow: `create-checkout` (Stripe Checkout, subsc
 ### 5.13 Public & API surfaces — Live
 
 - `/` landing (honest pricing/claims since `37da1af`), `/demo` (3 hard-coded demo personas, `public-demo-simulate`, no signup), `/s/:surveyId` public survey, `/shared/:token` read-only snapshot.
+- **Persona doors (2026-06-12):** `/for-founders`, `/for-product-teams`, `/for-brands` — copy-only variants of the same product (one `PersonaLanding` component, config in `src/lib/personaLandingCopy.ts`), built as outreach destinations per `docs/AUDIENCE_MAP.md`. Visiting a door stores `insightforge-door` in localStorage and fires `door_viewed`; `signup_completed` carries the `door` property (null = organic). A tripwire test bans overclaims from door copy. Doors must never grow schema/edge-function differences — that's the second-product red flag.
 - **API keys** (Settings → API & Webhooks): hashed workspace API keys with scopes (default `simulate`) and per-hour rate limits; `api-simulate` exposes simulation programmatically. Outbound **webhooks** with event subscriptions, HMAC secrets, delivery logs (`dispatch-webhook`).
 - **Data rights:** `export-workspace-data` (full export), `erase-participant` (GDPR/PDPL-style erasure), `cleanup-expired-data` (retention; `workspaces.data_retention_days` default 730, `gdpr_enabled`/`pdpl_enabled` flags).
 
@@ -204,7 +205,7 @@ See §8 for the full tier table. Flow: `create-checkout` (Stripe Checkout, subsc
 
 PostHog (`src/lib/analytics.ts`, no-op without `VITE_POSTHOG_KEY`; autocapture off, manual pageviews). Canonical funnel events:
 
-`signup_completed` → `onboarding_simulation_run` / `simulation_run` / `focus_group_run` → `paywall_viewed` → `upgrade_clicked` → `checkout_started` → `checkout_completed`, plus `$pageview`. Identify on login, reset on logout.
+`door_viewed` (persona doors, 2026-06-12) → `signup_completed` (carries `door`: founders / product-teams / brands / null) → `onboarding_simulation_run` / `simulation_run` / `focus_group_run` → `paywall_viewed` → `upgrade_clicked` → `checkout_started` → `checkout_completed`, plus `$pageview`. Identify on login, reset on logout.
 
 ---
 
@@ -369,7 +370,7 @@ Tracked canonically in the vault (`open-questions.md`); live items as of 2026-06
 
 ## Appendix A — Route map (condensed)
 
-**Public:** `/` · `/login` · `/signup` · `/forgot-password` · `/reset-password` · `/auth/callback` · `/demo` · `/s/:surveyId` · `/shared/:token`
+**Public:** `/` · `/for-founders` · `/for-product-teams` · `/for-brands` · `/login` · `/signup` · `/forgot-password` · `/reset-password` · `/auth/callback` · `/demo` · `/s/:surveyId` · `/shared/:token`
 **App (ProtectedRoute):** `/dashboard` · `/projects(/:id)` · `/surveys(/:id)` · `/sessions(/:id)` · `/studio/:id` · `/segments` · `/simulate(/:id)` · `/focus-group` · `/ab-test` · `/simulations/compare` · `/insights` · `/participants` · `/incentives(/:id)` · `/requirements(/:id)` · `/validation` · `/methodology` · `/trust-center` · `/settings`
 **Participant (ParticipantRoute):** `/participate/{login,signup,dashboard,studies,earnings,impact,referrals,my-twin,profile}`
 **Admin (SuperAdminRoute):** `/admin` · `/admin/{tenants(/:id),users,participants,studies,ai-usage,financials,audit,system}`

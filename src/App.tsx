@@ -29,6 +29,7 @@ import AuthCallback from "./pages/AuthCallback";
 import SurveyRespond from "./pages/SurveyRespond";
 import SharedSnapshot from "./pages/SharedSnapshot";
 import Landing from "./pages/Landing";
+import PersonaLanding from "./pages/PersonaLanding";
 import NotFound from "./pages/NotFound";
 import SegmentLibrary from "./pages/SegmentLibrary";
 import SimulationStudio from "./pages/SimulationStudio";
@@ -152,6 +153,11 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                 </Route>
               </Route>
+
+              {/* Persona landing doors — copy-only variants of the same product (docs/AUDIENCE_MAP.md) */}
+              <Route path="/for-founders" element={<PersonaLanding persona="founders" />} />
+              <Route path="/for-product-teams" element={<PersonaLanding persona="product-teams" />} />
+              <Route path="/for-brands" element={<PersonaLanding persona="brands" />} />
 
               {/* Redirects */}
               <Route path="/" element={<Landing />} />
