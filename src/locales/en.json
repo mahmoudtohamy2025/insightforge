@@ -666,7 +666,7 @@
   "landing.focusGroupTitle": "Focus Group",
   "landing.focusGroupDesc": "Run multi-round discussions with 2-5 segments. Watch twins debate, agree, and challenge each other.",
   "landing.abTestTitle": "A/B Test",
-  "landing.abTestDesc": "Compare two variants head-to-head. Get statistical preference scores and segment-level breakdowns.",
+  "landing.abTestDesc": "Compare two variants head-to-head. See which one wins per segment, with sentiment and themes for each.",
   "landing.marketSimTitle": "Market Projection",
   "landing.marketSimDesc": "Every focus group ends with a Bass-diffusion adoption forecast — market size, peak month, and saturation timeline, derived from your twins' reactions.",
   "landing.nextTestTitle": "What to Test Next",
