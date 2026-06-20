@@ -798,7 +798,7 @@ const FocusGroupStudio = () => {
                             <div className="w-16 bg-muted rounded-full h-1.5">
                               <div
                                 className="bg-primary rounded-full h-1.5"
-                                style={{ width: `${(t.count / result.aggregate.participant_count) * 100}%` }}
+                                style={{ width: `${Math.min(100, (t.count / ((result.aggregate as any).sample_size || result.aggregate.participant_count || 1)) * 100)}%` }}
                               />
                             </div>
                             <span className="text-[10px] text-muted-foreground w-4">{t.count}×</span>

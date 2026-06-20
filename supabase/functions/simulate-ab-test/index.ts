@@ -4,6 +4,16 @@ import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.t
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody, validateUUIDs } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { fetchGemini } from "../_shared/aiClient.ts";
+import {
+  effectiveTwinCount,
+  samplingModeForTier,
+  variedPersonaSuffix,
+  arrayResponseToolSchema,
+  parseArrayReactions,
+  mapWithConcurrency,
+  stdev,
+  MAX_CONCURRENCY,
+} from "../_shared/multiTwin.ts";
 
 // ── Build persona system prompt from segment ──
 function buildPersonaPrompt(segment: any): string {
@@ -92,6 +102,37 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
     response: aiData.choices?.[0]?.message?.content || "",
     sentiment: 0, confidence: 0.5, key_themes: [], purchase_intent: "neutral", emotional_reaction: "neutral", tokensUsed,
   };
+}
+
+// ── Free-tier path: one call returns N reactions for a segment ──
+async function callGeminiArray(apiKey: string, systemPrompt: string, userPrompt: string, n: number): Promise<{ reactions: any[]; tokensUsed: number }> {
+  const aiResponse = await fetchGemini(apiKey, {
+    model: "gemini-2.5-flash",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    tools: [arrayResponseToolSchema(n)],
+    tool_choice: { type: "function", function: { name: "structured_responses" } },
+  });
+  if (!aiResponse.ok) {
+    const errText = await aiResponse.text();
+    throw new Error(`Gemini API error: ${errText}`);
+  }
+  const aiData = await aiResponse.json();
+  const tokensUsed = aiData.usage?.total_tokens || 0;
+  let reactions: any[] = [];
+  try {
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      reactions = parseArrayReactions(JSON.parse(toolCall.function.arguments), n);
+    }
+  } catch (_) { /* fall through */ }
+  if (reactions.length === 0) {
+    const content = aiData.choices?.[0]?.message?.content || "";
+    reactions = [{ response: content, sentiment: 0, confidence: 0.5, key_themes: [], purchase_intent: "neutral", emotional_reaction: "neutral" }];
+  }
+  return { reactions, tokensUsed };
 }
 
 // ── Main Handler ──────────────────────────────────────
@@ -187,41 +228,78 @@ Deno.serve(async (req: any) => {
       return jsonResponse(req, { error: "Failed to create simulation" }, 500);
     }
 
-    // Run each segment through both variants
+    // ── Multi-twin sampling: N twins/segment each evaluate BOTH variants (PRD #17) ──
+    const twinN = effectiveTwinCount(tier, segments.length);
+    const mode = samplingModeForTier(tier); // free → "array" (cheap), paid → "varied"
+
     const resultsA: any[] = [];
     const resultsB: any[] = [];
+    let twinCounter = 0;
 
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      const persona = buildPersonaPrompt(seg);
+    const promptFor = (text: string) =>
+      `Please evaluate the following product/campaign/concept and share your honest reaction:\n\n"${text}"`;
 
-      const promptA = `Please evaluate the following product/campaign/concept and share your honest reaction:\n\n"${variantAText}"`;
-      const promptB = `Please evaluate the following product/campaign/concept and share your honest reaction:\n\n"${variantBText}"`;
+    if (mode === "array") {
+      // Free tier: one array call per segment per variant. Isolated per segment.
+      const perSeg = await mapWithConcurrency(segments, MAX_CONCURRENCY, async (seg: any) => {
+        try {
+          const persona = buildPersonaPrompt(seg);
+          const [a, b] = await Promise.all([
+            callGeminiArray(GEMINI_API_KEY, persona, promptFor(variantAText), twinN),
+            callGeminiArray(GEMINI_API_KEY, persona, promptFor(variantBText), twinN),
+          ]);
+          return { seg, a, b };
+        } catch (e) {
+          console.error("[multi-twin] ab array call failed:", (e as Error)?.message);
+          return { seg, a: { reactions: [] as any[], tokensUsed: 0 }, b: { reactions: [] as any[], tokensUsed: 0 } };
+        }
+      });
+      for (const { seg, a, b } of perSeg) {
+        totalTokens += a.tokensUsed + b.tokensUsed;
+        for (const r of a.reactions) resultsA.push({ segment_id: seg.id, segment_name: seg.name, demographics: seg.demographics, ...r });
+        for (const r of b.reactions) resultsB.push({ segment_id: seg.id, segment_name: seg.name, demographics: seg.demographics, ...r });
+      }
+    } else {
+      // Paid tiers: N varied sub-persona draws per segment, each evaluates A and B. Isolated per draw.
+      const draws: { seg: any; twinIndex: number }[] = [];
+      for (const seg of segments) {
+        for (let k = 0; k < twinN; k++) draws.push({ seg, twinIndex: k });
+      }
+      const drawn = await mapWithConcurrency(draws, MAX_CONCURRENCY, async ({ seg, twinIndex }) => {
+        try {
+          const persona = buildPersonaPrompt(seg) + variedPersonaSuffix(twinIndex, twinN, seg.demographics?.age_range);
+          const [resA, resB] = await Promise.all([
+            callGemini(GEMINI_API_KEY, persona, promptFor(variantAText)),
+            callGemini(GEMINI_API_KEY, persona, promptFor(variantBText)),
+          ]);
+          return { seg, resA, resB };
+        } catch (e) {
+          console.error("[multi-twin] ab draw failed:", (e as Error)?.message);
+          return { seg, resA: null as any, resB: null as any };
+        }
+      });
+      for (const { seg, resA, resB } of drawn) {
+        if (!resA || !resB) continue;
+        totalTokens += resA.tokensUsed + resB.tokensUsed;
+        resultsA.push({ segment_id: seg.id, segment_name: seg.name, demographics: seg.demographics, ...resA });
+        resultsB.push({ segment_id: seg.id, segment_name: seg.name, demographics: seg.demographics, ...resB });
+      }
+    }
 
-      // Parallelize A and B calls — they're independent
-      const [resA, resB] = await Promise.all([
-        callGemini(GEMINI_API_KEY, persona, promptA),
-        callGemini(GEMINI_API_KEY, persona, promptB),
-      ]);
-      totalTokens += resA.tokensUsed + resB.tokensUsed;
-
-      resultsA.push({ segment_id: seg.id, segment_name: seg.name, ...resA });
-      resultsB.push({ segment_id: seg.id, segment_name: seg.name, ...resB });
-
-      await Promise.all([
-        supabase.from("twin_responses").insert({
-          simulation_id: simulation.id, segment_id: seg.id, twin_index: i,
-          stimulus_variant: "A", persona_snapshot: { name: seg.name, demographics: seg.demographics },
-          response_text: resA.response || "", sentiment: resA.sentiment,
-          confidence: resA.confidence, behavioral_tags: resA.key_themes || [],
-        }),
-        supabase.from("twin_responses").insert({
-          simulation_id: simulation.id, segment_id: seg.id, twin_index: i + segments.length,
-          stimulus_variant: "B", persona_snapshot: { name: seg.name, demographics: seg.demographics },
-          response_text: resB.response || "", sentiment: resB.sentiment,
-          confidence: resB.confidence, behavioral_tags: resB.key_themes || [],
-        }),
-      ]);
+    // Persist all twin responses (running index avoids collisions across N×K).
+    for (const r of resultsA) {
+      await supabase.from("twin_responses").insert({
+        simulation_id: simulation.id, segment_id: r.segment_id, twin_index: twinCounter++,
+        stimulus_variant: "A", persona_snapshot: { name: r.segment_name, demographics: r.demographics },
+        response_text: r.response || "", sentiment: r.sentiment, confidence: r.confidence, behavioral_tags: r.key_themes || [],
+      });
+    }
+    for (const r of resultsB) {
+      await supabase.from("twin_responses").insert({
+        simulation_id: simulation.id, segment_id: r.segment_id, twin_index: twinCounter++,
+        stimulus_variant: "B", persona_snapshot: { name: r.segment_name, demographics: r.demographics },
+        response_text: r.response || "", sentiment: r.sentiment, confidence: r.confidence, behavioral_tags: r.key_themes || [],
+      });
     }
 
     const durationMs = Date.now() - startTime;
@@ -230,6 +308,11 @@ Deno.serve(async (req: any) => {
     await recordTokenUsage(supabase, workspace_id as string, totalTokens);
 
     // Compute comparative metrics
+    if (resultsA.length === 0 || resultsB.length === 0) {
+      // Every draw failed — mark failed instead of NaN-averaging an empty set.
+      await supabase.from("simulations").update({ status: "failed", tokens_used: totalTokens, duration_ms: durationMs }).eq("id", simulation.id);
+      return jsonResponse(req, { error: "All twin simulations failed. Please try again." }, 502);
+    }
     const avgSentimentA = resultsA.reduce((s, r) => s + (r.sentiment || 0), 0) / resultsA.length;
     const avgSentimentB = resultsB.reduce((s, r) => s + (r.sentiment || 0), 0) / resultsB.length;
     const avgConfA = resultsA.reduce((s, r) => s + (r.confidence || 0), 0) / resultsA.length;
@@ -260,6 +343,7 @@ Deno.serve(async (req: any) => {
         avg_sentiment: avgSentimentA,
         avg_confidence: avgConfA,
         avg_intent: avgIntentA,
+        sentiment_stdev: stdev(resultsA.map((r) => r.sentiment || 0)),
         top_themes: getTopThemes(resultsA),
         responses: resultsA,
       },
@@ -267,12 +351,15 @@ Deno.serve(async (req: any) => {
         avg_sentiment: avgSentimentB,
         avg_confidence: avgConfB,
         avg_intent: avgIntentB,
+        sentiment_stdev: stdev(resultsB.map((r) => r.sentiment || 0)),
         top_themes: getTopThemes(resultsB),
         responses: resultsB,
       },
       sentiment_delta: sentimentDelta,
       winner,
       participant_count: segments.length,
+      sample_size_per_variant: resultsA.length,
+      sampling: { twins_per_segment: twinN, mode, sample_size: resultsA.length },
     };
 
     // Update simulation

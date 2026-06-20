@@ -4,6 +4,16 @@ import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.t
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody, validateUUIDs, validateNumberRange } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { fetchGemini } from "../_shared/aiClient.ts";
+import {
+  effectiveTwinCount,
+  samplingModeForTier,
+  variedPersonaSuffix,
+  arrayResponseToolSchema,
+  parseArrayReactions,
+  aggregateDistribution,
+  mapWithConcurrency,
+  MAX_CONCURRENCY,
+} from "../_shared/multiTwin.ts";
 
 // ── Shared: Build persona system prompt from segment ──
 function buildPersonaPrompt(segment: any): string {
@@ -118,6 +128,78 @@ async function callGemini(
   };
 }
 
+// ── Free-tier path: one call returns N reactions for a segment ──
+async function callGeminiArray(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string,
+  n: number,
+): Promise<{ reactions: any[]; tokensUsed: number }> {
+  const body: any = {
+    model: "gemini-2.5-flash",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    tools: [arrayResponseToolSchema(n)],
+    tool_choice: { type: "function", function: { name: "structured_responses" } },
+  };
+
+  const aiResponse = await fetchGemini(apiKey, body);
+  if (!aiResponse.ok) {
+    const errText = await aiResponse.text();
+    throw new Error(`Gemini API error: ${errText}`);
+  }
+  const aiData = await aiResponse.json();
+  const tokensUsed = aiData.usage?.total_tokens || 0;
+
+  let reactions: any[] = [];
+  try {
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      reactions = parseArrayReactions(JSON.parse(toolCall.function.arguments), n);
+    }
+  } catch (_) { /* fall through to fallback */ }
+
+  if (reactions.length === 0) {
+    // Never let a parse miss kill the run — degrade to one neutral reaction.
+    const content = aiData.choices?.[0]?.message?.content || "";
+    reactions = [{ response: content, sentiment: 0, confidence: 0.5, key_themes: [], purchase_intent: "neutral", emotional_reaction: "neutral" }];
+  }
+  return { reactions, tokensUsed };
+}
+
+function toEntry(seg: any, round: number, r: any) {
+  return {
+    segment_id: seg.id, segment_name: seg.name, demographics: seg.demographics, round,
+    response: r.response, sentiment: r.sentiment, confidence: r.confidence,
+    key_themes: r.key_themes, purchase_intent: r.purchase_intent, emotional_reaction: r.emotional_reaction,
+  };
+}
+
+// Compact per-segment summary of the previous round — fed to later rounds INSTEAD
+// of every raw response, so discussion-round input tokens stay bounded as N grows.
+function summarizePriorRound(prevRound: any[], excludeSegmentId: string): string {
+  const bySeg: Record<string, { name: string; sentiments: number[]; themes: Record<string, number> }> = {};
+  for (const r of prevRound) {
+    if (r.segment_id === excludeSegmentId) continue;
+    let g = bySeg[r.segment_id];
+    if (!g) { g = { name: r.segment_name, sentiments: [], themes: {} }; bySeg[r.segment_id] = g; }
+    g.sentiments.push(r.sentiment || 0);
+    for (const t of (r.key_themes || [])) {
+      const n = String(t).toLowerCase().trim();
+      if (n) g.themes[n] = (g.themes[n] || 0) + 1;
+    }
+  }
+  const lines = Object.values(bySeg).map((g) => {
+    const avg = g.sentiments.reduce((s, x) => s + x, 0) / (g.sentiments.length || 1);
+    const mood = avg > 0.2 ? "positive" : avg < -0.2 ? "negative" : "mixed";
+    const top = Object.entries(g.themes).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t);
+    return `- ${g.name}: ${mood} overall${top.length ? `, raising ${top.join(" and ")}` : ""}.`;
+  });
+  return lines.join("\n") || "(no other segments yet)";
+}
+
 // ── Main Handler ──────────────────────────────────────
 Deno.serve(async (req: any) => {
   const corsResponse = handleCors(req);
@@ -221,66 +303,75 @@ Deno.serve(async (req: any) => {
 
     const stimulusText = typeof stimulus === "string" ? stimulus : JSON.stringify(stimulus, null, 2);
 
-    // Store all responses grouped by round
+    // ── Multi-twin sampling: N twins per segment (PRD #17 / multiTwin.ts) ──
+    const twinN = effectiveTwinCount(tier, segments.length);
+    const mode = samplingModeForTier(tier); // free → "array" (cheap), paid → "varied"
+
     const allRounds: any[] = [];
+    let twinCounter = 0;
 
     for (let round = 0; round < rounds; round++) {
+      const prevRound = round > 0 ? allRounds[round - 1] : null;
+
+      const buildUserPrompt = (seg: any): string => {
+        if (round === 0 || !prevRound) {
+          return `A moderator asks the focus group:\n\n"${stimulusText}"\n\nPlease share your honest reaction and opinion.`;
+        }
+        const others = summarizePriorRound(prevRound, seg.id);
+        return `The moderator asked: "${stimulusText}"\n\nHere is how the other segments reacted so far:\n\n${others}\n\nBased on what you've heard, what are your thoughts? Do you agree or disagree? What would you add?`;
+      };
+
       const roundResponses: any[] = [];
 
-      if (round === 0) {
-        // ── Parallelize round 0 (no context dependency) ──
-        const parallelResults = await Promise.all(
-          segments.map(async (seg: any, i: number) => {
+      if (mode === "array") {
+        // Free tier: one call per segment returns N reactions. Each segment call is
+        // isolated — one failure drops that segment, never the whole run.
+        const perSeg = await mapWithConcurrency(segments, MAX_CONCURRENCY, async (seg: any) => {
+          try {
             const persona = buildPersonaPrompt(seg);
-            const userPrompt = `A moderator asks the focus group:\n\n"${stimulusText}"\n\nPlease share your honest reaction and opinion.`;
-            const result = await callGemini(GEMINI_API_KEY, persona, userPrompt, true);
-            return { seg, i, result };
-          })
-        );
-
-        for (const { seg, i, result } of parallelResults) {
-          totalTokens += result.tokensUsed;
-          const responseEntry = {
-            segment_id: seg.id, segment_name: seg.name, round: 0,
-            response: result.response, sentiment: result.sentiment, confidence: result.confidence,
-            key_themes: result.key_themes, purchase_intent: result.purchase_intent, emotional_reaction: result.emotional_reaction,
-          };
-          roundResponses.push(responseEntry);
-          await supabase.from("twin_responses").insert({
-            simulation_id: simulation.id, segment_id: seg.id, twin_index: i,
-            persona_snapshot: { name: seg.name, demographics: seg.demographics, round: 0 },
-            stimulus_variant: `round_0`, response_text: result.response || "",
-            sentiment: result.sentiment, confidence: result.confidence, behavioral_tags: result.key_themes || [],
-          });
+            const { reactions, tokensUsed } = await callGeminiArray(GEMINI_API_KEY, persona, buildUserPrompt(seg), twinN);
+            return { seg, reactions, tokensUsed };
+          } catch (e) {
+            console.error("[multi-twin] segment array call failed:", (e as Error)?.message);
+            return { seg, reactions: [] as any[], tokensUsed: 0 };
+          }
+        });
+        for (const { seg, reactions, tokensUsed } of perSeg) {
+          totalTokens += tokensUsed;
+          for (const r of reactions) roundResponses.push(toEntry(seg, round, r));
         }
       } else {
-        // ── Sequential rounds (need previous context) ──
-        for (let i = 0; i < segments.length; i++) {
-          const seg = segments[i];
-          const persona = buildPersonaPrompt(seg);
-          const previousRound = allRounds[round - 1];
-          const othersResponses = previousRound
-            .filter((r: any) => r.segment_id !== seg.id)
-            .map((r: any) => `${r.segment_name}: "${r.response}"`)
-            .join("\n\n");
-
-          const userPrompt = `The moderator asked: "${stimulusText}"\n\nOther participants just said:\n\n${othersResponses}\n\nBased on what you've heard from the other participants, what are your thoughts? Do you agree or disagree? What would you add?`;
-          const result = await callGemini(GEMINI_API_KEY, persona, userPrompt, true);
-          totalTokens += result.tokensUsed;
-
-          roundResponses.push({
-            segment_id: seg.id, segment_name: seg.name, round,
-            response: result.response, sentiment: result.sentiment, confidence: result.confidence,
-            key_themes: result.key_themes, purchase_intent: result.purchase_intent, emotional_reaction: result.emotional_reaction,
-          });
-
-          await supabase.from("twin_responses").insert({
-            simulation_id: simulation.id, segment_id: seg.id, twin_index: round * segments.length + i,
-            persona_snapshot: { name: seg.name, demographics: seg.demographics, round },
-            stimulus_variant: `round_${round}`, response_text: result.response || "",
-            sentiment: result.sentiment, confidence: result.confidence, behavioral_tags: result.key_themes || [],
-          });
+        // Paid tiers: N varied sub-persona calls per segment (genuinely independent draws).
+        // Each draw is isolated — one failed call drops one twin, never the whole run.
+        const tasks: { seg: any; twinIndex: number }[] = [];
+        for (const seg of segments) {
+          for (let k = 0; k < twinN; k++) tasks.push({ seg, twinIndex: k });
         }
+        const results = await mapWithConcurrency(tasks, MAX_CONCURRENCY, async ({ seg, twinIndex }) => {
+          try {
+            const persona = buildPersonaPrompt(seg) + variedPersonaSuffix(twinIndex, twinN, seg.demographics?.age_range);
+            const result = await callGemini(GEMINI_API_KEY, persona, buildUserPrompt(seg), true);
+            return { seg, result };
+          } catch (e) {
+            console.error("[multi-twin] twin call failed:", (e as Error)?.message);
+            return { seg, result: null as any };
+          }
+        });
+        for (const { seg, result } of results) {
+          if (!result) continue;
+          totalTokens += result.tokensUsed;
+          roundResponses.push(toEntry(seg, round, result));
+        }
+      }
+
+      // Persist each twin response (running twin_index avoids collisions across N×K×rounds).
+      for (const entry of roundResponses) {
+        await supabase.from("twin_responses").insert({
+          simulation_id: simulation.id, segment_id: entry.segment_id, twin_index: twinCounter++,
+          persona_snapshot: { name: entry.segment_name, demographics: entry.demographics, round },
+          stimulus_variant: `round_${round}`, response_text: entry.response || "",
+          sentiment: entry.sentiment, confidence: entry.confidence, behavioral_tags: entry.key_themes || [],
+        });
       }
 
       allRounds.push(roundResponses);
@@ -288,47 +379,34 @@ Deno.serve(async (req: any) => {
 
     const durationMs = Date.now() - startTime;
 
-    // Compute aggregate metrics
     // ── Record Token Usage ───────────────────────────────
     await recordTokenUsage(supabase, workspace_id as string, totalTokens);
 
+    // Distribution-aware aggregate (mean ± stdev, per-segment, objection rate).
     const allResponses = allRounds.flat();
-    const avgSentiment = allResponses.reduce((s: number, r: any) => s + (r.sentiment || 0), 0) / allResponses.length;
-    const avgConfidence = allResponses.reduce((s: number, r: any) => s + (r.confidence || 0), 0) / allResponses.length;
-
-    // Compute consensus: how close are sentiments to each other?
-    const sentiments = allResponses.map((r: any) => r.sentiment || 0);
-    const sentimentStdDev = Math.sqrt(sentiments.reduce((sum: number, s: number) => sum + Math.pow(s - avgSentiment, 2), 0) / sentiments.length);
-    const consensusScore = Math.max(0, 1 - sentimentStdDev);
-
-    // Aggregate key themes across all responses
-    const themeCounts: Record<string, number> = {};
-    allResponses.forEach((r: any) => {
-      (r.key_themes || []).forEach((t: string) => {
-        const normalized = t.toLowerCase().trim();
-        themeCounts[normalized] = (themeCounts[normalized] || 0) + 1;
-      });
-    });
-    const topThemes = Object.entries(themeCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([theme, count]) => ({ theme, count }));
+    if (allResponses.length === 0) {
+      // Every twin call failed (e.g. a sustained Gemini outage). Mark failed
+      // instead of stranding the row at 'running'; tokens were recorded above.
+      await supabase.from("simulations").update({ status: "failed", tokens_used: totalTokens, duration_ms: durationMs }).eq("id", simulation.id);
+      return jsonResponse(req, { error: "All twin simulations failed. Please try again." }, 502);
+    }
+    const aggregate = aggregateDistribution(
+      allResponses.map((r: any) => ({
+        segment_id: r.segment_id, segment_name: r.segment_name,
+        sentiment: r.sentiment, confidence: r.confidence,
+        purchase_intent: r.purchase_intent, key_themes: r.key_themes,
+      })),
+      segments.length,
+    );
+    // suggest-next-test (the aha loop) reads aggregate.total_rounds — keep it.
+    (aggregate as any).total_rounds = rounds;
+    const sampling = { twins_per_segment: twinN, mode, sample_size: allResponses.length };
 
     // Update simulation with results
     await supabase.from("simulations").update({
       status: "completed",
-      results: {
-        rounds: allRounds,
-        aggregate: {
-          avg_sentiment: avgSentiment,
-          avg_confidence: avgConfidence,
-          consensus_score: consensusScore,
-          top_themes: topThemes,
-          participant_count: segments.length,
-          total_rounds: rounds,
-        },
-      },
-      confidence_score: avgConfidence,
+      results: { rounds: allRounds, aggregate, sampling },
+      confidence_score: aggregate.avg_confidence,
       tokens_used: totalTokens,
       duration_ms: durationMs,
     }).eq("id", simulation.id);
@@ -336,13 +414,8 @@ Deno.serve(async (req: any) => {
     return jsonResponse(req, {
       simulation_id: simulation.id,
       rounds: allRounds,
-      aggregate: {
-        avg_sentiment: avgSentiment,
-        avg_confidence: avgConfidence,
-        consensus_score: consensusScore,
-        top_themes: topThemes,
-        participant_count: segments.length,
-      },
+      aggregate,
+      sampling,
       tokens_used: totalTokens,
       duration_ms: durationMs,
     });
