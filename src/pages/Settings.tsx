@@ -6,6 +6,7 @@ import { TeamTab } from "@/components/settings/TeamTab";
 import { BillingTab } from "@/components/settings/BillingTab";
 import { ActivityTab } from "@/components/settings/ActivityTab";
 import { ApiKeysTab } from "@/components/settings/ApiKeysTab";
+import { WebhooksTab } from "@/components/settings/WebhooksTab";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
 const Settings = () => {
@@ -26,7 +27,7 @@ const Settings = () => {
           <TabsTrigger value="team">{t("settings.team")}</TabsTrigger>
           <TabsTrigger value="billing">{t("settings.billing")}</TabsTrigger>
           <TabsTrigger value="activity">{t("activity.title")}</TabsTrigger>
-          {isAdminOrOwner && <TabsTrigger value="api">API</TabsTrigger>}
+          {isAdminOrOwner && <TabsTrigger value="api">API &amp; Webhooks</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6 mt-4">
@@ -52,6 +53,7 @@ const Settings = () => {
         {isAdminOrOwner && currentWorkspace && (
           <TabsContent value="api" className="space-y-6 mt-4">
             <ApiKeysTab workspaceId={currentWorkspace.id} />
+            <WebhooksTab workspaceId={currentWorkspace.id} />
           </TabsContent>
         )}
       </Tabs>

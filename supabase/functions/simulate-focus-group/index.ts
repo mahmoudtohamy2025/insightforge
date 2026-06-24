@@ -372,6 +372,27 @@ Deno.serve(async (req: any) => {
       duration_ms: durationMs,
     }).eq("id", simulation.id);
 
+    // Fire the simulation.completed webhook (best-effort, non-blocking — B8).
+    try {
+      const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/dispatch-webhook`;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      fetch(dispatchUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({
+          workspace_id,
+          event_type: "simulation.completed",
+          payload: {
+            simulation_id: simulation.id,
+            type: "focus_group",
+            sample_size: aggregate.sample_size,
+            avg_sentiment: aggregate.avg_sentiment,
+            consensus_score: aggregate.consensus_score,
+          },
+        }),
+      }).catch(() => { /* non-blocking */ });
+    } catch (_) { /* non-blocking */ }
+
     return jsonResponse(req, {
       simulation_id: simulation.id,
       rounds: allRounds,
