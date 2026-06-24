@@ -2,265 +2,393 @@
 
 | | |
 |---|---|
-| **Version** | 1.0 |
-| **Date** | 2026-06-10 |
-| **Status** | Canonical internal spec, reverse-engineered from the codebase as-built at commit `5c3efc0` |
-| **Audience** | Internal — Mahmoud + future dev/AI sessions. Honest about warts, alphas, and parked features. |
-| **Maintenance** | Update when a feature ships or a kill/park decision changes. Strategic decisions live in the vault (`decisions.md`, append-only); this doc describes the product those decisions produced. |
+| **Version** | 2.0 |
+| **Date** | 2026-06-24 |
+| **Status** | Canonical internal spec. Supersedes v1.0 (2026-06-10, as-built). |
+| **Lens** | Describes the **fully-functioning product (v1)** as one coherent system. Every requirement carries an honest status tag so the doc doubles as the roadmap to "fully functional." |
+| **Audience** | Internal source-of-truth — Mahmoud + future dev/AI sessions. Serves engineering, strategy, and onboarding. |
+| **Maintenance** | Flip a status tag when a feature ships, deploys, or is parked/killed. Strategic decisions live in the vault (`decisions.md`, append-only); this doc describes the product those decisions produce. |
 
-> **How to read this doc.** Sections 1–4 are the product thesis. Section 5 is the feature spec (what's live, where it lives, what its rules are). Sections 6–9 are the system: architecture, data, tiers, security. Sections 10–13 are the honest state: test coverage, parked/killed scope, known issues, metrics. Everything is sourced from code or the decision log — nothing aspirational is presented as built.
+> **How to read this.** §1–4 are the thesis (what it is, who for, the rules). §5 is the user journeys. §6 is the feature spec — the heart — written as "what fully-functioning looks like," every requirement tagged. §7–11 are the system (engine, architecture, data, tiers, security). §12 are non-functional requirements. §13 is metrics. **§14 is the consolidated Gap-to-v1 backlog** — the actionable NEEDS-BUILD list, prioritized. §15–17 are parked/killed scope, open questions, appendices.
+
+## Status legend
+
+Every requirement in §6 is tagged with exactly one:
+
+| Tag | Meaning |
+|---|---|
+| ✅ **LIVE** | Shipped, routed/deployed, and working today. |
+| 🔧 **NEEDS-BUILD** | Required for a fully-functioning v1, but not working yet — undeployed, wired-but-broken, or unbuilt. Each names the gap. |
+| ⏸️ **PARKED** | Deliberately inactive. Plumbing may exist; a revival condition is attached. |
+| ❌ **KILLED** | Removed by decision. Do not revive without re-opening the decision log. |
 
 ---
 
 ## 1. Product overview
 
-**Positioning (locked 2026-05-19):**
+**One-liner (honest, as the system is designed to work):**
 
-> "We help solo founders and small product teams test product/pricing/positioning ideas in 5 minutes by asking 50 AI-simulated customers from a target segment, instead of burning $5k and 2 weeks on real research."
+> InsightForge is a **hybrid consumer-research platform**: founders, product teams, and brands define **digital consumer twins** (AI personas grounded in demographics, psychographics, behavior, and MENA-aware cultural context), run them through **simulated focus groups, solo interviews, and A/B tests** for directional feedback in minutes — then **validate the high-stakes calls with real humans** (surveys, recorded sessions, theme synthesis, and a paid participant panel). The twins get **calibrated against the real responses**, so confidence compounds over time.
 
-> ⚠️ The "50 AI-simulated customers" figure does not match the engine as-built — each segment answers with **one** twin, so a run involves 2–5 simulated customers (known issue #17). Resolve by multi-twin sampling or by revising this sentence before it appears in any external material.
+**The aha loop (the activation engine):** type a question → a multi-persona focus group answers in ~30 seconds → see the dominant objection and where the segment splits → get three concrete next tests, one click each → re-run.
 
-**Public one-liner** (`index.html` meta): *"InsightForge — AI-Powered Hybrid Research Platform. Turn research into actionable insights. AI-powered surveys, qualitative sessions, theme extraction, and cross-study synthesis — with built-in MENA cultural awareness."*
+**The hybrid loop (the moat):** a synthetic finding worth betting on → push it to real humans (survey or session) → the platform scores how close the twins were → segment calibration rises → next synthetic run is more trustworthy. **No competitor closes this loop with MENA depth.**
 
-InsightForge is a multi-tenant SaaS where users create **digital consumer twins** (AI personas defined by demographics, psychographics, behavior, and cultural context) and run them through **simulated focus groups, solo interviews, and A/B tests** to get directional feedback on product ideas in seconds. A **traditional research suite** (surveys, live sessions with transcription, theme extraction, insight synthesis) exists as the optional second step for validating high-stakes decisions with real humans — that hybrid is the differentiator, with the simulator as the headline.
+**Positioning guardrail (locked 2026-05-19, honesty-corrected 2026-06-10):** sell the *speed-to-iteration* and the *hybrid confidence*, never "statistics." A run samples **dozens** of twins per segment (max ~40 paid), not "50 statistically-valid customers." Output is **qualitative signal with confidence and spread**, not a survey of record.
 
-**The aha moment:** type a question → watch a multi-persona focus group respond in ~30 seconds → see the dominant objection → get three concrete next tests, one click each.
-
-**Stack:** Vite + React + TypeScript SPA (Vercel) · Supabase (Postgres + RLS, GoTrue auth, 47 Deno edge functions) · Gemini 2.5 Flash · Stripe subscriptions · PostHog analytics.
+**Stack:** Vite + React + TypeScript SPA (Vercel) · Supabase (Postgres + RLS, GoTrue auth, 47 Deno edge functions) · Google **Gemini 2.5 Flash** · Stripe subscriptions · PostHog analytics · Tremendous (payouts, sandbox).
 
 ---
 
-## 2. Problem & target user
+## 2. Problem & target users
 
-**Problem.** Real market research costs ~$5k and ~2 weeks per question (recruiting, incentives, moderation, synthesis). Founders either skip it and guess, or burn runway on it. Existing AI-persona tools (Synthetic Users, Aaru, Listen Labs) are one-shot answer machines — they don't tell you *what to test next*, and none have MENA-region cultural depth.
+**Problem.** Real market research costs ~$5k and ~2 weeks per question (recruit, incentivize, moderate, synthesize). Founders either skip it and guess, or burn runway. Existing AI-persona tools (Synthetic Users, Aaru, Listen Labs, Outset, Strella) are one-shot answer machines — they don't tell you *what to test next*, they don't *validate against real humans*, and **none have MENA-region cultural depth or Arabic.**
 
-**Primary user — the founder/PM (paying customer).** Solo founder or small product team that knows roughly what to test (pricing, feature, positioning, audience, messaging) and wants fast, cheap, directionally-honest feedback. Self-serve signup, self-serve upgrade.
+### Primary users — the three doors into one product
 
-**Secondary users:**
-- **Workspace team members** — invited collaborators with roles (`owner`, `admin`, `researcher`, `observer`).
-- **Research participants** — real humans, in two distinct shapes (see §7): a workspace-scoped panel (`participants`) the founder manages, and a platform-wide marketplace identity (`participant_profiles`) with its own portal at `/participate/*`. The marketplace's payout rail is **parked** (sandbox-only).
-- **Platform operator (super admin)** — Mahmoud, via `/admin/*` console.
+| Door | Route | Who | Job-to-be-done |
+|---|---|---|---|
+| **Founders** | `/for-founders` | Solo founders, pre-PMF | Test pricing/positioning/feature ideas before building, without research budget. |
+| **Product teams** | `/for-product-teams` | Small PM/UXR teams | Pressure-test concepts between real research rounds; triage what deserves a real study. |
+| **Brands** | `/for-brands` | Brand/marketing teams (MENA focus) | Test messaging/campaigns across culturally-distinct consumer segments fast. |
 
-**Launch bar (decided 2026-06-03):** public self-serve, English-only.
+> Doors are **copy-only variants of one product** (one `PersonaLanding` component, `personaLandingCopy.ts`). They must never grow schema or edge-function differences — that's the "three products" red flag. They exist for attribution and outreach.
+
+### Secondary users
+- **Workspace team members** — invited collaborators with roles `owner` / `admin` / `researcher` / `observer`.
+- **Research participants** — real humans, in two deliberately distinct shapes (see §6.7): a workspace-scoped **panel** (`participants`) the researcher manages, and a platform-wide **marketplace identity** (`participant_profiles`) that earns money via the `/participate/*` portal.
+- **Platform operator (super admin)** — Mahmoud, via the `/admin/*` console.
+
+**Launch bar (decided 2026-06-03):** public self-serve, English-only. MENA/Arabic is the differentiation thesis but is a NEEDS-BUILD for the running UI (§6.13).
 
 ---
 
 ## 3. Goals & non-goals
 
 ### Goals
-1. **Activation in minutes:** a brand-new signup can run a real focus group immediately — 3 starter segments are auto-seeded at signup, and `/focus-group` can self-configure from a one-sentence idea.
-2. **Iteration, not one-shot answers:** every simulation ends with a result-aware "what to test next" loop (dominant objection → coverage of 5 testing axes → 3 concrete follow-up tests).
-3. **Honest output:** confidence scores, consensus scores, and calibration against real responses are first-class. No fabricated demo results in the product (the fake "first simulation" wizard was deleted 2026-06-03).
-4. **Self-serve monetization:** free tier with a real AI trial (50K tokens/mo ≈ 3 simulations) → Stripe upgrade to Starter $49 / Professional $149.
-5. **MENA-aware simulation as differentiation:** cultural context on every segment, Ramadan mode, Arabic-aware project planning (see §5.4, §5.7).
+1. **Activation in minutes** — a brand-new signup runs a real focus group immediately (3 starter segments auto-seeded; `/focus-group` self-configures from one sentence).
+2. **Iteration, not one-shot answers** — every simulation ends with a result-aware "what to test next" loop.
+3. **Honest, decision-grade output** — confidence, consensus, **per-segment spread (error bars)**, and calibration against real responses are first-class. No fabricated results in-product.
+4. **The hybrid confidence loop closes** — synthetic → real validation → calibration → better synthetic. This is the durable moat, not the simulator alone.
+5. **MENA as a real capability, not a label** — Arabic UI + dialect/culture-aware twins, live, not cosmetic.
+6. **Self-serve monetization** — free tier with a real AI trial (50K tokens/mo ≈ 3 simulations) → Stripe upgrade to Starter $49 / Professional $149.
 
-### Non-goals (decided, do not re-litigate without the decision log)
-- **No AI startup-coach / task-recommender surface** — the next-test loop lives inside the studio (2026-05-19).
-- **No policy simulator, no custom twin builder, no white-label UI, no integrations tab** — killed 2026-05-19 (PR #22). Vestigial DB tables remain (§12).
-- **No standalone market simulator page** — the Bass-diffusion math is embedded in Focus Group results instead.
-- **No automated participant payouts at launch** — parked 2026-06-02 pending a real customer asking; first payouts will be manual.
-- **No multilingual launch** — English-only (2026-06-08); 4 other locales exist behind a one-line gate.
-- **No segment marketplace at launch** — parked; plumbing exists, no UI.
-
----
-
-## 4. Core user journey (the funnel as instrumented)
-
-1. **Land** on `/` (marketing page: 4-tier pricing, honest "Insights in Minutes" claims) or `/demo` (no-signup interactive demo with 3 hard-coded personas calling `public-demo-simulate`).
-2. **Sign up** at `/signup` (email/password + workspace name; OAuth: Google, GitHub, Twitter). → PostHog `signup_completed`.
-   - DB trigger `handle_new_user()` creates: profile, workspace (owner membership), and **3 starter segments** — "Budget-Conscious Millennials", "Affluent Early Adopters", "Practical Gen X Parents" (exception-wrapped: seed failure can never block signup).
-3. **First-run guidance:** onboarding wizard + checklist on `/dashboard`, per-page product tours (5 tours, localStorage-gated), sample-data CTA.
-4. **Run the aha loop** on `/focus-group`:
-   - Blank-screen escape hatch: type one idea sentence → "Set up for me" (`seed-from-idea`) pre-picks segments, writes an opinionated stimulus, sets rounds, explains why.
-   - Configure: 2–5 segments (≥2 enforced), 1–3 discussion rounds, optional 🌙 Ramadan mode, stimulus text.
-   - Run (`simulate-focus-group`) → per-round, per-persona responses (sentiment, confidence traffic light, emotion, themes) + aggregate panel (consensus score, avg sentiment/confidence, top themes) → PostHog `focus_group_run`.
-   - **What to test next** (`suggest-next-test`): dominant objection headline (+% of personas affected), explored-axes chips (price / feature / messaging / audience / positioning, each covered/open/untested with evidence), "where you are" meta-banner reasoning over the last 5 simulations, and exactly 3 suggestion cards — click one and it prefills the stimulus.
-   - **Market projection:** Bass diffusion curve derived from sentiment × confidence × consensus, with editable market size & horizon. PDF export of the whole result.
-5. **Hit the paywall** when the monthly token budget or a tier limit is reached → `TierGate` shows upgrade CTA → PostHog `paywall_viewed`, `upgrade_clicked`.
-6. **Upgrade** via Settings → Billing → Stripe Checkout (`create-checkout`) → PostHog `checkout_started`, `checkout_completed`; `stripe-webhook` flips `workspaces.tier`; Stripe customer portal for self-serve management.
-7. **(Optional second step) Validate with humans:** surveys with public response links, recorded sessions with auto-transcription and theme extraction, calibration of twins against real responses (§5.7–5.8).
+### Non-goals (decided — do not re-litigate without the decision log)
+- ❌ No AI startup-coach / standalone task-recommender — the next-test loop lives inside the studio.
+- ❌ No Policy Simulator, Custom Twin Builder, White-Label UI, or Integrations tab — killed 2026-05-19 (PR #22).
+- ❌ No standalone Market Simulator page — Bass-diffusion math is embedded in Focus Group results.
+- ⏸️ No automated participant payouts at launch — first payouts manual; production rail parked pending a real customer.
+- ⏸️ No segment marketplace at launch — plumbing exists, no UI.
 
 ---
 
-## 5. Feature spec (as-built)
+## 4. Product principles
 
-Conventions: **State** = Live (shipped & reachable) / Alpha (reachable, bannered as incomplete) / Parked (built or partially built, deliberately not activated) / Killed (removed; do not revive casually).
+1. **Honesty over hype.** Banned: "statistical," unbacked compliance badges, fake demo results, advertised-but-killed features. Tripwire tests enforce this (`trustCenter.test.tsx`, `personaLanding.test.ts`).
+2. **Qualitative signal, surfaced with its uncertainty.** Always show confidence + spread; never imply survey-grade precision.
+3. **Hybrid is the differentiator; the simulator is the headline.** The real-human suite is not a side feature — it is what makes the twins trustworthy.
+4. **One product, three doors.** Audience-specific copy, never audience-specific architecture.
+5. **MENA depth is the wedge.** Cultural context on every segment, Arabic-first intent, Ramadan/Hijri awareness — built into the prompt path, not bolted on.
+6. **Fail closed.** A billing/DB outage denies AI; it never grants free Enterprise.
 
-### 5.1 Auth & onboarding — Live
+---
 
-| Requirement | As-built |
-|---|---|
-| Self-serve signup | `/signup`: email + password + workspace name. OAuth: Google, GitHub, Twitter (`/auth/callback`). Password reset flow at `/forgot-password` → `/reset-password`. |
-| Zero-to-runnable workspace | `handle_new_user()` trigger seeds profile + workspace + owner membership + 3 starter segments. New users can run a focus group with no setup. |
-| First-run guidance | OnboardingWizard modal (until `onboarding_completed_at`), dashboard checklist, SampleDataCTA, 5 product tours (twins, simulation, focus group, A/B test, insights) with full-screen spotlight; completion stored per-tour in localStorage. |
-| Session continuity | Last-visited path persisted to `profiles.last_visited_path` (2s debounce). |
+## 5. Core user journeys
 
-Key files: `src/pages/SignUp.tsx`, `src/hooks/useAuth.tsx`, migration `20260602` (starter-segment seeding).
+### 5.1 Researcher aha loop (the funnel, as instrumented) — ✅ LIVE
+1. **Land** on `/`, a persona door (`/for-founders` etc.), or `/demo` (no-signup, real Gemini, 3 demo personas).
+2. **Sign up** `/signup` (email/pw + Google/GitHub/Twitter). `handle_new_user()` seeds profile + workspace + **3 starter segments** (exception-wrapped — seed failure never blocks signup). → `signup_completed` (carries `door`).
+3. **First-run guidance** — onboarding wizard (runs a *real* simulation), dashboard checklist, product tours, sample-data CTA.
+4. **Run the aha loop** `/focus-group` — blank-screen escape hatch (`seed-from-idea`) → configure 2–5 segments × 1–3 rounds (+ optional 🌙 Ramadan mode) → run → per-persona cards + group consensus + **distribution** + market projection → **What to test next** (dominant objection + explored-axes + 3 one-click follow-ups).
+5. **Hit the paywall** at the token/tier limit → `TierGate` upgrade CTA.
+6. **Upgrade** via Settings → Billing → Stripe Checkout → webhook flips tier.
 
-### 5.2 Workspaces & team — Live
+### 5.2 Hybrid validation loop — ✅ LIVE (calibration backend NEEDS-BUILD verification)
+A synthetic finding worth betting on → create a **survey** (public link) or schedule a **session** (record, transcribe, extract themes) → real responses flow into `calibration_data` → `cron-calibration` averages accuracy into each segment's `calibration_score` → **calibration badge** rises (New → Calibrating → Calibrated) → next synthetic run carries earned confidence.
 
-- Multi-tenant: every domain row carries `workspace_id`; RLS restricts to members (§9).
-- Roles: `owner`, `admin`, `researcher`, `observer` (`app_role` enum). Owners/admins manage settings, billing, team, API keys.
-- Workspace switcher in sidebar; create additional workspaces; selection persisted in localStorage.
-- Team tab: invite by email (`invite-member`), role badges, remove member; seat limits per tier enforced by DB trigger `check_workspace_member_limit()`.
-- Settings tabs: Profile · Workspace (name, brand colors) · Team · Billing · Activity log · API & Webhooks (owner/admin) · Referrals (mock invite code — see §12).
+### 5.3 Participant earning loop — 🔧 NEEDS-BUILD (broken as written; payout parked)
+A real human signs up at `/participate/signup` → builds a profile + personal "twin" → browses the **study feed** → accepts a study → completes it → **earns** (with streak + referral bonuses) → cashes out ≥ $5. *Today the read paths (dashboard, earnings, impact, profile, referrals) are broken by a POST-vs-GET mismatch and payouts are sandbox-only (§6.7).*
 
-Key files: `src/hooks/useWorkspace.tsx`, `src/pages/Settings.tsx`.
+---
 
-### 5.3 Digital twins (segments) — Live
+## 6. Feature spec (fully-functioning v1, status-tagged)
 
-The core asset. A **segment profile** = one synthetic consumer persona:
+Conventions: each subsection states **what fully-functioning looks like**, then a requirements table. **Key files** are given so requirements are actionable.
 
-- **Fields:** name, description, `demographics` (age range, gender, location, income, education, occupation), `psychographics` (values, lifestyle, interests), `behavioral_data`, `cultural_context` (region, language). JSONB columns on `segment_profiles`.
-- **Management:** `/segments` (Segment Library) — create via form, edit, delete, "Ask a Question" deep-link into `/simulate?segment=<id>`.
-- **Calibration badge** per segment from `calibration_score`: New (<0.3) / Calibrating (0.3–0.6) / Calibrated (≥0.6) — fed by the validation system (§5.8).
-- **UI rule:** purple = synthetic, everywhere. Human participants are never purple.
-- `model_version` defaults to `gemini-2.5-flash`.
+### 6.1 Auth & onboarding
 
-### 5.4 AI Studio — Live (the product core)
-
-| Surface | Route | What it does |
+| Requirement | Status | Detail |
 |---|---|---|
-| **Solo simulate** | `/simulate`, `/simulate/:id` | One segment × one stimulus → response with sentiment (−1..1), confidence (0..1), purchase intent, emotional reaction, key themes. Result-aware next-test suggestions. Saved simulations reloadable. |
-| **Focus group** | `/focus-group` | 2–5 segments × 1–3 rounds. Per-round per-persona responses; aggregate consensus/sentiment/confidence/themes; the full aha loop (§4 step 4); Bass-diffusion market projection; PDF export. **The flagship surface.** |
-| **A/B test** | `/ab-test` | Two stimulus variants across selected segments → winner + per-segment scores (`simulate-ab-test`). |
-| **Compare** | `/simulations/compare` | Side-by-side comparison of past simulations. |
+| Self-serve signup + OAuth | ✅ LIVE | `/signup` email/pw + Google/GitHub/Twitter; reset at `/forgot-password`→`/reset-password`. |
+| Zero-to-runnable workspace | ✅ LIVE | `handle_new_user()` seeds profile + workspace + owner membership + 3 starter segments. |
+| First-run guidance | ✅ LIVE | Onboarding wizard (runs a real sim), dashboard checklist, sample-data CTA, product tours (spotlight, once-per-tour localStorage). |
+| Session continuity | ✅ LIVE | Last path persisted to `profiles.last_visited_path`. |
 
-**Ramadan mode** (focus group): toggle that instructs personas to adopt seasonal consumption/spiritual patterns — concrete MENA differentiation, alongside per-segment `cultural_context` woven into every persona prompt.
+Key files: `src/pages/SignUp.tsx`, `src/hooks/useAuth.tsx`, migration `20260602_seed_starter_segments_on_signup.sql`.
 
-**Simulation pipeline contract** (edge): `simulate` / `simulate-focus-group` validate JWT + workspace membership → enforce tier (`aiAnalysis`) and rate limits (fail-closed) → build persona prompts from segment JSONB → call Gemini 2.5 Flash (OpenAI-compatible endpoint, 25s timeout, 1 retry on 429/5xx) → write `simulations` row (type `solo` | `focus_group` | `ab_test`) + one `twin_responses` row per persona per round → record token usage. Focus group aggregates: `consensus_score` (purchase-intent unanimity), `avg_sentiment`, `avg_confidence`, counted `top_themes`.
+### 6.2 Workspaces & team
 
-**Next-test loop contract** (`suggest-next-test`): input = current simulation + up to 5 past ones; output = `dominant_objection {headline, affected_pct}`, exactly 5 `explored_axes` (price/feature/messaging/audience/positioning × covered/open/untested + evidence), `meta_recommendation` (null on first run), exactly 3 `suggestions {headline, rationale, stimulus_template, focus_area}` biased toward unexplored axes. Output is schema-sanitized server-side.
-
-**Seed-from-idea contract** (`seed-from-idea`): input = idea (10–1000 chars); output = 1–3 segment IDs (validated against the workspace — hallucinated IDs rejected), a concrete opinionated stimulus, rounds, rationale.
-
-### 5.5 Market projection — Live (embedded)
-
-Bass diffusion model inside Focus Group results (no standalone page — the standalone Market Simulator was killed):
-`sentiment01 = (avg_sentiment+1)/2` → `purchase_prob = sentiment01 × avg_confidence`, `WOM = sentiment01 × consensus` → derive Bass `p`/`q` → adoption curve over user-set market size (default 100k) and horizon (default 24 months). KPIs: peak month, 90% saturation, final penetration. The derivation is shown to the user — no black box.
-
-### 5.6 Traditional research suite — Live
-
-The "hybrid" half: real-human research tooling, organized under Projects.
-
-| Feature | Route | As-built behavior |
+| Requirement | Status | Detail |
 |---|---|---|
-| **Projects** | `/projects`, `/projects/:id` | Container for surveys/sessions. Quick-create or AI-generated research plan (`generate-project-plan` — returns objective, methodology, discussion guide, screener criteria, timeline; explicitly MENA/Arabic-aware: KSA/Gulf context, gender separation, prayer times). |
-| **Surveys** | `/surveys`, `/surveys/:id`, public `/s/:surveyId` | Multi-step builder (text, multiple choice, rating…), public anonymous response link, response/analytics tabs, auto-complete at target via DB trigger. AI question generation (`generate-survey-questions`). |
-| **Sessions** | `/sessions`, `/sessions/:id`, `/studio/:id` | Real interview/focus-group sessions: schedule, upload audio/video, auto-transcribe (`transcribe-media`: Deepgram nova-2, Whisper fallback; diarization, language detection), live transcription via Web Speech API in Studio, notes (observation/bookmark/action-item), AI follow-up probes, themes, sentiment summary. Shareable read-only snapshot at `/shared/:token` (token-gated RPC, view-counted). |
-| **Insights** | `/insights` | Repository: survey breakdowns (charts), cross-session patterns (`synthesize-insights` groups ≥2 sessions' themes into 2–15 patterns with quotes), CSV/Markdown export, project filters. Full-text search machinery exists DB-side (`global_search`, FTS columns) — UI wiring uncertain. |
-| **Requirements** | `/requirements`, `/requirements/:id` | Research-request intake: categorized, prioritized, voted, threaded comments, status workflow (submitted → … → completed), linkable to projects/sessions/surveys/simulations. |
-| **Methodology** | `/methodology` | Public docs explaining simulation/confidence/validation scoring. |
+| Multi-tenant isolation | ✅ LIVE | Every row carries `workspace_id`; RLS restricts to members (§11). |
+| Roles & permissions | ✅ LIVE | `owner/admin/researcher/observer`; owners/admins manage settings/billing/team/API keys. |
+| Workspace switcher + create | ✅ LIVE | Sidebar switcher; selection persisted. |
+| Team invites & seat limits | ✅ LIVE | `invite-member` (invite/update_role/remove/transfer_ownership), last-owner protection, tier seat cap, member listing. |
 
-### 5.7 Participants, incentives & the panel — Live (workspace-scoped)
+Key files: `src/hooks/useWorkspace.tsx`, `src/pages/Settings.tsx`, `supabase/functions/invite-member`, `list-workspace-members`.
 
-- **Panel** (`/participants`): workspace-owned respondent records, CSV import, tags, notes, quality score, session linkage.
-- **Rewards** (`/incentives`, `/incentives/:id`): incentive programs (cash / gift card / points / donation / lottery / physical), budget tracking with exhaustion auto-pause, per-participant disbursements with status lifecycle (pending → awaiting_approval → processing → sent → claimed/expired), approval threshold (default $100), CSV/JSON export (`incentive-report`), pre-flight budget check (`check-budget`).
-- **Disbursement rail:** `disburse-incentive` routes to **Tremendous sandbox** (`testflight.tremendous.com`) when provider=tremendous, else marks for manual handling. **No production payout key is set — nothing real can be paid. This is deliberate (parked decision).**
+### 6.3 Segments & digital twins
 
-### 5.8 Validation & calibration — Alpha (bannered)
+**Fully-functioning:** a researcher builds rich consumer segments (or imports starter templates), each carrying MENA-aware cultural context, and watches each segment's calibration confidence rise as real validation accrues.
 
-The trust system that makes "hybrid" credible:
+| Requirement | Status | Detail |
+|---|---|---|
+| Segment Library CRUD | ✅ LIVE | `/segments` — demographics/psychographics/behavioral/cultural JSONB; deep-links into studios. |
+| Starter segments on signup | ✅ LIVE | 3 generic segments so a focus group works with zero setup. |
+| Calibration badge per segment | ✅ LIVE | New (<0.3) / Calibrating (0.3–0.6) / Calibrated (≥0.6) from `calibration_score`. |
+| Manual calibration (paste real response) | 🔧 NEEDS-BUILD | `calibrate-segment` UI is live but the fn is **absent from `config.toml`** — confirm deploy + live round-trip. |
+| Continuous calibration cron | ✅ LIVE | `cron-calibration` (CRON_SECRET-gated, verify_jwt=true) averages accuracy into `segment_profiles.calibration_score`. |
+| Starter **Segment Templates** library | ⏸️ PARKED | Reshape of the killed Segment Marketplace — curated importable segments inside the Library. Revive with supply+demand evidence. |
+| Participant "My Twin" preview | ✅ LIVE | `/participate/my-twin` — archetype + trait bars (partly randomized); a participant-side toy, not the segment engine. |
 
-- `/validation` (Alpha banner: "in active development"): global accuracy score, per-segment calibration table, monthly trend, dimension breakdown (sentiment vs themes accuracy), real-vs-twin comparison pairs (`validation-report`).
-- **Calibration data:** real responses (from surveys, sessions, or manual upload via CalibrationUploader) matched against twin responses → `accuracy_score` rows in `calibration_data`.
-- **Cron:** `cron-calibration` (CRON_SECRET-gated, fail-closed) periodically averages accuracy per segment into `segment_profiles.calibration_score` — which drives the badges in §5.3.
-- Decision context: Validation Studies was downgraded-but-kept on the kill list (2026-05-19) because it *is* the hybrid promise; full orchestration backend is roadmap.
+Key files: `src/pages/SegmentLibrary.tsx`, `src/services/segmentService.ts`, `supabase/functions/{calibrate-segment,cron-calibration}`, migrations `20260327100000_digital_twins.sql`, `20260327110000_calibration_data.sql`.
 
-### 5.9 Participant marketplace portal — Built, payout parked
+### 6.4 Simulation studios — the product core
 
-A second, participant-facing product surface with separate auth wrapper (`ParticipantRoute`) under `/participate/*`: login/signup, dashboard, study feed (browse active `study_listings`), earnings (ledger + cash-out ≥ $5 via `participant-cashout` → Tremendous **sandbox**), impact stats, referrals (codes + $2/$2 bonuses), profile, and **My Twin** (the participant's own AI profile: archetype, trait bars, calibration accuracy ring, share card).
+**Fully-functioning:** every studio samples **N distinct twins per segment** and renders the result as a distribution (mean ± spread, objection rate, sample size), not a single flat number — so the user sees *how much the segment agrees*, not just the average.
 
-Supporting machinery: reputation system (tiers newcomer→elite, completion rate, ratings, streaks), study matching with demographic/reputation scoring + hard requirements (`participant-match`), notifications.
+| Requirement | Status | Detail |
+|---|---|---|
+| Solo Simulation Studio | ✅ LIVE | `/simulate` — 1 segment × 1 stimulus → persona card (sentiment, confidence, intent, emotion, themes); history reload. **Single-twin by design** (decision: keep solo cheap; multi-twin is the group studios). |
+| Focus Group Studio | ✅ LIVE | `/focus-group` — 2–5 segments × 1–3 rounds, Ramadan mode, idea-seed; per-round cards, consensus, market projection, aha loop. |
+| A/B Test Studio | ✅ LIVE | `/ab-test` — two variants × segments → winner banner + per-segment metrics + cost. |
+| Simulation Comparison | ✅ LIVE | `/simulations/compare` — side-by-side of 2–4 past runs. |
+| Idea-seed (blank-screen filler) | ✅ LIVE | `seed-from-idea` — one sentence → picks 1–3 segments (hallucinated IDs rejected), writes stimulus, sets rounds. Confirm deploy (absent from `config.toml`). |
+| Aha-loop next-test suggestions | ✅ LIVE | `suggest-next-test` — dominant objection (+% affected), 5 explored-axes, meta-recommendation, 3 one-click follow-ups. Wire it into A/B too (currently focus-group only). Confirm deploy. |
+| Market Projection (Bass diffusion) | ✅ LIVE | Client-side adoption curve from sentiment×confidence×consensus; editable market size/horizon; peak month, saturation, penetration. Derivation shown (no black box). |
+| **Multi-twin sampling engine** | 🔧 NEEDS-BUILD | `_shared/multiTwin.ts` — N/tier (free 2 / starter 5 / pro 8 / ent 10, capped `segments×twins ≤ 40`); free = 1 cheap array call, paid = N varied independent calls. Wired into focus-group + ab-test, 34 unit tests, reviewed. **NOT deployed to prod (PAT dead) — prod still N=1; live Gemini round-trip + token cost unverified.** |
+| **Multi-twin distribution UI** | 🔧 NEEDS-BUILD | Engine returns `sample_size`, `sentiment_stdev`, per-segment mean±stdev, `objection_rate`; **studios still render flat means.** Build the error-bar / spread / "N twins" display. |
+| **Honest "dozens" copy revision** | 🔧 NEEDS-BUILD | After deploy+verify, replace "50 customers"/"statistical" with the real number (max ~40 twins → "dozens"). Until deployed, the ban stands. |
+| Deploy-confirm all `simulate-*` fns | 🔧 NEEDS-BUILD | `simulate`, `simulate-focus-group`, `simulate-ab-test`, `seed-from-idea`, `suggest-next-test`, `public-demo-simulate` are **all absent from `config.toml`** — the most load-bearing code is the least deploy-certain. Add them or confirm auto-deploy. |
+| Canonical MENA prompt stack | 🔧 NEEDS-BUILD | `twin-orchestrator` (6-layer: persona/MENA-culture/category/Hijri/stimulus/calibration) and `_shared/prompts.ts` are **orphaned dead code**; each studio reimplements a drifting inline prompt. Wire one canonical builder to realize the MENA depth the marketing implies. |
+| Policy Sim / Custom Twin Builder / standalone Market Sim | ❌ KILLED | 2026-05-19 (PR #22). Vestigial `simulations.type` enum values `policy`/`market_sim` remain (harmless). |
 
-**State:** routes and edge functions are live; the **money out is sandbox-only by decision** (2026-06-02: pay the first 2–3 participants by hand when a real customer asks; build the rail after doing it manually). Do not wire a production payout key without that demand signal.
+**Simulation pipeline contract** (edge): validate JWT + workspace membership → enforce tier (`aiAnalysis`) + rate limits (fail-closed) → build persona prompts from segment JSONB → call Gemini 2.5 Flash (OpenAI-compatible endpoint, 25s timeout, 1 retry on 429/5xx) → write `simulations` row + one `twin_responses` row per twin per round → record token usage.
 
-### 5.10 Billing & tiers — Live (verified on prod)
+Key files: `src/pages/{SimulationStudio,FocusGroupStudio,ABTestStudio,SimulationComparison}.tsx`, `supabase/functions/{simulate,simulate-focus-group,simulate-ab-test,seed-from-idea,suggest-next-test}`, `_shared/{multiTwin,aiClient,prompts}.ts`.
 
-See §8 for the full tier table. Flow: `create-checkout` (Stripe Checkout, subscription mode) → `stripe-webhook` (signature-verified, `verify_jwt=false` — the HMAC *is* the auth) maps product → tier and writes `workspaces.tier` + `subscription_status` + initializes the monthly token-usage row → `check-subscription` powers the Billing tab → `customer-portal` for self-serve management. Real product IDs: Starter `prod_U77vT9icIzokqy`, Professional `prod_U77wrd6NNDHYW2`.
+### 6.5 Calibration & validation — the trust/moat loop
 
-⚠️ The webhook was verified live with test signatures (2026-06-03), but **a real Stripe-test checkout end-to-end (card → webhook → tier flip) has not been manually run** — owed before charging a live customer (§10).
+**Fully-functioning:** a researcher can see, per segment, how accurately its twins predict real humans, and that score visibly improves studies-over-time.
 
-### 5.11 Platform admin — Live (operator-only)
+| Requirement | Status | Detail |
+|---|---|---|
+| Calibration data capture | ✅ LIVE | Real responses matched to twin responses → `calibration_data` accuracy rows. |
+| Validation Studies dashboard | 🔧 NEEDS-BUILD | `/validation` — global accuracy, per-segment table, AI-vs-real chart, monthly trend. Self-labeled **alpha**; its data fn `validation-report` is **not deployed**. Deploy + de-alpha. |
+| Validation orchestration backend | ⏸️ PARKED | Full study-orchestration beyond the alpha; roadmap. The alpha banner is the honest promise level. |
 
-`/admin/*` console gated by `SuperAdminRoute` + `super_admins` table (seeded with the founder's auth UUID, `is_super_admin()` SECURITY DEFINER check): overview KPIs, tenants, users, participants, studies, AI usage/token burn, financials (MRR/churn), platform audit log, system status.
+Key files: `src/pages/ValidationStudies.tsx`, `supabase/functions/{validation-report,calibrate-segment,cron-calibration}`.
 
-### 5.12 Trust Center & audit — Live, one claim must be fixed
+### 6.6 Real-human research suite — the hybrid half (most-deployed subsystem)
 
-- Immutable `audit_logs` (SOC 2-style trail: action, resource, user, IP, UA) written by triggers (membership changes, API key creation, simulation runs) + explicitly by sensitive edge functions. Workspace-visible at `/trust-center` and in Settings → Activity.
-- **Claim honesty (fixed 2026-06-10):** the page previously rendered "SOC 2 Type II" / "ISO 27001" badges plus "AES-256 / TLS 1.3 / EU-US residency" specifics with no certification behind them. All copy is now truthful and attributed — "Built on SOC 2-compliant infrastructure providers (Supabase, Stripe, Vercel)", encryption/hosting described as Supabase-managed — and the admin audit page's "SOC 2 compliant" tagline was reworded. `src/test/trustCenter.test.tsx` fails the suite if certification badges return.
+| Requirement | Status | Detail |
+|---|---|---|
+| Projects + AI research plan | ✅ LIVE | `/projects` — container; `generate-project-plan` returns objective/methodology/discussion-guide/screener, **bilingual EN/AR, MENA-aware** (Gulf context, gender separation, prayer times). |
+| Surveys lifecycle + editor | ✅ LIVE | `/surveys` — 7 question types, go-live/pause/complete, auto-complete-at-target trigger. |
+| AI survey question generation | ✅ LIVE | `generate-survey-questions` — objective → 6–10 questions. |
+| Public response collection | ✅ LIVE | `/s/:surveyId` — display logic (`show_if`), piping (`{{Qn}}`), server-side validation, localStorage dedupe. |
+| Survey distribution to participants | ✅ LIVE | `distribute-survey` — emails if `RESEND_API_KEY` set, else share-link fallback. |
+| Sessions (interview/focus/UX) | ✅ LIVE | `/sessions` — schedule, transcript, notes (observation/bookmark/action-item), participants + incentive linkage, full-text transcript search. |
+| AI transcript theme & sentiment | ✅ LIVE | `analyze-transcript` — 3–8 themes (title/desc/confidence/sentiment/quotes) → `session_themes`. |
+| AI probe / follow-up generation | ✅ LIVE | `generate-probes` — moderator follow-ups from guide + transcript. |
+| Audio/video auto-transcription | 🔧 NEEDS-BUILD | `transcribe-media` (Deepgram nova-2 + Whisper fallback) is **not deployed** and needs a provider key. Manual paste works regardless. |
+| Insights hub + cross-session synthesis | ✅ LIVE | `/insights` — survey charts + `synthesize-insights` clustering (≥2 analyzed sessions) into named patterns; CSV/MD export. |
+| Pattern-trend snapshots | ✅ LIVE | `pattern_snapshots` table **applied + verified on prod 2026-06-24** — trend badges now backed (was a graceful-fallback gap in v1.0). |
+| Threaded comments | ✅ LIVE | Workspace-scoped, mounted on SessionDetail. *(Commenting on simulations is unbuilt — schema doesn't permit that entity.)* |
+| Global full-text search | ✅ LIVE | Command-palette ranked search over transcripts/themes/patterns/notes (tsvector GIN). |
+| Shareable research snapshot | ✅ LIVE | `/shared/:token` — public read-only branded session summary; print/PDF. |
 
-### 5.13 Public & API surfaces — Live
+Key files: `src/pages/{Projects,Surveys,SurveyRespond,Sessions,SessionDetail,Insights}.tsx`, the matching `supabase/functions/*`, migrations `20260403100000_requirements.sql`, `20260610120000_pattern_snapshots.sql`.
 
-- `/` landing (honest pricing/claims since `37da1af`), `/demo` (3 hard-coded demo personas, `public-demo-simulate`, no signup), `/s/:surveyId` public survey, `/shared/:token` read-only snapshot.
-- **Persona doors (2026-06-12):** `/for-founders`, `/for-product-teams`, `/for-brands` — copy-only variants of the same product (one `PersonaLanding` component, config in `src/lib/personaLandingCopy.ts`), built as outreach destinations per `docs/AUDIENCE_MAP.md`. Visiting a door stores `insightforge-door` in localStorage and fires `door_viewed`; `signup_completed` carries the `door` property (null = organic). A tripwire test bans overclaims from door copy. Doors must never grow schema/edge-function differences — that's the second-product red flag.
-- **API keys** (Settings → API & Webhooks): hashed workspace API keys with scopes (default `simulate`) and per-hour rate limits; `api-simulate` exposes simulation programmatically. Outbound **webhooks** with event subscriptions, HMAC secrets, delivery logs (`dispatch-webhook`).
-- **Data rights:** `export-workspace-data` (full export), `erase-participant` (GDPR/PDPL-style erasure), `cleanup-expired-data` (retention; `workspaces.data_retention_days` default 730, `gdpr_enabled`/`pdpl_enabled` flags).
+### 6.7 Participant marketplace — the hybrid supply side
 
-### 5.14 i18n — English-only by decision (machinery kept)
+**Fully-functioning:** real humans sign up, get matched to relevant studies, complete them, and get paid — giving researchers an on-demand validation panel and the platform its calibration data flywheel.
 
-`ENABLED_LANGUAGES = ["en"]` in `src/lib/i18n.tsx` is the single source of truth; the language picker self-hides when ≤1 language is enabled; stale localStorage falls back to `en`. Locale files kept on disk: `en` (760 keys, 100%), `ar`/`fr`/`es`/`de` (~82%, Arabic RTL only cosmetic). **Re-enabling a language = one line + finishing its translation/RTL work.**
+> ⚠️ **Two distinct participant systems by design** (a frequent bug source): `participants` = workspace-owned **panel/contact list** (researcher-side, fully live); `participant_profiles` = platform-wide **marketplace earning accounts** (the `/participate/*` portal).
 
-### 5.15 Analytics — Live
+| Requirement | Status | Detail |
+|---|---|---|
+| Enterprise "People" panel | ✅ LIVE | `/participants` — researcher CRUD, CSV import/export, quality score, GDPR erase, "open recruiting" → `study_listings`. |
+| Participant signup + login | ✅ LIVE | `/participate/signup` (4-step) + role-gated login. *(Step 2–4 enrichment POSTs a GET/PATCH-only fn → later demographics silently dropped; account still created — see method-mismatch fix below.)* |
+| Study participation lifecycle | ✅ LIVE | `study-participate` (POST) — accept/submit/approve/reject, earnings, 5/10/15% streak bonuses, referral payout on first study, tier/rating recompute. |
+| Per-study match scores | ✅ LIVE | `participant-match-scores` — 0–100 match % powering feed badges/sort. |
+| Realtime notification center | ✅ LIVE | `participant_notifications` bell, per-user RLS. *(Stays empty until the match-broadcast bug below is fixed.)* |
+| Streaks / weekly bonus | ✅ LIVE | ISO-week streaks; bonus applied server-side. |
+| **Fix POST-vs-GET method mismatch** | 🔧 NEEDS-BUILD | Dashboard/Earnings/Impact/Profile invoke `participant-profile`/`participant-impact` (GET/PATCH-only) via default **POST → 405** → empty reads; the StudyFeed read of `study-listing` (GET/POST/PATCH) via POST silently routes into its *create-listing* branch instead — arguably worse. Align client calls (or the fns) and deploy. |
+| **Fix study-match broadcast** | 🔧 NEEDS-BUILD | `participant-match` inserts into `notifications` while readers use `participant_notifications` → alerts land where nothing reads. Wrong-table bug; also no caller. |
+| Deploy participant fns | 🔧 NEEDS-BUILD | The `participant-*`, `study-listing`, `study-participate` fns are **absent from `config.toml`** — confirm deploy. |
+| Earnings + cash-out | 🔧 NEEDS-BUILD | `participant-cashout` (≥$5) attempts a Tremendous **sandbox** order; also reads via the broken profile path. Fix reads + (separately) the payout rail. |
 
-PostHog (`src/lib/analytics.ts`, no-op without `VITE_POSTHOG_KEY`; autocapture off, manual pageviews). Canonical funnel events:
+Key files: `src/pages/participant/*`, `supabase/functions/{participant-signup,participant-profile,participant-match,participant-match-scores,participant-impact,participant-referral,participant-cashout,study-listing,study-participate}`, migrations `20260405_participant_portal.sql`, `20260409110000_referrals.sql`, `20260409120000_streaks.sql`.
 
-`door_viewed` (persona doors, 2026-06-12) → `signup_completed` (carries `door`: founders / product-teams / brands / null) → `onboarding_simulation_run` / `simulation_run` / `focus_group_run` → `paywall_viewed` → `upgrade_clicked` → `checkout_started` → `checkout_completed`, plus `$pageview`. Identify on login, reset on logout.
+### 6.8 Incentives & payouts
+
+| Requirement | Status | Detail |
+|---|---|---|
+| Incentive programs | ✅ LIVE | `/incentives` — cash/gift_card/points/etc., budgets, spent %, auto-pause on exhaustion; admin/owner gated. |
+| Incentive disbursement | ✅ LIVE | `disburse-incentive` — membership + budget checks, approval threshold (default $100), Tremendous **sandbox** order for non-manual providers. |
+| Incentive webhook | ✅ LIVE | `incentive-webhook` — provider callbacks flip status (dormant; sandbox). |
+| Incentive budget pre-check | ⏸️ PARKED | `check-budget` deployed but no UI caller. |
+| Incentive report export | 🔧 NEEDS-BUILD | `incentive-report` (CSV/JSON) not deployed + no UI; page export is client-side. Wire or retire. |
+| **Production payout rail** | ⏸️ PARKED | Both cashout + disburse hit Tremendous **sandbox**; no prod key **by decision** (2026-06-02 — pay first 2–3 participants by hand when a real customer asks, then build the rail). |
+
+Key files: `src/pages/{Incentives,IncentiveDetail}.tsx`, `supabase/functions/{disburse-incentive,incentive-webhook,check-budget,incentive-report}`.
+
+### 6.9 Billing, tiers & monetization — the SaaS spine (solid)
+
+| Requirement | Status | Detail |
+|---|---|---|
+| 4-tier subscriptions | ✅ LIVE | Free $0 / Starter $49 / Professional $149 / Enterprise custom (§10). |
+| Edge tier enforcement | ✅ LIVE | `tierEnforcement.ts` — reads `workspaces.tier` (cache-first), 403 on caps, **fails closed** to free/503. |
+| Token budget + rate limiting | ✅ LIVE | `rateLimiter.ts` — monthly token budgets (50K→10M) + req/min caps; meters post-call; fails closed. |
+| Stripe Checkout / Webhook / Status / Portal | ✅ LIVE | `create-checkout`, `stripe-webhook` (verify_jwt=false — HMAC is the auth), `check-subscription`, `customer-portal`. Real product IDs mapped. |
+| **Manual end-to-end Stripe pass** | 🔧 NEEDS-BUILD | Webhook verified with test sigs, but a real card→webhook→tier-flip has **never been run manually**. Owed before charging a live customer. |
+| Usage meter | ✅ LIVE | Settings → Billing shows usage incl. AI tokens. |
+| Tier-limit error → upgrade prompt | 🔧 NEEDS-BUILD | `parseTierLimitError` regex may not match the structured JSON edge error → upgrade prompt may not fire. Verify the contract. |
+
+Key files: `src/lib/{tierLimits,tierLimitError}.ts`, `_shared/{tierLimitsData,tierEnforcement,rateLimiter}.ts`, `supabase/functions/{create-checkout,stripe-webhook,check-subscription,customer-portal}`.
+
+### 6.10 Programmatic API & webhooks
+
+**Fully-functioning:** a customer generates an API key in Settings and calls the simulation engine programmatically; events fire outbound webhooks. **Today this is dead plumbing behind a real-looking Settings tab.**
+
+| Requirement | Status | Detail |
+|---|---|---|
+| API key management UI | ✅ LIVE | Settings → API & Webhooks — generate/list/revoke (`sk_live_` + hash, shown once) + cURL/Python docs. |
+| **Unify API-key tables** | 🔧 NEEDS-BUILD | UI writes `api_keys`; gateway `api-simulate` authenticates against `workspace_api_keys` (no writer) → **issued keys can't call the API.** Pick one table; wire issuance to it. |
+| **Deploy + fix API gateway** | 🔧 NEEDS-BUILD | `api-simulate` is **absent from `config.toml`** (deploy unconfirmed); 2 of 5 routes (`market_sim`→`simulate-market`, `policy`→`simulate-policy`) target functions that **don't exist** (404). Deploy; map only real engines. |
+| Outbound webhooks | ⏸️ PARKED | `dispatch-webhook` deployed but **zero callers + no register UI**. Either wire events + a registration UI, or hide the tab until then. |
+
+Key files: `src/pages/Settings.tsx` (API tab), `supabase/functions/{api-simulate,dispatch-webhook}`, migrations `20260311090000_api_keys.sql`, `20260328100000_api_keys_table.sql`.
+
+### 6.11 Admin / super-admin console
+
+| Requirement | Status | Detail |
+|---|---|---|
+| Super-Admin Command Center | ✅ LIVE | `/admin` — platform KPIs, tier bars, live audit feed, pending-payout alert. Gated by `super_admins` + RLS. |
+| Tenant directory + deep-dive | ✅ LIVE | `/admin/tenants(/:id)` — tier filter, inline tier-change, CSV; 7-tab drill-down, suspend/reactivate. ⚠️ **"Delete Workspace Permanently" button has no onClick (stub).** |
+| User / participant / studies directories | ✅ LIVE | `/admin/{users,participants,studies}` — read-only cross-tenant. |
+| AI & token usage | ✅ LIVE | `/admin/ai-usage` — token/cost analytics (hard-coded $0.40/1M blended), heatmap, per-workspace quota. |
+| Financial governance | ✅ LIVE | `/admin/financials` — bulk approve/reject payouts (flips status), budgets, earnings health. |
+| Audit trail | ✅ LIVE | `/admin/audit` — append-only `audit_logs` viewer, filters, CSV, anomaly banner. |
+| System configuration | 🔧 NEEDS-BUILD | `/admin/system` — 8 feature-flag toggles are **local `useState` only** (page itself says "connect a `platform_config` table"). Super-admin add/remove is the only persisted write. Persist the flags. |
+| Projects / Requirements / Dashboard | ✅ LIVE | `/projects`, `/requirements` (Kanban + voting + comments + tours), `/dashboard` (real counts, onboarding, velocity chart). |
+| Orphaned `AdminSettings` duplicate | ❌ KILLED | Superseded by AdminSystem; no route, zero imports — delete. |
+| White-label branding | ❌ KILLED | `workspace_branding` schema-only remnant; no write path, nothing applies it. |
+
+### 6.12 Trust, compliance & data rights
+
+| Requirement | Status | Detail |
+|---|---|---|
+| Trust Center | ✅ LIVE | `/trust-center` — last 50 audit rows + security-posture cards. Copy is honesty-corrected (no unbacked SOC2/ISO/AES badges). |
+| **Append-only audit immutability** | ✅ LIVE | `audit_logs` BEFORE UPDATE/DELETE trigger **applied + verified on prod 2026-06-24** (binds even service role; allows workspace cascade). *Upgraded from RLS-only since v1.0.* |
+| Methodology page | ✅ LIVE | `/methodology` — honest digital-twin pipeline, model table, confidence/Bass formulas, limitations/ethics. |
+| GDPR workspace data export | ✅ LIVE | `export-workspace-data` — full JSON export, logged. |
+| GDPR participant erasure | ✅ LIVE | `erase-participant` — owner/admin deletes a *panel* `participants` record + scrubs quotes. *(Marketplace `participant_profiles` erasure is a `mailto:` — see backlog.)* |
+| Trust Center "Export CSV" button | 🔧 NEEDS-BUILD | Has **no onClick** → clicking does nothing. Wire or remove. |
+| Data retention purge | 🔧 NEEDS-BUILD | `cleanup-expired-data` is reachable but **never scheduled → never runs.** Add a pg_cron schedule. |
+| Frontend Sentry observability | ⏸️ PARKED | Code complete; `initSentry()` no-ops without `VITE_SENTRY_DSN`. Revive when Mahmoud sets a DSN. |
+| Supabase Pro / DB backups | ⏸️ PARKED | Prod is free-tier, no backups; keep-warm cron mitigates pause. Revive at first paying customer. |
+
+### 6.13 Internationalization / MENA layer
+
+**Fully-functioning:** the running UI is available in Arabic (RTL), and twins reason in MENA cultural context — the wedge made real.
+
+| Requirement | Status | Detail |
+|---|---|---|
+| i18n engine | ✅ LIVE | `t()`/language/direction, lazy locale load, dir/lang + persistence. |
+| MENA-aware research-plan generation | ✅ LIVE | `generate-project-plan` is bilingual EN/AR with Gulf context. |
+| Ramadan mode (focus group) | ✅ LIVE | Seasonal-pattern toggle on twins. |
+| **Enable Arabic UI** | 🔧 NEEDS-BUILD | `ENABLED_LANGUAGES=['en']`; `ar.json` ~82% + RTL still cosmetic. Finish ar translation + logical-property RTL sweep + flip the flag. **This is the wedge — highest strategic priority of the NEEDS-BUILD set.** |
+| Other locales (fr/es/de) | ⏸️ PARKED | Files exist ~82%; enable per-language after translation is complete. |
+
+Key files: `src/lib/i18n.tsx`, `src/locales/*`.
+
+### 6.14 Growth surfaces
+
+| Requirement | Status | Detail |
+|---|---|---|
+| Landing page | ✅ LIVE | `/` — hero, animated persona cards, pricing, CTA; honesty-corrected copy. |
+| Three persona doors + attribution | ✅ LIVE | `/for-founders`·`/for-product-teams`·`/for-brands` — door stored to localStorage, `door_viewed` fired, attributed at signup. |
+| Public demo | ✅ LIVE | `/demo` — real Gemini, 3 personas, 3/hr IP limit. *(Confirm `public-demo-simulate` deploy.)* |
+| Landing InlineDemo | ✅ LIVE | ⚠️ **Scripted mock** (hardcoded response + fake spinner). Acceptable as a teaser, but the real demo is `/demo`. |
+| PostHog analytics | ✅ LIVE | Funnel events wired; **inert without `VITE_POSTHOG_KEY`** — set the key to actually measure the funnel. |
+| Founder-mode plain-language nav | ✅ LIVE | People/Interviews/Rewards/Confidence relabeling, tested. |
+| Researcher notification bell | ✅ LIVE | `notifications` table, realtime, mark-read. |
+| Mock "Referrals" tab (researcher Settings) | 🔧 NEEDS-BUILD | Invite code derived from workspace ID + static count; **no backend.** Wire a real researcher referral, or remove. |
+| Index placeholder scaffold | ❌ KILLED | Leftover "Blank App" page, unreferenced — delete. |
 
 ---
 
-## 6. System architecture (summary)
+## 7. AI architecture & the engine
+
+**Single provider/model.** Every simulation runs on Google **`gemini-2.5-flash`** via Gemini's OpenAI-compatible Chat Completions endpoint, one `GEMINI_API_KEY`, through `_shared/aiClient.ts` (25s timeout, 1 retry on 429/5xx). Structured outputs use forced OpenAI-style tool-calls. **No Anthropic/OpenAI/Claude path anywhere in the engine.** Transcription is the only other AI: Deepgram nova-2 + Whisper fallback.
+
+**Twin generation.** A per-segment persona system prompt is built from `segment_profiles` JSONB (with "Not specified" fallbacks) + the stimulus; Gemini returns `{response, sentiment −1..1, confidence, key_themes[], purchase_intent, emotional_reaction}`, persisted to `simulations.results` + one `twin_responses` row per twin.
+
+**Multi-twin (PRD #17, `_shared/multiTwin.ts`)** — used by `simulate-focus-group` + `simulate-ab-test` only; solo `/simulate` is always one twin. **N per tier: free 2 / starter 5 / professional 8 / enterprise 10**, clamped so `segments × twins ≤ 40` (`MAX_TWINS_PER_RUN`; max paid run ≈ 40, **not 50**). Free uses **array mode** (one call returns N correlated draws — cheap); paid uses **varied mode** (N independent calls, each with a deterministic age-spread + one of 10 attitudinal leanings — genuinely independent draws), concurrency-capped at 8. `aggregateDistribution` rolls twins into mean/stdev sentiment, cross-segment consensus, objection rate, top themes, `sample_size`; under-counts reported honestly, never padded. **Status: code-complete, NOT deployed (§6.4) — prod is effectively N=1.**
+
+---
+
+## 8. System architecture
 
 ```
-Browser SPA (Vite/React, Vercel, SPA rewrite only)
+Browser SPA (Vite/React, Vercel, SPA rewrite)
    │  supabase-js (anon key, RLS-bound)        │ Stripe.js redirect
    ▼                                           ▼
 Supabase project xwjvsmwefbukaswkwpbf          Stripe (Checkout, Portal, Webhook→stripe-webhook)
    ├─ GoTrue auth (email/pw + Google/GitHub/Twitter)
-   ├─ Postgres + RLS (≈45 tables, FTS, pg_cron + pg_net keep-warm @ 06:00 UTC)
+   ├─ Postgres + RLS (~45 tables, FTS, pg_cron + pg_net keep-warm)
    ├─ Storage: avatars (public), session-media (private)
    └─ 47 Deno edge functions
-        ├─ AI: Gemini 2.5 Flash via OpenAI-compatible endpoint
-        │      (_shared/aiClient.ts: 25s timeout, 1 retry on 429/5xx)
-        ├─ Transcription: Deepgram nova-2, Whisper fallback
-        ├─ Payouts: Tremendous SANDBOX only
-        └─ Observability: Sentry helper wired, DSN unset (parked) → effectively console logs
+        ├─ AI: Gemini 2.5 Flash (OpenAI-compatible; _shared/aiClient.ts)
+        ├─ Transcription: Deepgram nova-2 + Whisper fallback (undeployed)
+        ├─ Payouts: Tremendous SANDBOX only (parked)
+        └─ Observability: Sentry helper wired, DSN unset (parked)
 ```
 
-**Edge auth posture (load-bearing, see vault memory):** nearly all functions run `verify_jwt=false` in `config.toml` and do **in-code** `auth.getUser(token)` + `validateWorkspaceMembership()` (queries `workspace_memberships`; service-role clients bypass RLS so this check is the tenant boundary). Exceptions: `cron-calibration` (verify_jwt=true + `x-cron-secret`, fail-closed if secret unset), `marketplace-handler` (verify_jwt=true), `stripe-webhook` (**must stay** verify_jwt=false; Stripe HMAC is the auth — gateway-401 outage of 2026-06-03 is the cautionary tale).
+**Edge auth posture (load-bearing):** nearly all functions run `verify_jwt=false` and do in-code `auth.getUser(token)` + `validateWorkspaceMembership()` (queries `workspace_memberships`; service-role bypasses RLS, so this check is the tenant boundary). Exceptions: `cron-calibration` + `marketplace-handler` (verify_jwt=true), `stripe-webhook` (**must stay** verify_jwt=false — HMAC is the auth; the 2026-06-03 gateway-401 outage is the cautionary tale).
 
-**Fail-closed guarantees:** rate limiter and tier enforcement return 503 on lookup errors (P0.4 — they previously failed open). Tier reads are DB-cache-first (`workspaces.tier`, written only by the webhook) — no Stripe call per request (P0.2).
+**Fail-closed guarantees:** rate limiter + tier enforcement return 503 on lookup error; tier reads are DB-cache-first (`workspaces.tier`, written only by the webhook).
 
-**CORS:** explicit origin allowlist (insightforge.io, www, Lovable preview, Vercel preview, localhost:8080/5173/3000) — no wildcard.
-
-**Environments:** prod = free-tier Supabase (auto-pause mitigated by keep-warm cron; **no DB backups** until Pro — accepted while data is throwaway). Local: `supabase start` + `.env.test` for the e2e harness (fail-closed preflight refuses non-localhost URLs). CI: GitHub Actions account-frozen (billing); local pre-push gate (tsc + vitest, blocking) covers `main`.
+**Environments:** prod = free-tier Supabase (auto-pause mitigated by keep-warm cron; **no DB backups** until Pro). Local e2e: `supabase start` + `.env.test` (fail-closed preflight refuses non-localhost). CI: GitHub Actions account-frozen (billing); local pre-push gate (`tsc -p tsconfig.app.json` + `-p tsconfig.node.json` + vitest, blocking) protects `main`.
 
 ---
 
-## 7. Data model (summary)
+## 9. Data model (summary)
 
-50 migrations (2026-03-08 → 2026-06-03). Full catalog in the migrations; the entities that matter:
+52 migrations (2026-03-08 → 2026-06-10). Entities that matter:
 
 | Area | Tables | Notes |
 |---|---|---|
-| Tenancy | `workspaces`, `workspace_memberships`, `profiles`, `super_admins` | `app_role`: owner/admin/researcher/observer. Tier limits enforced by BEFORE INSERT triggers. `user_roles` is legacy (kept for compat). |
-| Twins & simulation | `segment_profiles`, `simulations`, `twin_responses`, `calibration_data` | `simulations.type` CHECK still lists `policy`/`market_sim` (vestigial). `twin_responses` = per-persona audit trail incl. persona snapshot. |
-| Real research | `projects`, `surveys`, `survey_questions`, `survey_responses`, `sessions`, `session_participants`, `session_transcripts` (FTS), `session_themes` (FTS), `session_notes` (FTS), `session_probes`, `session_media`, `insight_patterns` (FTS), `synthesis_runs`, `pattern_snapshots` (migration committed 2026-06-10, **pending prod apply** — see #13), `requirements` (+comments/votes) | **Naming trap: `sessions` = human research sessions; `simulations` = AI twin runs.** |
-| Panel & incentives | `participants`, `participant_tags`, `incentive_programs`, `incentive_disbursements`, `participant_points_ledger` | Workspace-scoped. Budget/spend triggers auto-exhaust programs. |
-| Marketplace portal | `participant_profiles`, `study_listings`, `study_participations`, `participant_earnings`, `participant_reputation`, `participant_referrals`, `participant_notifications` | Platform-wide (user-scoped, not workspace-scoped). **Distinct from `participants`** — dual system, by design but undocumented elsewhere. |
-| Billing & quota | `workspace_token_usage` (monthly, unique per workspace+period), `workspace_token_usage_log` (per-request, 24h window for per-minute limits; cleanup cron is a TODO) | Written by edge `recordTokenUsage()` + stripe-webhook. |
-| Extensibility | `workspace_api_keys`, `api_keys`, `webhooks`, `webhook_deliveries`, `workspace_integrations`, `workspace_branding` | Last two are vestigial UI-side (killed features) but live tables. |
-| Audit/infra | `audit_logs`, `workspace_activity`, `keep_warm_heartbeat` | Audit insert-only; triggers on memberships/API keys/simulations. |
+| Tenancy | `workspaces`, `workspace_memberships`, `profiles`, `super_admins` | Tier limits via BEFORE INSERT triggers. `user_roles` legacy. |
+| Twins & simulation | `segment_profiles`, `simulations`, `twin_responses`, `calibration_data` | `simulations.type` CHECK still lists vestigial `policy`/`market_sim`. |
+| Real research | `projects`, `surveys`(+`survey_questions`/`survey_responses`), `sessions`(+`session_participants`/`session_transcripts`/`session_themes`/`session_notes`/`session_probes`/`session_media`), `insight_patterns`, `synthesis_runs`, `pattern_snapshots` (**applied 2026-06-24**), `requirements`(+comments/votes) | **Naming trap: `sessions` = human; `simulations` = AI.** |
+| Panel & incentives | `participants`, `participant_tags`, `incentive_programs`, `incentive_disbursements`, `participant_points_ledger` | Workspace-scoped. |
+| Marketplace portal | `participant_profiles`, `study_listings`, `study_participations`, `participant_earnings`, `participant_reputation`, `participant_referrals`, `participant_notifications` | Platform-wide (user-scoped). **Distinct from `participants`.** |
+| Billing & quota | `workspace_token_usage` (monthly), `workspace_token_usage_log` (per-request; cleanup is a TODO) | Written by `recordTokenUsage()` + webhook. |
+| Extensibility | `workspace_api_keys` (gateway reads, no writer), `api_keys` (UI writes), `webhooks`, `webhook_deliveries`, `workspace_integrations`, `workspace_branding` | Last two vestigial (killed). API-key split = §6.10. |
+| Audit/infra | `audit_logs` (append-only trigger live), `workspace_activity`, `keep_warm_heartbeat` | |
 
-**View:** `marketplace_segments` (published segments; `security_invoker=true` since 2026-06-03 — do not revert to DEFINER; any marketplace revival should add an explicit `is_published` RLS policy instead).
+**View:** `marketplace_segments` (`security_invoker=true` since 2026-06-03 — do not revert to DEFINER).
 
-**Key functions/triggers:** `handle_new_user()` (signup seeding, exception-wrapped), `is_workspace_member()` / `has_workspace_role()` (SECURITY DEFINER, power most RLS policies), `check_workspace_member_limit()` / `check_workspace_resource_limit()` (tier gates), `get_shared_snapshot(token)` (public token-gated read), `keep_warm()` (pg_cron daily), `global_search()` / `search_transcripts()` (FTS).
+**Key functions/triggers:** `handle_new_user()`, `is_workspace_member()`/`has_workspace_role()` (SECURITY DEFINER, power RLS), tier-limit triggers, `get_shared_snapshot(token)`, `keep_warm()`, `global_search()`/`search_transcripts()`, `audit_logs` append-only trigger.
 
 ---
 
-## 8. Tiers, pricing & quotas (canonical numbers)
+## 10. Tiers, pricing & quotas (canonical numbers)
 
-Source of truth: `src/lib/tierLimits.ts` + DB triggers (they agree). The edge layer mirrors them in `supabase/functions/_shared/tierLimitsData.ts` (reconciled 2026-06-10 after drifting; `src/test/tierParity.test.ts` fails the suite if the copies diverge again).
+Source of truth: `src/lib/tierLimits.ts` + DB triggers + `_shared/tierLimitsData.ts` (mirrored; `src/test/tierParity.test.ts` fails the suite if they diverge).
 
 | | Free $0 | Starter $49/mo | Professional $149/mo | Enterprise (custom) |
 |---|---|---|---|---|
@@ -268,107 +396,119 @@ Source of truth: `src/lib/tierLimits.ts` + DB triggers (they agree). The edge la
 | Sessions | 10 | 50 | 200 | unlimited |
 | Surveys | 5 | 25 | 100 | unlimited |
 | Projects | 2 | 10 | 50 | unlimited |
-| AI tokens / month | 50,000 (≈3 simulations) | 500,000 | 2,000,000 | 10,000,000 |
+| AI tokens / month | 50,000 (≈3 sims) | 500,000 | 2,000,000 | 10,000,000 |
 | AI requests / minute | 3 | 10 | 30 | 100 |
-| Requirements | 5 | 25 | 100 | unlimited |
-| Incentive programs / budget | 1 / $500 | 5 / $5,000 | 20 / $50,000 | unlimited |
-| Storage / support | 500MB / community | 5GB / email | 25GB / priority | unlimited / dedicated |
+| **Twins / segment** (multi-twin) | 2 | 5 | 8 | 10 |
 
-**Enforcement is layered:** frontend `TierGate` (UX + paywall events) → DB triggers (hard INSERT gates for members/projects/sessions/surveys) → edge `enforceTierLimit` + `checkRateLimit` (AI access, token budget, per-minute rate; fail-closed 503). Free tier's `aiAnalysis=true` is deliberate (P0.8) — the trial is the activation engine; do not flip it off.
+**Enforcement is layered:** frontend `TierGate` (UX + paywall events) → DB triggers (hard INSERT gates) → edge `enforceTierLimit` + `checkRateLimit` (AI/token/rate; fail-closed 503). Free `aiAnalysis=true` is deliberate (the 50K-token trial is the activation engine).
 
 ---
 
-## 9. Security & compliance posture
+## 11. Security & compliance posture
 
-- **RLS on all public tables** (confirmed live 2026-06-02, advisor 0 ERROR-level lints since 2026-06-03). Policies built on `is_workspace_member`/`has_workspace_role`.
-- **Tenant boundary in edge functions** = JWT validation + `validateWorkspaceMembership` (mandatory wherever a service-role client is used — service role bypasses RLS). All 22 security-relevant functions migrated to the canonical helper (2026-06-02).
-- **Webhook auth:** Stripe HMAC (`constructEventAsync` — Deno requires async). `BYPASS_STRIPE_SIGNATURE` only honored when `SUPABASE_URL` is localhost.
+- **RLS on all public tables** (advisor 0 ERROR-level lints). Policies built on `is_workspace_member`/`has_workspace_role`.
+- **Tenant boundary in edge functions** = JWT validation + `validateWorkspaceMembership` (mandatory wherever a service-role client is used).
+- **Webhook auth:** Stripe HMAC (`constructEventAsync`); signature bypass only when `SUPABASE_URL` is localhost.
 - **Cron auth:** `x-cron-secret`, constant-time compare, fail-closed when unset.
-- **Secrets hygiene:** `.env` untracked (public `VITE_*` keys only; `.env.example` committed); Supabase PAT lives in macOS Keychain, never in repo.
-- **Data rights:** export, participant erasure, retention window per workspace (GDPR/PDPL flags).
-- **Prod-dep CVEs:** 0 (patched 2026-06-08); 2 moderate dev-only vulns (esbuild/vite) outstanding, never shipped to users.
-- **Known gaps:** Trust Center badge claims (§5.12); no `vercel.json` security headers (CSP, X-Frame-Options); Sentry code complete but DSN unset (parked) — production error visibility is effectively console logs; no DB backups on free tier.
+- **Audit immutability:** append-only trigger live on prod (§6.12).
+- **Secrets hygiene:** `.env` untracked (public `VITE_*` only); Supabase PAT in macOS Keychain.
+- **Data rights:** export, panel-participant erasure, retention window per workspace (GDPR/PDPL flags).
+- **Known gaps:** no `vercel.json` security headers (CSP/X-Frame-Options/HSTS); Sentry DSN unset (prod errors ≈ console logs); no DB backups on free tier; marketplace-participant self-erasure is `mailto:` only.
 
 ---
 
-## 10. Quality & verification state (honest scope)
+## 12. Non-functional requirements
 
-| Layer | State | What it proves |
+| Dimension | Target | Status |
 |---|---|---|
-| Types/lint | `tsc -p tsconfig.app.json` + `-p tsconfig.node.json` both clean (0 errors). The gate was repaired 2026-06-10 after the bare root invocation was found to check zero files (#13) — never use bare `npx tsc --noEmit` here. eslint 0 errors (advisory). `noImplicitAny`/`strictNullChecks` are off — TS is partial. |
-| Unit/integration | vitest **104/104** | Lib/logic level. |
-| E2E | 4 Playwright specs (stripe, workspace-admin, ai-twin, participant) **green against a local Supabase stack** (`supabase start` + `.env.test` + fail-closed preflight; can never hit prod). | UI + auth signup + routing + DB writes wire together on real Postgres+GoTrue. **Stripe, `simulate` AI, and payouts are network-mocked.** |
-| Live prod probes | stripe-webhook (bad-sig 400), A4 signup seeding (real GoTrue signup → 3 segments), keep-warm (HTTP 200), advisor lints (0 ERROR) | Individual subsystems verified on prod at ship time. |
-| **Owed before charging a live customer** | — | One manual real Stripe-test checkout watching the live webhook flip the tier, and one real payout path exercise. |
-| Pre-launch gate | `/e2e-test` 2026-06-08: **SHIP-WITH-CAUTION** (cautions: mocked integrations above; dev-only vulns) | — |
-| CI | GitHub Actions frozen (account billing); local pre-push gate (tsc + vitest, blocking) protects `main` | — |
-
----
-
-## 11. Parked & killed scope (the roadmap discipline)
-
-### Parked — built or designed, deliberately inactive; revival condition attached
-
-| Item | State on disk | Revive when |
-|---|---|---|
-| **Participant payouts (production)** | Portal + Tremendous sandbox fully wired; no prod key | A real customer asks for real-human validation; pay the first 2–3 by hand first (decision 2026-06-02). |
-| **Segment Marketplace** | `marketplace-handler` fn, `is_published`/pricing columns, INVOKER view; **no UI** | Reshape as "Segment Templates" starter library inside Segment Library; needs supply+demand evidence (kill-list memory). |
-| **Multilingual UI (ar/fr/es/de)** | Locale files ~82%, picker gated by `ENABLED_LANGUAGES` | Per language: finish translation + (for ar) logical-property RTL sweep; then one-line enable. |
-| **Frontend Sentry** | `src/lib/sentry.ts` complete, no-op without DSN | Mahmoud creates DSN + sets Vercel env (parked 2026-06-08). |
-| **Supabase Pro ($25/mo)** | Keep-warm cron mitigates pause meanwhile | First paying customer (backups become non-optional). |
-| **Validation orchestration backend** | UI alpha + calibration cron live | Roadmap; alpha banner is the honest promise level. |
-
-### Killed 2026-05-19 (PR #22, 2,134 lines) — do not revive without re-opening the decision
-
-Policy Simulator · Custom Twin Builder · White-Label · Integrations Tab · standalone Market Simulator page (math re-embedded in Focus Group). Orphan edge functions deleted (PR #25). Vestigial DB remnants are catalogued in §12 and are harmless.
-
----
-
-## 12. Known issues & risks (verified 2026-06-10)
-
-1. **Tier-limit three-way drift — FIXED 2026-06-10.** `_shared/tierEnforcement.ts` had drifted from `src/lib/tierLimits.ts` + DB triggers (free 2 vs 3 members, 3 vs 2 projects; professional unlimited vs 200/100/50). Impact was **latent, not live**: the only edge-enforced resource today is `aiAnalysis` (4 callers — simulate, simulate-focus-group, simulate-ab-test, suggest-methodology), so no user was ever actually blocked by the wrong numbers; the DB triggers were always the operative gate. Limits now live in `_shared/tierLimitsData.ts` mirroring the canonical table, with `src/test/tierParity.test.ts` as the divergence tripwire. Zero behavior change → no redeploy needed (no-op-deploy precedent).
-2. **Trust Center unbacked certification badges — FIXED 2026-06-10.** See §5.12. Same pass also replaced the landing page's "GDPR Compliant" hero badge with "Data Export & Erasure Built In" (`landing.trustGDPR` in `en.json`/`ar.json` — the capability the product actually has), softened "immutable" → "append-only" (RLS denies update/delete to API clients; service-role technically can), and scoped the hosting claim to workspace data with Stripe/Google named as processors.
-3. **README.md is unedited Lovable boilerplate** — says nothing about InsightForge; replace with a real readme (this PRD can seed it).
-4. **No security headers** in `vercel.json` (CSP, X-Frame-Options, HSTS).
-5. **Observability gap:** Sentry parked → prod errors are invisible beyond console/Supabase logs; no AI-cost dashboard (admin AI-usage page reads DB usage rows only).
-6. **Vestigial schema:** `workspace_integrations`, `workspace_branding`, `simulations.type` CHECK values `policy`/`market_sim`, legacy `user_roles`, duplicate API-key tables (`api_keys` vs `workspace_api_keys`). Harmless but confusing; candidates for a cleanup migration when convenient.
-7. **Dual participant systems** (`participants` vs `participant_profiles`) — by design (panel vs marketplace) but documented only here; naming invites bugs (`validateWorkspaceMembership` queries `workspace_memberships`, NOT `workspace_members` — a past real bug).
-8. **`workspace_token_usage_log` cleanup cron is a TODO** — table grows unbounded (24h of rows is all that's read; old rows are dead weight).
-9. **TypeScript strictness off** (`noImplicitAny: false`, `strictNullChecks: false`, ~218 `any`s per AUDIT) — refactor risk multiplier.
-10. **No DB backups** (free tier) — accepted while data is throwaway; becomes #1 risk at first paying customer (pairs with Supabase Pro, §11).
-11. **Referrals tab uses a mock invite code** derived from workspace ID — cosmetic-only feature; either wire it or remove it before users notice.
-12. **2 dev-only moderate vulns** (esbuild/vite) — bump vite at leisure; not in shipped bundle.
-13. **The pre-push type-check gate was a no-op — FIXED 2026-06-10.** `.githooks/pre-push` and `ci.yml` ran bare `npx tsc --noEmit`, which resolves the root solution-style `tsconfig.json` (`files: []` + references) and checks **zero files** — every historical "tsc clean" via that path was vacuous. Both now run `tsc -p tsconfig.app.json` + `-p tsconfig.node.json`; verified to block on an induced type error and pass clean. The 7 errors it had been hiding resolved as: (a) `ResearchPatternsTab.tsx` read a `pattern_snapshots` table that **does not exist on the live prod DB** (confirmed via management API) — a two-sided feature whose table was never created (writer `synthesize-insights` inserts non-fatally, reader falls back gracefully, so prod never visibly broke); codified via migration `20260610120000_pattern_snapshots.sql` + hand-added types block (matches the emitter format; next `sync-types` after prod apply reconciles). ⚠️ **Migration NOT yet applied to prod** — until applied, snapshot writes keep no-op'ing and trends use the previous-run fallback, unchanged. (b) `src/services/sessionService.ts` — a 123-line service with **zero callers** written against a nonexistent `scheduled_at` column (`getSessions` would throw, `createSession` would fail behind an `as any`) — deleted.
-14. **Participant "Request Data Erasure" button was dead — FIXED 2026-06-10.** Investigation settled the design: `erase-participant` requires an **owner/admin** JWT and erases the workspace-scoped `participants` record — the wrong entity for a marketplace `participant_profiles` identity — so self-serve wiring would have required a whole new erasure pipeline. The smaller honest fix shipped instead: the button is now a real `mailto:enterprise@insightforge.io` link (the product's one published address, also used by BillingTab) and the copy says requests are processed manually. ⚠️ **Verify that mailbox actually exists and is monitored** — two surfaces now depend on it. Same pass added migration `20260610130000_audit_logs_append_only.sql` making the Trust Center's "append-only" claim structural: a trigger blocks all UPDATEs and direct DELETEs on `audit_logs` while allowing the `workspaces` ON DELETE CASCADE (workspace deletion is a live owner feature). **Not yet applied to prod**; before applying, run a local `supabase db reset` and confirm a workspace delete still cascades.
-15. **`data_residency` rendered a fabricated "mena" fallback — FIXED 2026-06-10** (`WorkspaceTab.tsx` → "Not set", `AdminTenants.tsx` / `AdminTenantDetail.tsx` → "—"). Still open underneath: the column's DB default is `'mena'`, so most *stored* values say "mena" regardless — whether that matches the Supabase project's actual region is a copy/settings decision for Mahmoud (pairs with #16).
-16. **Landing advertised killed/embedded studios — FIXED 2026-06-10.** The section title dropped the false count ("Simulation Studios, Infinite Possibilities"); "Market Simulation" became **"Market Projection"** describing the Bass forecast as it actually ships (inside Focus Group results); "Policy Impact" (killed feature) was replaced with **"What to Test Next"** — the aha loop, the product's real flagship. The "Simulate Anything" step copy dropped "market launches and policy impact analyses" for what the studios actually do. Updated in `en` + `ar` locales (`landing.policyImpact*` keys renamed `landing.nextTest*`); verified in browser — all old strings gone.
-17. **Sample size: one twin per segment → multi-twin sampling BUILT 2026-06-12 (code-complete; deploy + live verification owed).** The engine used to run one Gemini persona per segment per round (a "focus group" = 2–5 simulated customers) while the positioning promised "50 AI-simulated customers" (§1), and A/B declared a winner on a 0.05 margin over n=2–5. **Built** (`docs/MULTI_TWIN_SCOPING.md`): a pure `_shared/multiTwin.ts` module + both `simulate-focus-group` and `simulate-ab-test` now sample **N twins per segment** — free 2 / starter 5 / pro 8 / ent 10; free uses a cheap single-call array, paid uses varied sub-personas; concurrency-capped (≤8 in-flight), resilient (one failed call drops one twin, a fully-failed run marks `failed` not stranded); distribution-aware aggregate (per-segment mean ± stdev, real objection rate, `sample_size`); consensus now measures cross-segment agreement so within-segment spread doesn't deflate it. 34 unit tests + independent review (0 CRITICAL; 2 HIGH found & fixed — fan-out resilience, theme-bar denominator). ⚠️ **NOT deployed** (prod PAT was rejecting management-API calls this session) and the **live Gemini round-trip + real token cost are unverified** — both owed at deploy, and the cost table in the scoping doc must be confirmed against a real run's `simulations.tokens_used`. **Follow-ups:** frontend distribution UI (error bars, per-segment spread, "N twins" labels — engine returns the data, UI not yet built); and only after deploy+verification, revise the "50"/"statistical" copy to the honest real number (a max paid run is ~40 twins, not 50 — "dozens" is the safe word). Until deployed, prod still does N=1, so the "50"/"statistical" ban stands.
+| Type safety | `tsc` clean on app + node projects | ✅ (strict mode off — `noImplicitAny`/`strictNullChecks` false; ~218 `any`s — refactor risk) |
+| Unit/integration tests | green on every push | ✅ vitest (159/159 at last session) |
+| E2E | core flows green on local stack | ✅ 4 Playwright specs (Stripe/AI/payout **mocked**) |
+| Observability | prod errors visible | 🔧 NEEDS-BUILD (Sentry DSN unset) |
+| Security headers | CSP/X-Frame/HSTS | 🔧 NEEDS-BUILD (`vercel.json`) |
+| Backups | daily DB backup | ⏸️ PARKED (Supabase Pro) |
+| CI | automated gate on PRs | 🔧 NEEDS-BUILD (Actions account-frozen; local pre-push gate compensates) |
+| Performance | sim result < ~30s p95 | ✅ (25s Gemini timeout + 1 retry) — re-confirm under multi-twin fan-out |
 
 ---
 
 ## 13. Success metrics
 
-- **Activation:** % of signups that run ≥1 simulation or focus group (events: `signup_completed` → `simulation_run`/`focus_group_run`/`onboarding_simulation_run`). The starter-segment seeding + seed-from-idea exist to maximize this.
-- **Iteration depth (aha proxy):** simulations per active workspace per week; share of runs initiated from a suggestion card (instrument later — not currently a distinct event).
-- **Monetization funnel:** `paywall_viewed` → `upgrade_clicked` → `checkout_started` → `checkout_completed`; MRR/churn visible in `/admin/financials`.
-- **Trust:** segments reaching Calibrated (≥0.6) — the hybrid promise becoming measurable.
-- **Guardrail metrics:** monthly token spend per workspace vs budget (admin AI-usage), error rate (once Sentry DSN lands).
+- **Activation:** % of signups that run ≥1 simulation/focus group (`signup_completed` → `simulation_run`/`focus_group_run`).
+- **Iteration depth (aha proxy):** simulations per active workspace per week; share of runs launched from a suggestion card (instrument as a distinct event — currently not tracked).
+- **Hybrid adoption:** % of workspaces that run ≥1 real survey/session; segments reaching **Calibrated (≥0.6)** — the moat becoming measurable.
+- **Monetization funnel:** `paywall_viewed` → `upgrade_clicked` → `checkout_started` → `checkout_completed`; MRR/churn in `/admin/financials`.
+- **Door attribution:** signup → activation → paid, split by `door` (founders/product-teams/brands) — which audience converts.
+- **Guardrail:** monthly token spend vs budget; error rate (once Sentry lands).
 
-No fabricated benchmarks: any external claim (accuracy %, market stats) must pass `docs/CLAIMS_TO_VERIFY.md` discipline.
-
----
-
-## 14. Open questions & near-term owed work
-
-Tracked canonically in the vault (`open-questions.md`); live items as of 2026-06-10:
-
-- **Pay ~$52 GitHub bill** → unfreezes Actions account-wide (Q2; the lock's root cause is the other repo — tiering its CI is Q6).
-- **Manual real-Stripe + payout pass** before charging a live customer (the one quality gate automation can't cover; §10).
-- Q5 (polished brainstorm docx distribution) — LOW, dormant.
+> No fabricated benchmarks — any external claim (accuracy %, market stats) must pass `docs/CLAIMS_TO_VERIFY.md`.
 
 ---
 
-## Appendix A — Route map (condensed)
+## 14. Gap-to-v1 backlog (the NEEDS-BUILD list, prioritized)
+
+The consolidated, ordered path from "as it runs today" to "fully functioning v1." Each item links to its §6 requirement.
+
+### P0 — unblock the core promise
+1. **Generate a fresh Supabase PAT** (Mahmoud-only) — hard blocker on everything deploy-related.
+2. **Deploy + verify multi-twin** (§6.4) — `simulate-focus-group` + `simulate-ab-test`; confirm the live Gemini round-trip and real `tokens_used` vs the scoping cost table. *Until done, prod is N=1 and the "50/statistical" copy ban stands.*
+3. **Confirm all `simulate-*` fns are actually deployed** (§6.4) — the most load-bearing code is the least config-certain.
+4. **Multi-twin distribution UI** (§6.4) — surface mean±stdev / spread / "N twins"; then ship the honest "dozens" copy.
+
+### P1 — make the hybrid + monetization real
+5. **Manual end-to-end Stripe pass** (§6.9) — card → webhook → tier flip, before charging anyone.
+6. **Deploy + verify calibration/validation** (`calibrate-segment`, `validation-report`) and de-alpha `/validation` (§6.5) — this is the moat loop.
+7. **Fix the participant marketplace** (§6.7) — the POST-vs-GET 405 mismatch (Dashboard/Earnings/Impact/Profile/Referrals), the wrong-table match broadcast, and deploy the `participant-*` fns.
+8. **Enable Arabic UI** (§6.13) — finish `ar.json` + RTL sweep + flip `ENABLED_LANGUAGES`. The wedge made real.
+
+### P2 — close the dead-plumbing & polish gaps
+9. **Make the programmatic API functional** (§6.10) — unify the API-key tables, deploy `api-simulate`, drop the 404 routes.
+10. **Wire the canonical MENA prompt stack** (§6.4) — realize `twin-orchestrator`/`prompts.ts` or formally retire them.
+11. **Schedule `cleanup-expired-data`** (§6.12) so retention actually runs.
+12. **Persist admin feature flags** + wire the delete-workspace button (§6.11).
+13. **Deploy `transcribe-media`** + set a provider key (§6.6).
+14. **Decide webhooks** (wire or hide), **decide referrals tab** (wire or remove), **wire Trust Center Export CSV** (§6.10/6.14/6.12).
+
+### P3 — hygiene
+15. Replace the boilerplate `README.md`; set `VITE_POSTHOG_KEY` (measure the funnel); add `vercel.json` security headers; delete dead code (`AdminSettings`, Index scaffold, vestigial tables); bump dev-only vite vulns.
+
+### Standing (Mahmoud-owned, not code)
+- Pay ~$52 GitHub bill → unfreezes Actions.
+- Set Sentry DSN → revive observability.
+- Supabase Pro + backups → at first paying customer.
+
+---
+
+## 15. Parked & killed scope
+
+### Parked — built/designed, deliberately inactive
+| Item | State | Revive when |
+|---|---|---|
+| Production participant payouts | Portal + Tremendous sandbox wired; no prod key | A customer asks; pay first 2–3 by hand first. |
+| Segment Templates (ex-Marketplace) | `marketplace-handler` + view; no UI | Reshape as a starter-template library with supply+demand evidence. |
+| Multilingual fr/es/de | Locales ~82% | Per language: finish translation, then enable. |
+| Frontend Sentry | Code complete, no DSN | DSN + Vercel env set. |
+| Supabase Pro / backups | Keep-warm mitigates pause | First paying customer. |
+| Validation orchestration backend | Alpha UI + cron live | Roadmap beyond alpha. |
+| Outbound webhooks | Deployed, no callers/UI | Real event wiring + registration UI. |
+| Incentive budget pre-check | Deployed, no caller | Wire into the disbursement flow. |
+
+### Killed 2026-05-19 (PR #22) — do not revive without re-opening the decision
+Policy Simulator · Custom Twin Builder · White-Label UI · Integrations Tab (Slack/Zapier/Jira) · standalone Market Simulator page. Vestigial DB remnants (`workspace_integrations`, `workspace_branding`, `simulations.type` enum values) are harmless cleanup candidates.
+
+---
+
+## 16. Open questions & near-term owed work
+
+Tracked canonically in the vault (`open-questions.md`). Live as of 2026-06-24:
+- **Generate a fresh Supabase PAT** — the hard blocker on all deploys.
+- **Manual real-Stripe + payout pass** before charging a live customer.
+- **Pay ~$52 GitHub bill** → unfreezes Actions (root cause is the other repo).
+- Whether the Supabase MCP (connected this session) offers a deploy path around the dead PAT — worth a probe.
+
+---
+
+## Appendix A — Route map
 
 **Public:** `/` · `/for-founders` · `/for-product-teams` · `/for-brands` · `/login` · `/signup` · `/forgot-password` · `/reset-password` · `/auth/callback` · `/demo` · `/s/:surveyId` · `/shared/:token`
 **App (ProtectedRoute):** `/dashboard` · `/projects(/:id)` · `/surveys(/:id)` · `/sessions(/:id)` · `/studio/:id` · `/segments` · `/simulate(/:id)` · `/focus-group` · `/ab-test` · `/simulations/compare` · `/insights` · `/participants` · `/incentives(/:id)` · `/requirements(/:id)` · `/validation` · `/methodology` · `/trust-center` · `/settings`
@@ -381,18 +521,21 @@ Tracked canonically in the vault (`open-questions.md`); live items as of 2026-06
 - **Billing:** `create-checkout`, `stripe-webhook`, `check-subscription`, `customer-portal`
 - **Research suite:** `generate-project-plan`, `generate-survey-questions`, `distribute-survey`, `submit-survey-response`, `analyze-transcript`, `transcribe-media`, `summarize-session`, `generate-probes`, `synthesize-insights`, `suggest-methodology`, `seed-sample-project`
 - **Participants/incentives:** `participant-{signup,profile,match,match-scores,impact,referral,twin-preview,cashout}`, `study-listing`, `study-participate`, `disburse-incentive`, `check-budget`, `incentive-report`, `incentive-webhook`
-- **Workspace/admin:** `invite-member`, `list-workspace-members`, `export-workspace-data`, `erase-participant`, `cleanup-expired-data`, `dispatch-webhook`, `marketplace-handler`, `validation-report`, `cron-calibration`
+- **Workspace/admin/infra:** `invite-member`, `list-workspace-members`, `export-workspace-data`, `erase-participant`, `cleanup-expired-data`, `dispatch-webhook`, `marketplace-handler`, `validation-report`, `cron-calibration`
 
-Auth pattern: in-code JWT + `validateWorkspaceMembership` (verify_jwt=false) except `cron-calibration`/`marketplace-handler` (true) and `stripe-webhook` (HMAC). Shared helpers in `_shared/`: `aiClient`, `rateLimiter`, `tierEnforcement`, `tierLimitsData`, `validation`, `cors`, `prompts`, `sentry`.
+> **Deploy reality:** functions in `supabase/config.toml` are deploy-declared; many `simulate-*` and `participant-*` fns are **absent** from it (§14 P0.3). Auth pattern: in-code JWT + `validateWorkspaceMembership` (verify_jwt=false) except `cron-calibration`/`marketplace-handler` (true) and `stripe-webhook` (HMAC).
 
 ## Appendix C — Glossary
 
 | Term | Meaning here |
 |---|---|
-| **Segment / digital twin** | One synthetic consumer persona (`segment_profiles` row); "twin" in UI copy, "segment" in code. |
+| **Segment / digital twin** | One synthetic consumer persona (`segment_profiles` row); "twin" in UI, "segment" in code. |
 | **Simulation** | An AI run (`simulations`): solo, focus_group, or ab_test. *Not* a human session. |
-| **Session** | A real-human research session (`sessions`): interview or focus group with recording/transcript. |
-| **Consensus score** | Purchase-intent unanimity across personas in a focus group (0–1). |
+| **Session** | A real-human research session (`sessions`): interview/focus group with recording/transcript. |
+| **Multi-twin** | N distinct sampled twins per segment (vs N=1); produces a distribution, not a point estimate. |
+| **Consensus score** | Agreement *across segments* (0–1); computed from per-segment means so within-segment spread doesn't deflate it. |
 | **Calibration** | Matching twin responses to real responses to score segment accuracy (0–1); drives New/Calibrating/Calibrated badges. |
 | **Aha loop** | seed-from-idea → run → dominant objection + explored axes + 3 next tests → one-click re-run. |
+| **Hybrid loop** | synthetic finding → real-human validation → calibration → more trustworthy synthetic. The moat. |
 | **Panel vs marketplace participant** | `participants` = workspace-owned contact list; `participant_profiles` = platform-wide earning account with portal. |
+| **Door** | A persona-specific landing variant (`/for-*`); copy only, never architecture. |
