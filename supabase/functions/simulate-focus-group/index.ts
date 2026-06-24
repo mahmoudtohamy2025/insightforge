@@ -4,6 +4,7 @@ import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.t
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody, validateUUIDs, validateNumberRange } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { fetchGemini } from "../_shared/aiClient.ts";
+import { buildPersonaPrompt } from "../_shared/prompts.ts";
 import {
   effectiveTwinCount,
   samplingModeForTier,
@@ -15,48 +16,7 @@ import {
   MAX_CONCURRENCY,
 } from "../_shared/multiTwin.ts";
 
-// ── Shared: Build persona system prompt from segment ──
-function buildPersonaPrompt(segment: any): string {
-  const demo = segment.demographics || {};
-  const psycho = segment.psychographics || {};
-  const behavior = segment.behavioral_data || {};
-  const culture = segment.cultural_context || {};
-
-  return `You are a simulated consumer named "${segment.name}". You must respond ONLY from this persona — never break character.
-
-DEMOGRAPHIC PROFILE:
-- Age range: ${demo.age_range || "25-35"}
-- Gender: ${demo.gender || "Mixed"}
-- Location: ${demo.location || "Not specified"}
-- Income level: ${demo.income_level || "Middle income"}
-- Education: ${demo.education || "College educated"}
-- Occupation: ${demo.occupation || "Professional"}
-
-PSYCHOGRAPHIC PROFILE:
-- Values: ${psycho.values || "Not specified"}
-- Lifestyle: ${psycho.lifestyle || "Not specified"}
-- Attitudes: ${psycho.attitudes || "Not specified"}
-- Interests: ${psycho.interests || "Not specified"}
-
-BEHAVIORAL PATTERNS:
-- Purchase behavior: ${behavior.purchase_behavior || "Not specified"}
-- Media consumption: ${behavior.media_consumption || "Not specified"}
-- Brand preferences: ${behavior.brand_preferences || "Not specified"}
-- Decision factors: ${behavior.decision_factors || "Not specified"}
-
-CULTURAL CONTEXT:
-- Region: ${culture.region || "Not specified"}
-- Language preference: ${culture.language || "English"}
-- Cultural norms: ${culture.norms || "Not specified"}
-
-IMPORTANT RULES:
-1. Stay in character. Respond as this real person would.
-2. Show genuine emotions, hesitations, and opinions.
-3. If you disagree with something or with another participant, say so naturally.
-4. Reference your lifestyle, experiences, and cultural context.
-5. Keep responses concise (2-4 sentences) — this is a focus group discussion, not an essay.
-6. You may agree, disagree, or build on what others said.`;
-}
+// buildPersonaPrompt is imported from ../_shared/prompts.ts (shared MENA-aware builder).
 
 // ── Shared: Call Gemini with structured output ──
 async function callGemini(
@@ -227,7 +187,8 @@ Deno.serve(async (req: any) => {
     const { body, error: parseError } = await parseBody(req);
     if (parseError) return parseError;
 
-    const { segment_ids, stimulus, title, workspace_id, num_rounds = 2 } = body!;
+    const { segment_ids, stimulus, title, workspace_id, num_rounds = 2, ramadan_mode } = body!;
+    const ramadanMode = ramadan_mode === true;
 
     const reqCheck = validateRequired(body!, ["segment_ids", "stimulus", "workspace_id"]);
     if (reqCheck) return jsonResponse(req, reqCheck, 400);
@@ -328,7 +289,7 @@ Deno.serve(async (req: any) => {
         // isolated — one failure drops that segment, never the whole run.
         const perSeg = await mapWithConcurrency(segments, MAX_CONCURRENCY, async (seg: any) => {
           try {
-            const persona = buildPersonaPrompt(seg);
+            const persona = buildPersonaPrompt(seg, { ramadanMode });
             const { reactions, tokensUsed } = await callGeminiArray(GEMINI_API_KEY, persona, buildUserPrompt(seg), twinN);
             return { seg, reactions, tokensUsed };
           } catch (e) {
@@ -349,7 +310,7 @@ Deno.serve(async (req: any) => {
         }
         const results = await mapWithConcurrency(tasks, MAX_CONCURRENCY, async ({ seg, twinIndex }) => {
           try {
-            const persona = buildPersonaPrompt(seg) + variedPersonaSuffix(twinIndex, twinN, seg.demographics?.age_range);
+            const persona = buildPersonaPrompt(seg, { ramadanMode }) + variedPersonaSuffix(twinIndex, twinN, seg.demographics?.age_range);
             const result = await callGemini(GEMINI_API_KEY, persona, buildUserPrompt(seg), true);
             return { seg, result };
           } catch (e) {

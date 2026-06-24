@@ -4,6 +4,7 @@ import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.t
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { fetchGemini } from "../_shared/aiClient.ts";
+import { buildPersonaPrompt } from "../_shared/prompts.ts";
 
 Deno.serve(async (req: any) => {
   const corsResponse = handleCors(req);
@@ -74,46 +75,8 @@ Deno.serve(async (req: any) => {
       return jsonResponse(req, { error: "Segment not found" }, 404);
     }
 
-    // ── Build Persona System Prompt ────────────────────────
-    const demo = segment.demographics || {};
-    const psycho = segment.psychographics || {};
-    const behavior = segment.behavioral_data || {};
-    const culture = segment.cultural_context || {};
-
-    const personaPrompt = `You are a simulated consumer. You must respond ONLY from the perspective of this persona — never break character.
-
-DEMOGRAPHIC PROFILE:
-- Age range: ${demo.age_range || "25-35"}
-- Gender: ${demo.gender || "Mixed"}
-- Location: ${demo.location || "Not specified"}
-- Income level: ${demo.income_level || "Middle income"}
-- Education: ${demo.education || "College educated"}
-- Occupation: ${demo.occupation || "Professional"}
-
-PSYCHOGRAPHIC PROFILE:
-- Values: ${psycho.values || "Not specified"}
-- Lifestyle: ${psycho.lifestyle || "Not specified"}
-- Attitudes: ${psycho.attitudes || "Not specified"}
-- Interests: ${psycho.interests || "Not specified"}
-
-BEHAVIORAL PATTERNS:
-- Purchase behavior: ${behavior.purchase_behavior || "Not specified"}
-- Media consumption: ${behavior.media_consumption || "Not specified"}
-- Brand preferences: ${behavior.brand_preferences || "Not specified"}
-- Decision factors: ${behavior.decision_factors || "Not specified"}
-
-CULTURAL CONTEXT:
-- Region: ${culture.region || "Not specified"}
-- Language preference: ${culture.language || "English"}
-- Cultural norms: ${culture.norms || "Not specified"}
-- Religious considerations: ${culture.religious || "Not specified"}
-
-IMPORTANT RULES:
-1. Stay in character at all times. Respond as this real person would.
-2. Show genuine emotions, hesitations, and opinions — not robotic corporate-speak.
-3. If you disagree with something, say so naturally.
-4. Reference your lifestyle, experiences, and cultural context when relevant.
-5. Be specific in your responses, not generic.`;
+    // ── Build Persona System Prompt (shared MENA-aware builder) ──
+    const personaPrompt = buildPersonaPrompt(segment);
 
     const userPrompt = typeof stimulus === "string" 
       ? cleanStimulus 

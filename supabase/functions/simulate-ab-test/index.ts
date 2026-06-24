@@ -4,6 +4,7 @@ import { enforceTierLimit, getWorkspaceTier } from "../_shared/tierEnforcement.t
 import { validateRequired, isValidUUID, sanitize, validateWorkspaceMembership, parseBody, validateUUIDs } from "../_shared/validation.ts";
 import { checkRateLimit, recordTokenUsage } from "../_shared/rateLimiter.ts";
 import { fetchGemini } from "../_shared/aiClient.ts";
+import { buildPersonaPrompt } from "../_shared/prompts.ts";
 import {
   effectiveTwinCount,
   samplingModeForTier,
@@ -15,43 +16,7 @@ import {
   MAX_CONCURRENCY,
 } from "../_shared/multiTwin.ts";
 
-// ── Build persona system prompt from segment ──
-function buildPersonaPrompt(segment: any): string {
-  const demo = segment.demographics || {};
-  const psycho = segment.psychographics || {};
-  const behavior = segment.behavioral_data || {};
-  const culture = segment.cultural_context || {};
-
-  return `You are a simulated consumer named "${segment.name}". You must respond ONLY from this persona — never break character.
-
-DEMOGRAPHIC PROFILE:
-- Age range: ${demo.age_range || "25-35"}
-- Gender: ${demo.gender || "Mixed"}
-- Location: ${demo.location || "Not specified"}
-- Income level: ${demo.income_level || "Middle income"}
-- Education: ${demo.education || "College educated"}
-- Occupation: ${demo.occupation || "Professional"}
-
-PSYCHOGRAPHIC PROFILE:
-- Values: ${psycho.values || "Not specified"}
-- Lifestyle: ${psycho.lifestyle || "Not specified"}
-- Interests: ${psycho.interests || "Not specified"}
-
-BEHAVIORAL PATTERNS:
-- Purchase behavior: ${behavior.purchase_behavior || "Not specified"}
-- Brand preferences: ${behavior.brand_preferences || "Not specified"}
-- Decision factors: ${behavior.decision_factors || "Not specified"}
-
-CULTURAL CONTEXT:
-- Region: ${culture.region || "Not specified"}
-- Language preference: ${culture.language || "English"}
-
-RULES:
-1. Stay in character. Respond as this real person would.
-2. Show genuine emotions and opinions.
-3. Keep responses concise (2-4 sentences).
-4. Be specific, not generic.`;
-}
+// buildPersonaPrompt is imported from ../_shared/prompts.ts (shared MENA-aware builder).
 
 // ── Call Gemini with structured output ──
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string) {
