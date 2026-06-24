@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { ProductTour } from "@/components/onboarding/ProductTour";
 import { TOUR_TWINS } from "@/lib/tourDefinitions";
+import { SEGMENT_TEMPLATES, type SegmentTemplate } from "@/lib/segmentTemplates";
 
 const calibrationColor = (score: number | null) => {
   if (!score || score < 0.3) return "bg-red-500/20 text-red-400 border-red-500/30";
@@ -71,6 +72,7 @@ const SegmentLibrary = () => {
   const workspaceId = currentWorkspace?.id;
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -137,6 +139,27 @@ const SegmentLibrary = () => {
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const importMutation = useMutation({
+    mutationFn: async (tpl: SegmentTemplate) => {
+      const { error } = await supabase.from("segment_profiles").insert({
+        workspace_id: workspaceId!,
+        name: tpl.name,
+        description: tpl.description || null,
+        demographics: tpl.demographics,
+        psychographics: tpl.psychographics,
+        behavioral_data: tpl.behavioral_data,
+        cultural_context: tpl.cultural_context,
+        created_by: user!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["segment-profiles", workspaceId] });
+      toast({ title: "Template imported", description: "The segment is ready for simulations." });
+    },
+    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("segment_profiles").delete().eq("id", id);
@@ -180,6 +203,49 @@ const SegmentLibrary = () => {
               </Button>
             </>
           )}
+          <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Wand2 className="h-4 w-4 mr-2" />
+                Browse Templates
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Segment Templates</DialogTitle>
+                <DialogDescription>
+                  Import a ready-made consumer segment. MENA templates automatically get culture-aware twins.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 py-2">
+                {SEGMENT_TEMPLATES.map((tpl) => (
+                  <div key={tpl.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-sm">{tpl.name}</span>
+                        <Badge variant="secondary" className="text-[10px]">{tpl.category}</Badge>
+                        {tpl.cultural_context.region && (
+                          <Badge variant="outline" className="text-[10px]">{tpl.cultural_context.region}</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{tpl.description}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      disabled={importMutation.isPending}
+                      onClick={() => importMutation.mutate(tpl)}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Import
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button id="create-segment-btn">
