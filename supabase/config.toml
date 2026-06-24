@@ -77,13 +77,7 @@ verify_jwt = false
 [functions.disburse-incentive]
 verify_jwt = false
 
-[functions.check-budget]
-verify_jwt = false
-
 [functions.incentive-webhook]
-verify_jwt = false
-
-[functions.incentive-report]
 verify_jwt = false
 
 [functions.marketplace-handler]

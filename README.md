@@ -1,73 +1,46 @@
-# Welcome to your Lovable project
+# InsightForge
 
-## Project info
+InsightForge is a **hybrid consumer-research platform**. Researchers define **digital consumer twins** — AI personas grounded in demographics, psychographics, behavior, and (optionally) MENA cultural context — and run them through **simulated focus groups, solo interviews, and A/B tests** for directional feedback in minutes. The same workspace then **validates** high-stakes findings with real humans (surveys, recorded sessions, AI theme synthesis) and **calibrates** the twins against those real responses, so confidence compounds over time.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+The simulator is the headline; the real-human validation loop is the differentiator. Output is **qualitative signal surfaced with its uncertainty** (confidence, consensus, and per-segment spread) — not survey-grade statistics.
 
-## How can I edit this code?
+## Stack
 
-There are several ways of editing your application.
+- **Frontend:** Vite + React 18 + TypeScript, shadcn-ui (Radix), Tailwind CSS, React Router, TanStack Query — deployed on Vercel.
+- **Backend:** Supabase — Postgres with Row-Level Security, GoTrue auth (email/password + Google/GitHub/Twitter), Storage, and Deno **edge functions**.
+- **AI:** Google **Gemini 2.5 Flash** (via the OpenAI-compatible endpoint) for all simulations; Deepgram/Whisper for transcription.
+- **Billing:** Stripe subscriptions. **Analytics:** PostHog. **Payouts:** Tremendous (sandbox).
 
-**Use Lovable**
+## Local development
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm i            # install dependencies (Node >= 20, npm >= 10)
+npm run dev      # start the Vite dev server
+npm run test     # run the vitest unit/integration suite
+npm run build    # production build
+npm run lint     # eslint
 ```
 
-**Edit a file directly in GitHub**
+End-to-end tests run against a **local** Supabase stack (never prod) — see [`e2e/README.md`](e2e/README.md):
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+supabase start                 # local Postgres + GoTrue (Docker)
+cp .env.test.example .env.test # then paste the local key from `supabase status`
+npm run test:e2e               # Playwright; a fail-closed guard refuses non-localhost
+```
 
-**Use GitHub Codespaces**
+`npm run sync-types` regenerates `src/integrations/supabase/types.ts` from the live schema.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Tiers
 
-## What technologies are used for this project?
+| | Free $0 | Starter $49/mo | Professional $149/mo | Enterprise |
+|---|---|---|---|---|
+| AI tokens / month | 50,000 | 500,000 | 2,000,000 | 10,000,000 |
+| Twins / segment | 2 | 5 | 8 | 10 |
+| Members · Projects | 3 · 2 | 10 · 10 | 25 · 50 | unlimited |
 
-This project is built with:
+Limits live in `src/lib/tierLimits.ts`, mirrored for the edge layer in `supabase/functions/_shared/tierLimitsData.ts` (a parity test fails the suite if they diverge). The free tier includes a real AI trial — the 50K-token budget is the activation engine.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Canonical spec
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+[`docs/PRD.md`](docs/PRD.md) is the canonical product spec — the whole product described as a fully-functioning v1, with every requirement tagged LIVE / NEEDS-BUILD / PARKED / KILLED, plus a prioritized gap-to-v1 backlog. Read it before making non-trivial changes.
