@@ -732,7 +732,15 @@ const FocusGroupStudio = () => {
 
         {/* Right: Aggregate Panel */}
         <div className="space-y-4">
-          {result?.aggregate && (
+          {result?.aggregate && (() => {
+            const agg: any = result.aggregate;
+            const segmentCount: number = agg.participant_count ?? 0;
+            const sampleSize: number = agg.sample_size ?? segmentCount;
+            const sentimentStdev: number = Number(agg.sentiment_stdev) || 0;
+            const objectionRate: number | null = typeof agg.objection_rate === "number" ? agg.objection_rate : null;
+            const perSegment: any[] = Array.isArray(agg.per_segment) ? agg.per_segment : [];
+            const isMultiTwin = sampleSize > segmentCount;
+            return (
             <>
               <Card>
                 <CardHeader className="pb-2">
@@ -756,11 +764,14 @@ const FocusGroupStudio = () => {
                     </div>
                   </div>
 
-                  {/* Avg Sentiment */}
+                  {/* Avg Sentiment (± spread across twins when multi-twin) */}
                   <div className="flex items-center justify-between pt-2 border-t">
                     <span className="text-xs text-muted-foreground">Avg Sentiment</span>
                     <span className={`text-sm font-bold ${sentimentColor(result.aggregate.avg_sentiment)}`}>
                       {result.aggregate.avg_sentiment > 0 ? "+" : ""}{result.aggregate.avg_sentiment.toFixed(2)}
+                      {sentimentStdev > 0 && (
+                        <span className="text-[10px] font-normal text-muted-foreground ml-1">± {sentimentStdev.toFixed(2)}</span>
+                      )}
                     </span>
                   </div>
 
@@ -772,13 +783,66 @@ const FocusGroupStudio = () => {
                     </span>
                   </div>
 
-                  {/* Participants */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Participants</span>
-                    <span className="text-sm font-bold">{result.aggregate.participant_count}</span>
+                  {/* Objection rate (share of twins who pushed back) */}
+                  {objectionRate != null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Raised an objection</span>
+                      <span className="text-sm font-bold text-amber-500">{Math.round(objectionRate * 100)}%</span>
+                    </div>
+                  )}
+
+                  {/* Sample size — twins × segments (honest about N) */}
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-xs text-muted-foreground">Sample</span>
+                    <span className="text-sm font-bold">
+                      {isMultiTwin
+                        ? `${sampleSize} twins · ${segmentCount} segment${segmentCount === 1 ? "" : "s"}`
+                        : `${segmentCount} segment${segmentCount === 1 ? "" : "s"} · 1 twin each`}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Where the group splits — per-segment sentiment spread (the visible proof it's a group, not one answer) */}
+              {isMultiTwin && perSegment.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Where the group splits
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2.5">
+                    {perSegment.map((ps: any, i: number) => {
+                      const m = Math.max(-1, Math.min(1, Number(ps.avg_sentiment) || 0));
+                      const sd = Number(ps.sentiment_stdev) || 0;
+                      const leftPct = ((Math.max(-1, m - sd) + 1) / 2) * 100;
+                      const rightPct = ((Math.min(1, m + sd) + 1) / 2) * 100;
+                      const meanPct = ((m + 1) / 2) * 100;
+                      return (
+                        <div key={i} className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="font-medium truncate max-w-[55%]">{ps.segment_name || "Segment"}</span>
+                            <span className={`font-mono ${sentimentColor(m)}`}>
+                              {m > 0 ? "+" : ""}{m.toFixed(2)}
+                              {sd > 0 && <span className="text-muted-foreground"> ± {sd.toFixed(2)}</span>}
+                            </span>
+                          </div>
+                          <div className="relative h-1.5 w-full rounded-full bg-muted">
+                            <div
+                              className="absolute top-0 h-1.5 rounded-full bg-primary/25"
+                              style={{ left: `${leftPct}%`, width: `${Math.max(1, rightPct - leftPct)}%` }}
+                            />
+                            <div className="absolute top-[-2px] h-3 w-0.5 bg-primary" style={{ left: `${meanPct}%` }} />
+                          </div>
+                          <div className="text-[9px] text-muted-foreground text-right">{ps.sample_size ?? 0} twins</div>
+                        </div>
+                      );
+                    })}
+                    <p className="text-[9px] text-muted-foreground pt-1 border-t">Band = ±1 SD of sentiment within the segment; tick = mean. A wider band means less agreement.</p>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Top Themes */}
               {result.aggregate.top_themes?.length > 0 && (
@@ -818,7 +882,8 @@ const FocusGroupStudio = () => {
                 </CardContent>
               </Card>
             </>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>
