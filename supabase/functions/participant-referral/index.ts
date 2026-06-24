@@ -42,7 +42,7 @@ serve(async (req) => {
   const action = url.searchParams.get("action");
 
   // GET /participant-referral?action=get — return referral code + stats
-  if (req.method === "GET" && action === "get") {
+  if (req.method === "GET" && (action === "get" || !action)) {
     // Find or create the "open" referral slot (the participant's shareable code)
     let { data: existing } = await supabase
       .from("participant_referrals")

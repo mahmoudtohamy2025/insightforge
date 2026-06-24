@@ -62,7 +62,7 @@ export default function Earnings() {
   const { data, isLoading } = useQuery({
     queryKey: ["participant-earnings", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("participant-profile");
+      const { data, error } = await supabase.functions.invoke("participant-profile", { method: "GET" });
       if (error) throw error;
       return data as {
         earnings: {

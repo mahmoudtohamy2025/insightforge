@@ -31,7 +31,7 @@ export default function ParticipantProfile() {
   const { data, isLoading } = useQuery({
     queryKey: ["participant-profile", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("participant-profile");
+      const { data, error } = await supabase.functions.invoke("participant-profile", { method: "GET" });
       if (error) throw error;
       return data;
     },
@@ -77,6 +77,7 @@ export default function ParticipantProfile() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("participant-profile", {
+        method: "PATCH",
         body: form,
       });
       if (error) throw error;

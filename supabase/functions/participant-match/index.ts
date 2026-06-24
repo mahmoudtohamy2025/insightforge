@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
     let notifiedCount = 0;
     for (const match of topMatches) {
       try {
-        await supabaseAdmin.from("notifications").insert({
+        await supabaseAdmin.from("participant_notifications").insert({
           user_id: match.user_id,
           title: "New Study Match! 🎯",
           message: `"${study.title}" matches your profile. Reward: $${(study.reward_amount_cents / 100).toFixed(2)} for ${study.estimated_minutes} min.`,

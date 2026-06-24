@@ -18,7 +18,7 @@ export function ProfileCompletionBanner() {
   const { data: profileData } = useQuery({
     queryKey: ["participant-completion-banner", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.functions.invoke("participant-profile");
+      const { data } = await supabase.functions.invoke("participant-profile", { method: "GET" });
       return data?.profile as Record<string, unknown> | null;
     },
     enabled: !!user,

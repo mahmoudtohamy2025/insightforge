@@ -37,7 +37,7 @@ export default function Impact() {
   const { data, isLoading } = useQuery({
     queryKey: ["participant-impact", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("participant-impact");
+      const { data, error } = await supabase.functions.invoke("participant-impact", { method: "GET" });
       if (error) throw error;
       return data as {
         reputation: Record<string, unknown> | null;

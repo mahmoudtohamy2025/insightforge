@@ -89,6 +89,7 @@ export default function ParticipantSignup() {
 
       if (Object.keys(profileUpdates).length > 0) {
         await supabase.functions.invoke("participant-profile", {
+          method: "PATCH",
           body: profileUpdates,
           headers: { "Content-Type": "application/json" },
         });

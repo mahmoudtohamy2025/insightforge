@@ -74,7 +74,7 @@ export default function StudyFeed() {
   const { data: studies = [], isLoading } = useQuery({
     queryKey: ["participant-studies"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("study-listing");
+      const { data, error } = await supabase.functions.invoke("study-listing", { method: "GET" });
       if (error) throw error;
       return (data?.studies || []) as StudyListing[];
     },

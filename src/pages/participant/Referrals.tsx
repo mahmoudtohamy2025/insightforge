@@ -36,7 +36,7 @@ export default function Referrals() {
     queryKey: ["participant-referral"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("participant-referral", {
-        headers: {},
+        method: "GET",
       });
       if (error) throw error;
       return data as ReferralData;
