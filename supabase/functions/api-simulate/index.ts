@@ -78,7 +78,7 @@ Deno.serve(async (req: any) => {
     if (!type) {
       return jsonResponse(req, {
         error: "Missing 'type' parameter",
-        valid_types: ["solo", "focus_group", "ab_test", "market_sim", "policy"],
+        valid_types: ["solo", "focus_group", "ab_test"],
       }, 400);
     }
 
@@ -95,8 +95,6 @@ Deno.serve(async (req: any) => {
       solo: "simulate",
       focus_group: "simulate-focus-group",
       ab_test: "simulate-ab-test",
-      market_sim: "simulate-market",
-      policy: "simulate-policy",
     };
 
     const targetFunction = functionMap[type];

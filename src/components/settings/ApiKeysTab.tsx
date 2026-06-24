@@ -42,7 +42,7 @@ export function ApiKeysTab({ workspaceId }: ApiKeysTabProps) {
     queryKey: ["api-keys", workspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("api_keys")
+        .from("workspace_api_keys")
         .select("*")
         .eq("workspace_id", workspaceId)
         .order("created_at", { ascending: false });
@@ -68,12 +68,12 @@ export function ApiKeysTab({ workspaceId }: ApiKeysTabProps) {
       // Create hint
       const keyHint = `sk_live_...${rawKey.slice(-4)}`;
 
-      const { data, error } = await supabase.from("api_keys").insert({
+      const { data, error } = await supabase.from("workspace_api_keys").insert({
         workspace_id: workspaceId,
         created_by: user.id,
         name,
         key_hash: keyHash,
-        key_hint: keyHint,
+        key_prefix: rawKey.slice(0, 8),
       }).select().single();
 
       if (error) throw error;
@@ -99,7 +99,7 @@ export function ApiKeysTab({ workspaceId }: ApiKeysTabProps) {
 
   const deleteKeyMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("api_keys").delete().eq("id", id);
+      const { error } = await supabase.from("workspace_api_keys").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -213,7 +213,7 @@ export function ApiKeysTab({ workspaceId }: ApiKeysTabProps) {
                   <div className="space-y-1">
                     <p className="font-medium text-sm">{key.name}</p>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
-                      <span>{key.key_hint}</span>
+                      <span>{key.key_prefix}…</span>
                       <span>•</span>
                       <span>Created {format(new Date(key.created_at || ""), "MMM d, yyyy")}</span>
                     </div>
@@ -251,12 +251,10 @@ export function ApiKeysTab({ workspaceId }: ApiKeysTabProps) {
   -H "X-API-Key: sk_live_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "type": "market_sim",
+    "type": "focus_group",
     "segment_ids": ["uuid-1", "uuid-2"],
-    "product": "Premium coffee subscription",
-    "pricing": "14.99",
-    "market_size": 500000,
-    "time_horizon_months": 24
+    "stimulus": "A $9/month app that summarizes your group chats",
+    "num_rounds": 1
   }'`}</code></pre>
             </div>
             <div className="space-y-3">
@@ -267,11 +265,10 @@ resp = requests.post(
     "https://xwjvsmwefbukaswkwpbf.supabase.co/functions/v1/api-simulate",
     headers={"X-API-Key": "sk_live_YOUR_KEY"},
     json={
-        "type": "policy",
-        "segment_ids": ["uuid-1"],
-        "policy_description": "Ban single-use plastics by 2028",
-        "impact_areas": ["environment", "economy"],
-        "severity": "high"
+        "type": "ab_test",
+        "segment_ids": ["uuid-1", "uuid-2"],
+        "variant_a": "Free for 14 days",
+        "variant_b": "50% off your first month"
     }
 )
 print(resp.json())`}</code></pre>
@@ -282,8 +279,6 @@ print(resp.json())`}</code></pre>
                 <li><code className="bg-muted px-1 rounded">solo</code> — Single twin query</li>
                 <li><code className="bg-muted px-1 rounded">focus_group</code> — Multi-twin discussion</li>
                 <li><code className="bg-muted px-1 rounded">ab_test</code> — A/B variant comparison</li>
-                <li><code className="bg-muted px-1 rounded">market_sim</code> — Adoption curves &amp; revenue</li>
-                <li><code className="bg-muted px-1 rounded">policy</code> — Policy impact assessment</li>
               </ul>
             </div>
           </CardContent>
