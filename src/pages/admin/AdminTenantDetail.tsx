@@ -25,6 +25,7 @@ export default function AdminTenantDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("overview");
+  const [confirmDelete, setConfirmDelete] = useState("");
 
   const { data: ws, isLoading } = useQuery({
     queryKey: ["admin-tenant-detail", id],
@@ -142,6 +143,21 @@ export default function AdminTenantDetail() {
       queryClient.invalidateQueries({ queryKey: ["admin-tenant-detail", id] });
       toast.success(`Workspace ${status === "active" ? "activated" : "suspended"}`);
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("admin-delete-workspace", {
+        body: { workspace_id: id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      toast.success("Workspace deleted");
+      navigate("/admin/tenants");
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const profileMap = profiles.reduce((a: Record<string, string>, p: any) => { a[p.id] = p.full_name || "—"; return a; }, {});
@@ -437,9 +453,24 @@ export default function AdminTenantDetail() {
 
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
               <div className="text-sm font-semibold text-red-400 mb-1">Delete Workspace</div>
-              <div className="text-xs text-red-600">
-                Permanent deletion is not yet available from the console. Perform it directly against the database (the <code>workspaces</code> row cascades) to avoid an accidental partial delete.
+              <div className="text-xs text-red-600 mb-3">
+                Permanently deletes this workspace and all its data (cascade). This cannot be undone. Type <span className="font-mono text-red-300">{ws.name}</span> to confirm.
               </div>
+              <input
+                type="text"
+                placeholder={`Type "${ws.name}" to confirm`}
+                value={confirmDelete}
+                onChange={e => setConfirmDelete(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-900 border border-red-800/50 rounded-lg text-sm text-white mb-3 focus:outline-none"
+              />
+              <button
+                disabled={confirmDelete !== ws.name || deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed text-red-400 rounded-lg text-sm transition-colors inline-flex items-center gap-2"
+              >
+                {deleteMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Delete Workspace Permanently
+              </button>
             </div>
           </div>
         )}

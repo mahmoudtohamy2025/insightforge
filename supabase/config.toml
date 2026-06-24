@@ -124,3 +124,8 @@ verify_jwt = true
 # stripe-webhook). Pairs with the B2 key-table unification fix.
 [functions.api-simulate]
 verify_jwt = false
+
+# Super-admin workspace deletion (A10) — verify_jwt=false: authenticates in-code
+# (getUser + super_admins gate) then deletes with the service role.
+[functions.admin-delete-workspace]
+verify_jwt = false
