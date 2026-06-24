@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { Shield, ShieldAlert, FileText, Download, Fingerprint, Lock, Server } from "lucide-react";
+import { Shield, ShieldAlert, FileText, Fingerprint, Lock, Server } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -80,15 +80,9 @@ export default function TrustCenter() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
-          <div>
-            <CardTitle className="text-lg">Audit Log</CardTitle>
-            <CardDescription>Append-only record of all critical workspace activities.</CardDescription>
-          </div>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
+        <CardHeader className="border-b pb-4">
+          <CardTitle className="text-lg">Audit Log</CardTitle>
+          <CardDescription>Append-only record of all critical workspace activities.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>

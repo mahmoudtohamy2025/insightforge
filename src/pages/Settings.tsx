@@ -5,15 +5,12 @@ import { WorkspaceTab } from "@/components/settings/WorkspaceTab";
 import { TeamTab } from "@/components/settings/TeamTab";
 import { BillingTab } from "@/components/settings/BillingTab";
 import { ActivityTab } from "@/components/settings/ActivityTab";
-import { ApiKeysTab } from "@/components/settings/ApiKeysTab";
-import { ReferralsTab } from "@/components/settings/ReferralsTab";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
 const Settings = () => {
   const { t } = useI18n();
   const { currentWorkspace } = useWorkspace();
 
-  const isAdminOrOwner = currentWorkspace?.role === "owner" || currentWorkspace?.role === "admin";
   const isOwner = currentWorkspace?.role === "owner";
 
   return (
@@ -27,8 +24,6 @@ const Settings = () => {
           <TabsTrigger value="team">{t("settings.team")}</TabsTrigger>
           <TabsTrigger value="billing">{t("settings.billing")}</TabsTrigger>
           <TabsTrigger value="activity">{t("activity.title")}</TabsTrigger>
-          {isAdminOrOwner && <TabsTrigger value="api">{"API & Webhooks"}</TabsTrigger>}
-          <TabsTrigger value="referrals">Referrals <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold">NEW</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6 mt-4">
@@ -50,16 +45,6 @@ const Settings = () => {
         <TabsContent value="activity" className="space-y-6 mt-4">
           <ActivityTab workspaceId={currentWorkspace?.id} t={t} />
         </TabsContent>
-
-        <TabsContent value="referrals" className="space-y-6 mt-4">
-          <ReferralsTab workspaceId={currentWorkspace?.id} />
-        </TabsContent>
-
-        {isAdminOrOwner && currentWorkspace && (
-          <TabsContent value="api" className="space-y-6 mt-4">
-            <ApiKeysTab workspaceId={currentWorkspace.id} />
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );
