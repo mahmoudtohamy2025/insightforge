@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Settings, Shield, Zap, Globe, Database, Bell, Save, Loader2 } from "lucide-react";
+import { Settings, Shield, Zap, Globe, Database, Bell, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const TIER_LIMITS = {
@@ -32,7 +32,18 @@ const DEFAULT_FLAGS: FeatureFlag[] = [
 
 export default function AdminSystem() {
   const queryClient = useQueryClient();
-  const [flags, setFlags] = useState<FeatureFlag[]>(DEFAULT_FLAGS);
+  // Feature flags persist in platform_config (super-admin RLS). Cast to any: the
+  // table is added by migration 20260624000003 and lands in generated types after
+  // the next `sync-types`; until then we read/write it untyped.
+  const { data: configRows = [] } = useQuery({
+    queryKey: ["platform-config"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("platform_config").select("key, enabled");
+      return (data ?? []) as { key: string; enabled: boolean }[];
+    },
+  });
+  const configMap = configRows.reduce((a: Record<string, boolean>, r) => { a[r.key] = r.enabled; return a; }, {});
+  const flags: FeatureFlag[] = DEFAULT_FLAGS.map(f => ({ ...f, enabled: configMap[f.key] ?? f.enabled }));
   const [activeTab, setTab] = useState<"flags" | "tiers" | "admins">("flags");
 
   const { data: superAdmins = [], isLoading: loadingAdmins } = useQuery({
@@ -98,8 +109,19 @@ export default function AdminSystem() {
 
   const profileMap = profiles.reduce((a: Record<string, string>, p: any) => { a[p.id] = p.full_name || "—"; return a; }, {});
 
+  const toggleFlagMutation = useMutation({
+    mutationFn: async ({ key, enabled }: { key: string; enabled: boolean }) => {
+      const { error } = await (supabase as any)
+        .from("platform_config")
+        .upsert({ key, enabled, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["platform-config"] }),
+    onError: (e: any) => toast.error(e.message),
+  });
   const toggleFlag = (key: string) => {
-    setFlags(prev => prev.map(f => f.key === key ? { ...f, enabled: !f.enabled } : f));
+    const current = configMap[key] ?? DEFAULT_FLAGS.find(f => f.key === key)?.enabled ?? true;
+    toggleFlagMutation.mutate({ key, enabled: !current });
   };
 
   return (
@@ -146,13 +168,7 @@ export default function AdminSystem() {
       {activeTab === "flags" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-600">Changes are local UI state — connect to a platform_config table to persist.</p>
-            <button
-              onClick={() => toast.success("Feature flags saved (UI only)")}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 rounded-lg text-sm transition-colors"
-            >
-              <Save className="h-3.5 w-3.5" /> Save Flags
-            </button>
+            <p className="text-xs text-slate-600">Toggles persist immediately to platform_config (super-admin only).</p>
           </div>
           {flags.map(flag => (
             <div
