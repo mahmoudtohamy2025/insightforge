@@ -101,3 +101,26 @@ verify_jwt = true
 
 [functions.simulate-ab-test]
 verify_jwt = true
+
+# Remaining simulation engines — pinned to their confirmed-live posture
+# (verify_jwt=true; called from the app with the user's Supabase JWT, or the
+# anon JWT for the public demo) so a CLI deploy can't silently flip their auth.
+[functions.simulate]
+verify_jwt = true
+
+[functions.seed-from-idea]
+verify_jwt = true
+
+[functions.suggest-next-test]
+verify_jwt = true
+
+[functions.public-demo-simulate]
+verify_jwt = true
+
+# Programmatic API gateway — MUST be verify_jwt=false: external callers
+# authenticate with the X-API-Key header (validated in-code against
+# workspace_api_keys), NOT a Supabase JWT. With verify_jwt=true the gateway
+# would 401 every API call before the function runs (same rationale as
+# stripe-webhook). Pairs with the B2 key-table unification fix.
+[functions.api-simulate]
+verify_jwt = false
