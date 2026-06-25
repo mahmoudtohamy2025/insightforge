@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ArrowLeft, Building2, Users, Cpu, Zap, Key, Palette,
+  ArrowLeft, Building2, Users, Cpu, Zap, Key,
   ShieldCheck, AlertTriangle, Loader2, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -15,7 +15,6 @@ const TABS = [
   { id: "members", label: "Members", icon: Users },
   { id: "simulations", label: "Simulations", icon: Cpu },
   { id: "api-keys", label: "API Keys", icon: Key },
-  { id: "branding", label: "Branding", icon: Palette },
   { id: "audit", label: "Audit Log", icon: ShieldCheck },
   { id: "danger", label: "Danger Zone", icon: AlertTriangle },
 ];
@@ -78,19 +77,6 @@ export default function AdminTenantDetail() {
         .select("id, name, key_prefix, scopes, is_active, requests_count, last_used_at, created_at")
         .eq("workspace_id", id!);
       return data ?? [];
-    },
-    enabled: !!id,
-  });
-
-  const { data: branding } = useQuery({
-    queryKey: ["admin-tenant-branding", id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("workspace_branding")
-        .select("*")
-        .eq("workspace_id", id!)
-        .single();
-      return data;
     },
     enabled: !!id,
   });
@@ -370,39 +356,6 @@ export default function AdminTenantDetail() {
           </div>
         )}
 
-        {/* Branding */}
-        {tab === "branding" && (
-          <div className="space-y-4">
-            {branding ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  {[
-                    ["Brand Name", branding.brand_name],
-                    ["Primary Color", branding.primary_color],
-                    ["Accent Color", branding.accent_color],
-                    ["Font", branding.font_family],
-                    ["Custom Domain", branding.custom_domain || "—"],
-                    ["Hide IF Branding", branding.hide_insightforge_branding ? "Yes" : "No"],
-                    ["Footer Text", branding.footer_text],
-                  ].map(([k, v]) => (
-                    <div key={k as string} className="flex justify-between text-sm border-b border-slate-800/50 pb-2">
-                      <span className="text-slate-500">{k}</span>
-                      <span className="text-slate-200">{v as string}</span>
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 mb-3">Color Preview</div>
-                  <div className="h-24 rounded-xl border border-slate-700 flex items-center justify-center" style={{ background: branding.primary_color }}>
-                    <span className="text-white font-semibold">{branding.brand_name}</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-slate-500 text-sm text-center py-8">No branding configured for this workspace.</div>
-            )}
-          </div>
-        )}
 
         {/* Audit Log */}
         {tab === "audit" && (

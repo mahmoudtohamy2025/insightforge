@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       api_keys: {
@@ -1042,6 +1067,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_config: {
+        Row: {
+          enabled: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -2503,106 +2549,6 @@ export type Database = {
           },
         ]
       }
-      workspace_branding: {
-        Row: {
-          accent_color: string
-          brand_name: string
-          custom_domain: string | null
-          font_family: string | null
-          footer_text: string | null
-          hide_insightforge_branding: boolean | null
-          id: string
-          logo_url: string | null
-          primary_color: string
-          updated_at: string | null
-          updated_by: string | null
-          workspace_id: string
-        }
-        Insert: {
-          accent_color?: string
-          brand_name?: string
-          custom_domain?: string | null
-          font_family?: string | null
-          footer_text?: string | null
-          hide_insightforge_branding?: boolean | null
-          id?: string
-          logo_url?: string | null
-          primary_color?: string
-          updated_at?: string | null
-          updated_by?: string | null
-          workspace_id: string
-        }
-        Update: {
-          accent_color?: string
-          brand_name?: string
-          custom_domain?: string | null
-          font_family?: string | null
-          footer_text?: string | null
-          hide_insightforge_branding?: boolean | null
-          id?: string
-          logo_url?: string | null
-          primary_color?: string
-          updated_at?: string | null
-          updated_by?: string | null
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_branding_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: true
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workspace_integrations: {
-        Row: {
-          config: Json | null
-          connected_at: string | null
-          connected_by: string | null
-          created_at: string | null
-          id: string
-          integration_type: string
-          last_sync_at: string | null
-          status: string
-          updated_at: string | null
-          workspace_id: string
-        }
-        Insert: {
-          config?: Json | null
-          connected_at?: string | null
-          connected_by?: string | null
-          created_at?: string | null
-          id?: string
-          integration_type: string
-          last_sync_at?: string | null
-          status?: string
-          updated_at?: string | null
-          workspace_id: string
-        }
-        Update: {
-          config?: Json | null
-          connected_at?: string | null
-          connected_by?: string | null
-          created_at?: string | null
-          id?: string
-          integration_type?: string
-          last_sync_at?: string | null
-          status?: string
-          updated_at?: string | null
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_integrations_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       workspace_memberships: {
         Row: {
           created_at: string | null
@@ -2850,6 +2796,7 @@ export type Database = {
         Returns: boolean
       }
       keep_warm: { Args: never; Returns: undefined }
+      run_retention_cleanup: { Args: never; Returns: undefined }
       search_transcripts: {
         Args: { search_query: string; ws_id: string }
         Returns: {
@@ -2989,6 +2936,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["owner", "admin", "researcher", "observer"],
